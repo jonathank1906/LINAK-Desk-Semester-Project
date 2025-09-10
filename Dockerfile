@@ -1,9 +1,15 @@
-FROM node:24
+FROM python:3.13.7-alpine3.22
 
-COPY ./frontend /frontend
-RUN rm -rf /frontend/node_modules
+ENV PYTHONUNBUFFERED 1
 
-WORKDIR /frontend
-RUN npm ci
+COPY ./requirements.txt /requirements.txt
+COPY ./backend /backend
+WORKDIR /backend
 
-CMD ["npm", "run", "dev"]
+RUN python -m venv env /py && \
+    /py/bin/pip install --upgrade pip && \
+    /py/bin/pip install -r /requirements.txt
+
+ENV PATH="/py/bin:$PATH"
+
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
