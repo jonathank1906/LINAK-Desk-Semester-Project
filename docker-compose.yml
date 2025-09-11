@@ -20,6 +20,17 @@ services:
       - 8000:8000
     volumes:
       - ./backend:/backend
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    environment:
+      - DB_HOST=db
+      - DB_NAME=db
+      - DB_USER=user
+      - DB_PASS=localdevpw
+    depends_on:
+      db:
+        condition: service_healthy
 
   db:
     image: postgres:17.6
