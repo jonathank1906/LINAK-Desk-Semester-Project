@@ -10,25 +10,44 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
+import { useState } from "react"
+import { login } from "../endpoints/api"
+
+
 export function LoginForm({
   className,
   ...props
 }) {
+
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
+
+  const handleLogin = async (e) => {
+    e.preventDefault(); // prevent form submission
+    try {
+      const data = await login(username, password);
+      console.log("Logged in:", data);
+      // redirect or update UI here
+    } catch (err) {
+      console.error("Login failed:", err);
+    }
+  };
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader>
           <CardTitle>Login to your account</CardTitle>
           <CardDescription>
-            Enter your email below to login to your account
+            Enter your username to login to your account
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form>
             <div className="flex flex-col gap-6">
               <div className="grid gap-3">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="m@example.com" required />
+                <Label htmlFor="username">Username</Label>
+                <Input onChange={(e) => setUsername(e.target.value)} value={username} id="email" type="email" required />
               </div>
               <div className="grid gap-3">
                 <div className="flex items-center">
@@ -39,10 +58,10 @@ export function LoginForm({
                     Forgot your password?
                   </a>
                 </div>
-                <Input id="password" type="password" required />
+                <Input onChange={(e) => setPassword(e.target.value)} value={password} id="password" type="password" required />
               </div>
               <div className="flex flex-col gap-3">
-                <Button type="submit" className="w-full">
+                <Button onClick={handleLogin} type="submit" className="w-full">
                   Login
                 </Button>
               </div>
