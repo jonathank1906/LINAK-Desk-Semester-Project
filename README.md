@@ -8,3 +8,4 @@
 ![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
+![Shadcn/ui](https://img.shields.io/badge/shadcn/ui-131316?logo=shadcnui&logoColor=white)
