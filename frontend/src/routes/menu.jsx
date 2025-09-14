@@ -23,9 +23,6 @@ const Menu = () => {
             <main>
                 {user.is_staff ? <AdminDashboard /> : <EmployeeDashboard />}
             </main>
-            <footer>
-                <Button onClick={handleLogout}>Log out</Button>
-            </footer>
         </div>
     );
 }
