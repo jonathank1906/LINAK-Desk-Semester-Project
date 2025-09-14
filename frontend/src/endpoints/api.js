@@ -7,8 +7,34 @@ const REGISTER_URL = `${BASE_URL}register/`
 const LOGOUT_URL = `${BASE_URL}logout/`
 const NOTES_URL = `${BASE_URL}todos/`
 const AUTHENTICATED_URL = `${BASE_URL}authenticated/`
+const REFRESH_URL = `${BASE_URL}token/refresh/`
 
 axios.defaults.withCredentials = true; 
+
+axios.interceptors.response.use(
+    response => response,
+    async error => {
+        const originalRequest = error.config;
+        if (
+            error.response &&
+            error.response.status === 401 &&
+            !originalRequest._retry
+        ) {
+            originalRequest._retry = true;
+            try {
+                // Attempt to refresh the access token
+                await axios.post(REFRESH_URL, {}, { withCredentials: true });
+                // Retry the original request
+                return axios(originalRequest);
+            } catch (refreshError) {
+                // Refresh failed, redirect to login or handle as needed
+                window.location.href = '/login';
+                return Promise.reject(refreshError);
+            }
+        }
+        return Promise.reject(error);
+    }
+);
 
 export const login = async (username, password) => {
     try {
