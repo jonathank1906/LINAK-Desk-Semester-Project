@@ -14,6 +14,7 @@ export const AuthProvider = ({ children }) => {
   const get_authenticated_user = async () => {
     try {
       const user = await authenticated_user();
+      console.log("Authenticated user:", user); 
       setUser(user);
     } catch (error) {
       setUser(null); // If the request fails, set the user to null

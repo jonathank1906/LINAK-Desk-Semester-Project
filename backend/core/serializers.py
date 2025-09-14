@@ -24,7 +24,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['username']
+        fields = ['username', 'is_staff']
 
 class TodoSerializer(serializers.ModelSerializer):
     class Meta:
