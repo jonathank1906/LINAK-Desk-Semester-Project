@@ -53,7 +53,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 samesite='None',
                 path='/'
             )
-            res.data.update(tokens)
+            
             return res
         
         except Exception as e:
@@ -100,7 +100,7 @@ def logout(request):
         res = Response()
         res.data = {'success':True}
         res.delete_cookie('access_token', path='/', samesite='None')
-        res.delete_cookie('response_token', path='/', samesite='None')
+        res.delete_cookie('refresh_token', path='/', samesite='None')
 
         return res
 
