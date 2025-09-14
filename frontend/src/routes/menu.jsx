@@ -1,23 +1,33 @@
 import { Button } from "@/components/ui/button"
-import { logout} from '../endpoints/api';
+import { useAuth } from "@/contexts/useAuth";
 import { useNavigate } from 'react-router-dom';
+import AdminDashboard from "./AdminDashboard"; // Import your real admin dashboard
+
+function EmployeeDashboard() {
+    return <div>Employee Dashboard</div>;
+}
 
 const Menu = () => {
+    const { user, loading, logoutUser } = useAuth();
     const nav = useNavigate();
 
     const handleLogout = async () => {
-        const success = await logout();
-        if (success) {
-            nav('/login');
-        }
+        await logoutUser();
     }
 
+    if (loading) return <div>Loading...</div>;
+    if (!user) return <div>No user found.</div>;
+
     return (
-        <Button onClick={handleLogout}>Log out</Button>
-    )
+        <div>
+            <main>
+                {user.is_staff ? <AdminDashboard /> : <EmployeeDashboard />}
+            </main>
+            <footer>
+                <Button onClick={handleLogout}>Log out</Button>
+            </footer>
+        </div>
+    );
 }
-
-
-
 
 export default Menu;
