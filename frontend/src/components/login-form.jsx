@@ -24,7 +24,8 @@ export function LoginForm({
   const { loginUser } = useAuth();
 
 
-  const handleLogin = async () => {
+  const handleLogin = async (e) => {
+    e.preventDefault();
     await loginUser(username, password)
   }
 
@@ -42,7 +43,7 @@ export function LoginForm({
             <div className="flex flex-col gap-6">
               <div className="grid gap-3">
                 <Label htmlFor="username">Username</Label>
-                <Input onChange={(e) => setUsername(e.target.value)} value={username} id="email" type="email" required />
+                <Input onChange={(e) => setUsername(e.target.value)} value={username} id="username" type="text" required />
               </div>
               <div className="grid gap-3">
                 <div className="flex items-center">
