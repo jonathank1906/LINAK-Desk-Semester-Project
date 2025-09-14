@@ -26,7 +26,11 @@ export function LoginForm({
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    await loginUser(username, password)
+    const success = await loginUser(username, password)
+    if (!success) {
+      setUsername("")
+      setPassword("")
+    }
   }
 
   return (
