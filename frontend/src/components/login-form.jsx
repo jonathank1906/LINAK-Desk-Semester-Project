@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { useState } from "react"
-import { login } from "../endpoints/api"
+import { useAuth } from '../contexts/useAuth';
 
 
 export function LoginForm({
@@ -21,17 +21,12 @@ export function LoginForm({
 
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
+  const { loginUser } = useAuth();
 
-  const handleLogin = async (e) => {
-    e.preventDefault(); // prevent form submission
-    try {
-      const data = await login(username, password);
-      console.log("Logged in:", data);
-      // redirect or update UI here
-    } catch (err) {
-      console.error("Login failed:", err);
-    }
-  };
+
+  const handleLogin = async () => {
+    await loginUser(username, password)
+  }
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
