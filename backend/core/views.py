@@ -6,8 +6,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 
-from .models import Todo
-from .serializers import TodoSerializer, UserRegisterSerializer, UserSerializer
+from .serializers import UserRegisterSerializer, UserSerializer
 
 from datetime import datetime, timedelta
 
@@ -107,14 +106,6 @@ def logout(request):
     except Exception as e:
         print(e)
         return Response({'success':False})
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_todos(request):
-    user = request.user
-    todos = Todo.objects.filter(owner=user)
-    serializer = TodoSerializer(todos, many=True)
-    return Response(serializer.data)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
