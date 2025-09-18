@@ -14,12 +14,25 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { ModeToggle } from "@/components/mode-toggle"
+import { NavUser } from "@/components/nav-user"
+
+
+const data = {
+  user: {
+    name: "User",
+    email: "m@example.com",
+    avatar: "https://img.freepik.com/premium-vector/character-avatar-isolated_729149-194801.jpg",
+  },
+}
 
 export default function AdminDashboard() {
   return (
     <SidebarProvider>
       <div className="absolute top-4 right-4 z-50">
-        <ModeToggle />
+        <div className="flex items-center gap-3">
+          <ModeToggle />
+          <NavUser user={data.user} />
+        </div>
       </div>
       <AppSidebar />
       <SidebarInset>

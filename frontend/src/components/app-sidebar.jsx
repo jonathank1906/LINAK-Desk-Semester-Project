@@ -19,7 +19,7 @@ import {
 
 import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
-import { NavUser } from "@/components/nav-user"
+
 import {
   Sidebar,
   SidebarContent,
@@ -31,11 +31,6 @@ import {
 } from "@/components/ui/sidebar"
 
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
   navMain: [
     {
       title: "Dashboard",
@@ -136,9 +131,6 @@ export function AppSidebar({
         <NavMain items={data.navMain} />
         <NavDocuments items={data.documents} />
       </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={data.user} />
-      </SidebarFooter>
     </Sidebar>
   );
 }
