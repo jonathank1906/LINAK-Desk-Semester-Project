@@ -86,7 +86,7 @@ export function NavUser({ user }) {
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={handleLogout}>
               <IconLogout/>
-              Log out
+              Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

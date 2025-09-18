@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/useAuth";
 import { useNavigate } from 'react-router-dom';
-import AdminDashboard from "./AdminDashboard"; // Import your real admin dashboard
+import AdminDashboard from "./Admin/AdminDashboard"; // Import your real admin dashboard
 
 function EmployeeDashboard() {
     return <div>Employee Dashboard</div>;
