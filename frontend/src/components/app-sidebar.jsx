@@ -30,12 +30,16 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-const data = {
-  navMain: [
+export function AppSidebar({
+  onSectionSelect,
+  ...props
+}) {
+  const navMain = [
     {
       title: "Dashboard",
       url: "#",
       icon: IconDashboard,
+      onClick: () => onSectionSelect?.("dashboard"),
     },
     {
       title: "Analytics",
@@ -46,57 +50,11 @@ const data = {
       title: "Users",
       url: "#",
       icon: IconUsers,
+      onClick: () => onSectionSelect?.("users"),
     },
-  ],
-  navClouds: [
-    {
-      title: "Capture",
-      icon: IconCamera,
-      isActive: true,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Proposal",
-      icon: IconFileDescription,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Prompts",
-      icon: IconFileAi,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-  ],
-  documents: [
+  ];
+
+  const documents = [
     {
       name: "Data Library",
       url: "#",
@@ -107,19 +65,15 @@ const data = {
       url: "#",
       icon: IconReport,
     },
-  ],
-}
+  ];
 
-export function AppSidebar({
-  ...props
-}) {
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:!p-1.5">
-              <a href="#">
+              <a href="#" onClick={() => onSectionSelect?.("dashboard")}>
                 <IconInnerShadowTop className="!size-5" />
                 <span className="text-base font-semibold">Desk App</span>
               </a>
@@ -128,8 +82,8 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
+        <NavMain items={navMain} />
+        <NavDocuments items={documents} />
       </SidebarContent>
     </Sidebar>
   );
