@@ -19,7 +19,6 @@ import {
 
 import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
@@ -49,7 +48,7 @@ const data = {
       icon: IconChartBar,
     },
     {
-      title: "Team",
+      title: "Users",
       url: "#",
       icon: IconUsers,
     },
@@ -102,13 +101,6 @@ const data = {
       ],
     },
   ],
-  navSecondary: [
-    {
-      title: "Settings",
-      url: "#",
-      icon: IconSettings,
-    },
-  ],
   documents: [
     {
       name: "Data Library",
@@ -143,7 +135,6 @@ export function AppSidebar({
       <SidebarContent>
         <NavMain items={data.navMain} />
         <NavDocuments items={data.documents} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={data.user} />

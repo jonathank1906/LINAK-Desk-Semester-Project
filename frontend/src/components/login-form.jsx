@@ -38,9 +38,6 @@ export function LoginForm({
       <Card>
         <CardHeader>
           <CardTitle>Sign in to your account</CardTitle>
-          <CardDescription>
-            Enter your username to login to your account
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <form>
@@ -55,7 +52,7 @@ export function LoginForm({
                   <a
                     href="#"
                     className="ml-auto inline-block text-sm underline-offset-4 hover:underline">
-                    Forgot your password?
+                    Forgot password?
                   </a>
                 </div>
                 <Input onChange={(e) => setPassword(e.target.value)} value={password} id="password" type="password" required />
