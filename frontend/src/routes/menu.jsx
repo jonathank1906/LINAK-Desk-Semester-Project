@@ -21,7 +21,7 @@ const Menu = () => {
     return (
         <div>
             <main>
-                {user.is_staff ? <AdminDashboard /> : <EmployeeDashboard />}
+                {user.is_admin ? <AdminDashboard /> : <EmployeeDashboard />}
             </main>
         </div>
     );

@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label"
 
 import { useState } from "react"
 import { useAuth } from '../contexts/useAuth';
-
+import { Link } from "react-router-dom"
 
 export function LoginForm({
   className,
@@ -49,11 +49,11 @@ export function LoginForm({
               <div className="grid gap-3">
                 <div className="flex items-center">
                   <Label htmlFor="password">Password</Label>
-                  <a
-                    href="#"
+                  <Link
+                    to="/reset-password"
                     className="ml-auto inline-block text-sm underline-offset-4 hover:underline">
                     Forgot password?
-                  </a>
+                  </Link>
                 </div>
                 <Input onChange={(e) => setPassword(e.target.value)} value={password} id="password" type="password" required />
               </div>
