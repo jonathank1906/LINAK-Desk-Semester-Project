@@ -19,7 +19,7 @@ import { useState } from "react"
 import UserManagement from "./UserManagement" //
 import {
   IconUsers,
-  IconCalendarCheck,
+  IconDesk,
   IconClock,
 } from "@tabler/icons-react"
 
@@ -51,9 +51,9 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <div className="bg-muted/50 aspect-video rounded-xl flex items-center justify-center gap-4">
-                <IconCalendarCheck className="text-primary" size={40} />
+                <IconDesk className="text-primary" size={40} />
                 <div>
-                  <div className="text-lg font-semibold">Reservations Today</div>
+                  <div className="text-lg font-semibold">Desks Currently in Use</div>
                   <div className="text-3xl font-bold">42</div>
                 </div>
               </div>
