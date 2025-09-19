@@ -23,8 +23,8 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const loginUser = async (username, password) => {
-    const user = await login(username, password)
+  const loginUser = async (email, password) => {
+    const user = await login(email, password)
     if (user && user.success !== false) {
       setUser(user)
       nav('/')

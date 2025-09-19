@@ -12,7 +12,7 @@ class CustomUserModel(AbstractBaseUser, PermissionsMixin):
     date_joined = models.DateTimeField(auto_now_add=True)
     last_login = models.DateTimeField(auto_now=True)
 
-    USERNAME_FIELD = 'username'
+    USERNAME_FIELD = 'email'
 
     
     objects = CustomUserManager()

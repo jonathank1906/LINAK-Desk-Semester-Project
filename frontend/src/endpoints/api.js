@@ -36,11 +36,11 @@ axios.interceptors.response.use(
     }
 );
 
-export const login = async (username, password) => {
+export const login = async (email, password) => {
     try {
         const response = await axios.post(
             LOGIN_URL, 
-            { username, password },  // Object shorthand for cleaner syntax
+            { email, password },  // Object shorthand for cleaner syntax
             { withCredentials: true }  // Ensures cookies are included
         );
         

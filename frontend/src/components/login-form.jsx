@@ -19,16 +19,15 @@ export function LoginForm({
   ...props
 }) {
 
-  const [username, setUsername] = useState("")
+  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const { loginUser } = useAuth();
 
-
   const handleLogin = async (e) => {
     e.preventDefault();
-    const success = await loginUser(username, password)
+    const success = await loginUser(email, password)
     if (!success) {
-      setUsername("")
+      setEmail("")
       setPassword("")
     }
   }
@@ -43,8 +42,15 @@ export function LoginForm({
           <form>
             <div className="flex flex-col gap-6">
               <div className="grid gap-3">
-                <Label htmlFor="username">Username</Label>
-                <Input onChange={(e) => setUsername(e.target.value)} value={username} id="username" type="text" required />
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  onChange={(e) => setEmail(e.target.value)}
+                  value={email}
+                  id="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                />
               </div>
               <div className="grid gap-3">
                 <div className="flex items-center">
@@ -55,7 +61,14 @@ export function LoginForm({
                     Forgot password?
                   </Link>
                 </div>
-                <Input onChange={(e) => setPassword(e.target.value)} value={password} id="password" type="password" required />
+                <Input
+                  onChange={(e) => setPassword(e.target.value)}
+                  value={password}
+                  id="password"
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                />
               </div>
               <div className="flex flex-col gap-3">
                 <Button onClick={handleLogin} type="submit" className="w-full">
