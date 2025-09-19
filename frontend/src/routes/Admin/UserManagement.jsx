@@ -2,6 +2,17 @@
 import React from "react";
 import { DataTable } from "./Users/data-table";
 import { columns } from "./Users/columns";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+
+import { IconPlus } from "@tabler/icons-react";
+import { NewAccountForm } from "@/components/new-account-form";
 
 // Sample data - you can move this to a separate file if preferred
 const users = [
@@ -58,7 +69,20 @@ const users = [
 export default function UserManagement() {
   return (
     <div className="container mx-auto py-6">
-      <h2 className="text-2xl font-bold mb-6">User Management</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold">User Management</h2>
+        <Dialog>
+          <DialogTrigger className="btn btn-primary flex items-center justify-center">
+            <IconPlus className="w-5 h-5" />
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Account</DialogTitle>
+            </DialogHeader>
+            <NewAccountForm />
+          </DialogContent>
+        </Dialog>
+      </div>
       <DataTable columns={columns} data={users} />
     </div>
   );
