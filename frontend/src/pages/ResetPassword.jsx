@@ -4,15 +4,25 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import axios from "axios";
 
 const ResetPassword = () => {
   const [status, setStatus] = useState(false);
   const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Call your password reset API here
-    setStatus(true);
+    try {
+      await axios.post(
+        "http://localhost:8000/api/auth/users/reset_password/",
+        { email }
+      );
+      setMessage("Password reset email sent!");
+      setTimeout(() => setStatus(true), 1500); // Redirect after showing message
+    } catch (error) {
+      setMessage("Failed to send reset email.");
+    }
   };
 
   if (status) {
@@ -41,6 +51,9 @@ const ResetPassword = () => {
             <Button type="submit" className="w-full">
               Send password reset email
             </Button>
+            {message && (
+              <div className="text-sm text-muted-foreground mt-2">{message}</div>
+            )}
           </form>
         </CardContent>
       </Card>

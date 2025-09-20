@@ -1,5 +1,5 @@
 from django.urls import path, include
-from .views import CustomTokenObtainPairView, CustomTokenRefreshView, logout, register, is_logged_in
+from .views import CustomTokenObtainPairView, CustomTokenRefreshView, logout, register, is_logged_in, reset_password_confirm
 
 urlpatterns = [
     path('login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
@@ -9,4 +9,5 @@ urlpatterns = [
     path('authenticated/', is_logged_in),
     path('auth/', include('djoser.urls')),
     path('auth/', include('djoser.urls.jwt')),
+    path('password/reset/confirm/<int:uid>/<str:token>', reset_password_confirm, name="password_reset_confirm"),
 ]

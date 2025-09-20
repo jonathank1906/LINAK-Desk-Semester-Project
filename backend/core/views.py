@@ -113,3 +113,27 @@ def is_logged_in(request):
     serializer = UserSerializer(request.user, many=False)
     return Response(serializer.data)
 
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def reset_password_confirm(request, uid, token):
+    User = get_user_model()
+    try:
+        user = User.objects.get(pk=uid)
+    except User.DoesNotExist:
+        return Response({'error': 'Invalid user ID.'}, status=400)
+
+    new_password = request.data.get('new_password')
+    re_new_password = request.data.get('re_new_password')
+
+    if not new_password or not re_new_password:
+        return Response({'error': 'Password fields are required.'}, status=400)
+
+    if new_password != re_new_password:
+        return Response({'error': 'Passwords do not match.'}, status=400)
+
+    if not default_token_generator.check_token(user, token):
+        return Response({'error': 'Invalid or expired token.'}, status=400)
+
+    user.set_password(new_password)
+    user.save()
+    return Response({'success': 'Password has been reset.'}, status=204)

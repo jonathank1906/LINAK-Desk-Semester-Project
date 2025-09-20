@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import axios from "axios";
 
 export default function ResetPasswordConfirm() {
   const { uid, token } = useParams();
@@ -13,9 +14,17 @@ export default function ResetPasswordConfirm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Call your password reset confirm API here
-    // Example: await resetPasswordConfirm(uid, token, newPassword1, newPassword2);
-    setSuccess(true);
+    try {
+      await axios.post("http://localhost:8000/api/auth/users/reset_password_confirm/", {
+        uid,
+        token,
+        new_password: newPassword1,
+        re_new_password: newPassword2,
+      });
+      setSuccess(true);
+    } catch (error) {
+      alert("Failed to reset password.");
+    }
   };
 
   if (success) {
