@@ -5,6 +5,7 @@ import Login from './routes/login';
 import Menu from './routes/menu';
 import PrivateRoute from './components/private_route.jsx';
 import ResetPassword from './pages/ResetPassword';
+import ResetPasswordConfirm from './pages/ResetPasswordConfirm';
 import { AuthProvider } from "./contexts/useAuth";
 
 function App() {
@@ -14,7 +15,8 @@ function App() {
         <AuthProvider>
           <Routes>
             <Route path='/login' element={<Login />} />
-            <Route path='/reset-password' element={<ResetPassword />} />
+            <Route path='/reset/password' element={<ResetPassword />} />
+            <Route path='/password/reset/confirm/:uid/:token' element={<ResetPasswordConfirm />} />
             <Route path='/' element={<PrivateRoute><Menu /></PrivateRoute>} />
           </Routes>
         </AuthProvider>
