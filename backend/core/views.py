@@ -1,13 +1,16 @@
 from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+from django.contrib.auth.tokens import default_token_generator
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from djoser.utils import decode_uid
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
-
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
-
 from .serializers import UserRegisterSerializer, UserSerializer
-
 from datetime import datetime, timedelta
 
 
@@ -137,3 +140,27 @@ def reset_password_confirm(request, uid, token):
     user.set_password(new_password)
     user.save()
     return Response({'success': 'Password has been reset.'}, status=204)
+
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def set_initial_password(request, uid, token):
+    User = get_user_model()
+    try:
+        user_id = decode_uid(uid)
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return Response({'error': 'Invalid user ID.'}, status=400)
+
+    if not default_token_generator.check_token(user, token):
+        return Response({'error': 'Invalid or expired token.'}, status=400)
+
+    password = request.data.get('password')
+    if not password:
+        return Response({'error': 'Password is required.'}, status=400)
+
+    user.set_password(password)
+    user.is_active = True
+    user.save()
+    return Response({'success': 'Password set and account activated.'}, status=200)

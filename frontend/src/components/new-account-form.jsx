@@ -34,7 +34,7 @@ export function NewAccountForm({ className, ...props }) {
     setError(null);
     setSuccess(false);
 
-    const tempPassword = generateSecurePassword();
+    const tempPassword = "TempPassword123!"
     const username = email.split('@')[0]; // Auto-generate username from email
 
     const body = {
