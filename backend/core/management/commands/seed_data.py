@@ -6,8 +6,8 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         User = get_user_model()
-        user, created = User.objects.get_or_create(username='admin')
-        user.is_staff = True
+        user, created = User.objects.get_or_create(username='admin', email='admin@example.com')
+        user.is_admin = True
         user.set_password('123')
         user.save()
         if created:

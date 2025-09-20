@@ -76,7 +76,7 @@ EMAIL_PORT = 587
 EMAIL_HOST_USER = 'jk3315519@gmail.com'
 EMAIL_HOST_PASSWORD = 'ibktygfsxclvcgea'
 
-AUTH_USER_MODEL = 'core.CustomUserModel'
+AUTH_USER_MODEL = 'core.UserAccount'
 
 CORS_ALLOW_CREDENTIALS = True
 
