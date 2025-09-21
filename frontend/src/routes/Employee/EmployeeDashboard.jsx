@@ -8,6 +8,7 @@ import { ModeToggle } from "@/components/mode-toggle"
 import { NavUser } from "@/components/nav-user"
 import { useState } from "react"
 import { useAuth } from "@/contexts/useAuth" 
+import MyDesk from "./MyDesk"
 
 export default function EmployeeDashboard() {
   const [selectedSection, setSelectedSection] = useState("dashboard")
@@ -125,7 +126,7 @@ export default function EmployeeDashboard() {
       case "reservations":
         return <div className="p-4">Reservations</div>
       case "mydesk":
-        return <div className="p-4">My Desk</div>
+        return <MyDesk />
       case "analytics":
         return <div className="p-4">Health & Analytics</div>
     }
