@@ -28,8 +28,6 @@ export default function EmployeeDashboard() {
 
   function renderContent() {
     switch (selectedSection) {
-      case "users":
-        return <div className="p-4">Reservations</div>
       case "dashboard":
       default:
         return (
@@ -60,6 +58,12 @@ export default function EmployeeDashboard() {
             <div className="bg-muted/50 min-h-[100vh] flex-1 rounded-xl md:min-h-min" />
           </div>
         )
+      case "reservations":
+        return <div className="p-4">Reservations</div>
+      case "mydesk":
+        return <div className="p-4">My Desk</div>
+      case "analytics":
+        return <div className="p-4">Health & Analytics</div>
     }
   }
 

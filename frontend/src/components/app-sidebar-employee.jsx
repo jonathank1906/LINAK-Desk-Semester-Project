@@ -47,17 +47,19 @@ export function AppSidebar({
       title: "My Desk",
       url: "#",
       icon: IconDesk,
+      onClick: () => onSectionSelect?.("mydesk"),
     },
     {
       title: "Reservations",
       url: "#",
       icon: IconCalendarWeek,
-      onClick: () => onSectionSelect?.("users"),
+      onClick: () => onSectionSelect?.("reservations"),
     },
     {
       title: "Health & Analytics",
       url: "#",
       icon: IconChartBar,
+      onClick: () => onSectionSelect?.("analytics"),
     },
   ];
 
