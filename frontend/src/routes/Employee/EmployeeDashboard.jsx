@@ -1,5 +1,4 @@
 import { AppSidebar } from "@/components/app-sidebar-employee"
-import { Separator } from "@/components/ui/separator"
 import {
   SidebarInset,
   SidebarProvider,
@@ -8,23 +7,11 @@ import {
 import { ModeToggle } from "@/components/mode-toggle"
 import { NavUser } from "@/components/nav-user"
 import { useState } from "react"
-
-import {
-  IconUsers,
-  IconDesk,
-  IconClock,
-} from "@tabler/icons-react"
-
-const data = {
-  user: {
-    name: "Employee",
-    email: "m@example.com",
-    avatar: "https://img.freepik.com/premium-vector/character-avatar-isolated_729149-194801.jpg",
-  },
-}
+import { useAuth } from "@/contexts/useAuth" 
 
 export default function EmployeeDashboard() {
   const [selectedSection, setSelectedSection] = useState("dashboard")
+  const { user } = useAuth() 
 
   function renderContent() {
     switch (selectedSection) {
@@ -149,7 +136,7 @@ export default function EmployeeDashboard() {
       <div className="absolute top-4 right-4 z-50">
         <div className="flex items-center gap-3">
           <ModeToggle />
-          <NavUser user={data.user} />
+          <NavUser user={user} />
         </div>
       </div>
       <AppSidebar onSectionSelect={setSelectedSection} />

@@ -1,6 +1,5 @@
 import {
   IconLogout,
-  IconNotification,
   IconUserCircle,
   IconSettings,
 } from "@tabler/icons-react"
@@ -47,7 +46,13 @@ export function NavUser({ user }) {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
               <Avatar className="h-8 w-8 rounded-lg">
                 <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                <AvatarFallback className="rounded-lg">
+                  {user.first_name && user.last_name
+                    ? `${user.first_name[0]}${user.last_name[0]}`.toUpperCase()
+                    : user.username
+                      ? user.username.slice(0, 2).toUpperCase()
+                      : "?"}
+                </AvatarFallback>
               </Avatar>
             </SidebarMenuButton>
           </DropdownMenuTrigger>
@@ -60,10 +65,20 @@ export function NavUser({ user }) {
               <div className="flex items-center gap-3 px-3 py-2 text-left">
                 <Avatar className="h-9 w-9 rounded-lg">
                   <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                  <AvatarFallback className="rounded-lg">
+                    {user.first_name && user.last_name
+                      ? `${user.first_name[0]}${user.last_name[0]}`.toUpperCase()
+                      : user.username
+                        ? user.username.slice(0, 2).toUpperCase()
+                        : "?"}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium">{user.name}</span>
+                  <span className="text-sm font-medium">
+                    {user.first_name && user.last_name
+                      ? `${user.first_name} ${user.last_name}`
+                      : user.username}
+                  </span>
                   <span className="text-xs text-muted-foreground truncate">{user.email}</span>
                 </div>
               </div>
@@ -75,17 +90,13 @@ export function NavUser({ user }) {
                 Account
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <IconNotification />
-                Notifications
-              </DropdownMenuItem>
-              <DropdownMenuItem>
                 <IconSettings />
                 Settings
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={handleLogout}>
-              <IconLogout/>
+              <IconLogout />
               Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>
