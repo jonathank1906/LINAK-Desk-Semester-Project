@@ -15,10 +15,11 @@ import {
   IconSearch,
   IconSettings,
   IconUsers,
+  IconCalendarWeek,
+  IconDesk,
   IconLayoutDashboardFilled,
 } from "@tabler/icons-react"
 
-import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
 
 import {
@@ -43,30 +44,23 @@ export function AppSidebar({
       onClick: () => onSectionSelect?.("dashboard"),
     },
     {
-      title: "Analytics",
+      title: "My Desk",
+      url: "#",
+      icon: IconDesk,
+    },
+    {
+      title: "Reservations",
+      url: "#",
+      icon: IconCalendarWeek,
+      onClick: () => onSectionSelect?.("users"),
+    },
+    {
+      title: "Health & Analytics",
       url: "#",
       icon: IconChartBar,
     },
-    {
-      title: "Users",
-      url: "#",
-      icon: IconUsers,
-      onClick: () => onSectionSelect?.("users"),
-    },
   ];
 
-  const documents = [
-    {
-      name: "Data Library",
-      url: "#",
-      icon: IconDatabase,
-    },
-    {
-      name: "Reports",
-      url: "#",
-      icon: IconReport,
-    },
-  ];
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -84,7 +78,6 @@ export function AppSidebar({
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navMain} />
-        <NavDocuments items={documents} />
       </SidebarContent>
     </Sidebar>
   );
