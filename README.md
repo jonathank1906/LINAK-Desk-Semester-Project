@@ -1,3 +1,5 @@
+[Project Documentation](https://jonathank1906.github.io/LINAK-Desk-Semester-Project)
+
 ## Tech Stack
 
 ![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)
