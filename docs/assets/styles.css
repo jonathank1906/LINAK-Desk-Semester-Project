@@ -1,0 +1,20 @@
+a.nav-link[rel="prev"] {
+    display: none;
+}
+
+/* Hide Next button */
+a.nav-link[rel="next"] {
+    display: none;
+}
+
+
+/* Hide disabled Previous button */
+a.nav-link[rel="prev"].disabled {
+    display: none;
+}
+
+/* Hide Next button */
+a.nav-link[rel="next"] {
+    display: none;
+}
+
