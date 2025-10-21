@@ -144,6 +144,7 @@ npm install
 <p>Then, in the PostgreSQL prompt, run:</p>
 <pre><code class="language-sql">CREATE DATABASE db;
 </code></pre>
+<p>Type \q to exit.</p>
 <h3 id="backend-setup">Backend Setup</h3>
 <p>In root directory a create virtual environment and activate it.</p>
 <pre><code class="language-sh">py -m venv env
@@ -163,10 +164,13 @@ env\Scripts\activate
 </code></pre>
 <h3 id="running-the-project">Running the project</h3>
 <p>Starting the frontend (in one terminal).</p>
-<pre><code class="language-sh">npm run dev
+<pre><code class="language-sh">cd frontend
+npm run dev
 </code></pre>
 <p>Starting the backend (in another terminal).</p>
-<pre><code class="language-sh">py manage.py runserver
+<pre><code class="language-sh">env\Scripts\activate  
+cd backend
+py manage.py runserver
 </code></pre></div>
             </div>
         </div>
