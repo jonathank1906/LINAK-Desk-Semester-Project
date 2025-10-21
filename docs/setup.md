@@ -24,6 +24,7 @@ Then, in the PostgreSQL prompt, run:
 ```sql
 CREATE DATABASE db;
 ```
+Type \q to exit.
 
 ### Backend Setup
 In root directory a create virtual environment and activate it.
@@ -51,10 +52,13 @@ py manage.py seed_data
 ### Running the project
 Starting the frontend (in one terminal).
 ```sh
+cd frontend
 npm run dev
 ```
 
 Starting the backend (in another terminal).
 ```sh
+env\Scripts\activate  
+cd backend
 py manage.py runserver
 ```

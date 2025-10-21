@@ -14,3 +14,12 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('User "test" created successfully'))
         else:
             self.stdout.write(self.style.WARNING('User "test" updated'))
+
+        regular_user, created = User.objects.get_or_create(username='user', email='user@example.com')
+        regular_user.is_admin = False
+        regular_user.set_password('123')
+        regular_user.save()
+        if created:
+            self.stdout.write(self.style.SUCCESS('User "user" created successfully'))
+        else:
+            self.stdout.write(self.style.WARNING('User "user" updated'))
