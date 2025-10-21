@@ -23,7 +23,7 @@ export default function EmployeeDashboard() {
             <div className="grid auto-rows-min gap-4 md:grid-cols-3">
 
               {/* Current Desk Status Card */}
-              <div className="bg-muted/50 aspect-video rounded-xl flex flex-col items-center justify-center gap-2 p-4">
+              <div className="bg-muted/50 aspect-video rounded-xl flex flex-col items-center justify-center gap-2 p-4 animate-fade-up">
                 <div className="text-2xl font-bold text-green-600">Desk #23</div>
                 <div className="text-lg">Height: 110cm</div>
                 <div className="text-sm text-gray-600">Status: Standing</div>
@@ -31,7 +31,7 @@ export default function EmployeeDashboard() {
               </div>
 
               {/* Today's Usage Stats */}
-              <div className="bg-muted/50 aspect-video rounded-xl flex flex-col items-center justify-center gap-2 p-4">
+              <div className="bg-muted/50 aspect-video rounded-xl flex flex-col items-center justify-center gap-2 p-4 animate-fade-up">
                 <div className="text-xl font-semibold">Today's Usage</div>
                 <div className="text-sm">Sitting: 4h 32min</div>
                 <div className="text-sm">Standing: 1h 28min</div>
@@ -40,7 +40,7 @@ export default function EmployeeDashboard() {
               </div>
 
               {/* Health Recommendation */}
-              <div className="bg-muted/50 aspect-video rounded-xl flex flex-col items-center justify-center gap-2 p-4 text-center">
+              <div className="bg-muted/50 aspect-video rounded-xl flex flex-col items-center justify-center gap-2 p-4 text-center animate-fade-up">
                 <div className="text-lg font-medium text-blue-600">Health Tip</div>
                 <div className="text-sm">Great progress today!</div>
                 <div className="text-xs text-gray-600">You've met your 2-hour standing goal. Consider a 5-minute walk break.</div>
@@ -49,7 +49,7 @@ export default function EmployeeDashboard() {
             </div>
 
             {/* Bottom Large Section */}
-            <div className="bg-muted/50 min-h-[100vh] flex-1 rounded-xl md:min-h-min p-6">
+            <div className="bg-muted/50 min-h-[100vh] flex-1 rounded-xl md:min-h-min p-6 animation-delay-100 animate-fade-up">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
 
                 {/* Recent Activity Timeline */}

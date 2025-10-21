@@ -9,6 +9,8 @@ import ResetPasswordConfirm from './pages/ResetPasswordConfirm';
 import Activate from './pages/Activate';
 import { AuthProvider } from "./contexts/useAuth";
 
+import "./styles/animation.css";
+
 function App() {
   return (
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
