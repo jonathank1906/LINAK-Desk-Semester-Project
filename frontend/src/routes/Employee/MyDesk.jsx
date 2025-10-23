@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/useAuth";
 import axios from "axios";
+import { toast } from "sonner";
 
 export default function MyDesk() {
   const { user } = useAuth();
   const [deskStatus, setDeskStatus] = useState(null);
   const [usageStats, setUsageStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isControlling, setIsControlling] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -43,6 +45,74 @@ export default function MyDesk() {
     const interval = setInterval(fetchDeskData, 5000);
     return () => clearInterval(interval);
   }, [user]);
+
+  const controlDeskHeight = async (targetHeight) => {
+    setIsControlling(true);
+    try {
+      const deskId = 1;
+      const config = {
+        headers: { Authorization: `Bearer ${user.token}` },
+        withCredentials: true,
+      };
+
+      const response = await axios.post(
+        `http://localhost:8000/api/desks/${deskId}/control/`,
+        { height: targetHeight },
+        config
+      );
+
+      console.log('Control response:', response.data);
+
+      // Immediately fetch updated status
+      const statusRes = await axios.get(
+        `http://localhost:8000/api/desks/${deskId}/status/`,
+        config
+      );
+      setDeskStatus(statusRes.data);
+
+    } catch (err) {
+      console.error("Error controlling desk:", err);
+      toast.error("Failed to control desk", {
+        description: err.response?.data?.error || err.message,
+        position: "top-center",
+      });
+    } finally {
+      setIsControlling(false);
+    }
+  };
+
+  const moveUp = () => {
+    const currentHeight = deskStatus?.current_height || 85;
+    const newHeight = Math.min(currentHeight + 5, 120); // Move up 5cm, max 120cm
+    controlDeskHeight(newHeight);
+  };
+
+  const moveDown = () => {
+    const currentHeight = deskStatus?.current_height || 85;
+    const newHeight = Math.max(currentHeight - 5, 60); // Move down 5cm, min 60cm
+    controlDeskHeight(newHeight);
+  };
+
+  const emergencyStop = async () => {
+    try {
+      const deskId = 1;
+      const config = {
+        headers: { Authorization: `Bearer ${user.token}` },
+        withCredentials: true,
+      };
+
+      // Send stop command (send current position to stop movement)
+      await axios.post(
+        `http://localhost:8000/api/desks/${deskId}/control/`,
+        { height: deskStatus?.current_height || 85 },
+        config
+      );
+
+      alert('Emergency stop activated!');
+    } catch (err) {
+      console.error("Error stopping desk:", err);
+    }
+  };
 
   if (loading) {
     return (
@@ -122,16 +192,27 @@ export default function MyDesk() {
 
               {/* Manual Controls */}
               <div className="grid grid-cols-2 gap-3">
-                <button className="bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition-colors">
-                  ↑ Up
+                <button
+                  onClick={moveUp}
+                  disabled={isControlling || currentHeight >= maxHeight}
+                  className="bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  {isControlling ? '...' : '↑ Up'}
                 </button>
-                <button className="bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition-colors">
-                  ↓ Down
+                <button
+                  onClick={moveDown}
+                  disabled={isControlling || currentHeight <= minHeight}
+                  className="bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  {isControlling ? '...' : '↓ Down'}
                 </button>
               </div>
 
               {/* Emergency Stop */}
-              <button className="w-full bg-red-500 text-white p-3 rounded-lg hover:bg-red-600 transition-colors font-semibold">
+              <button
+                onClick={emergencyStop}
+                className="w-full bg-red-500 text-white p-3 rounded-lg hover:bg-red-600 transition-colors font-semibold"
+              >
                 🛑 EMERGENCY STOP
               </button>
             </div>
@@ -141,28 +222,40 @@ export default function MyDesk() {
           <div className="bg-muted/50 rounded-xl p-6 shadow-sm border">
             <h3 className="text-lg font-semibold mb-4">Quick Presets</h3>
             <div className="grid grid-cols-1 gap-3">
-              <button className="flex justify-between items-center p-4 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors">
+              <button
+                onClick={() => controlDeskHeight(72)}
+                disabled={isControlling}
+                className="flex justify-between items-center p-4 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 <div>
                   <div className="font-medium text-green-800">Sitting Position</div>
                   <div className="text-sm text-green-600">72cm</div>
                 </div>
-                <div className="text-green-600">Go →</div>
+                <div className="text-green-600">{isControlling ? '...' : 'Go →'}</div>
               </button>
 
-              <button className="flex justify-between items-center p-4 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
+              <button
+                onClick={() => controlDeskHeight(110)}
+                disabled={isControlling}
+                className="flex justify-between items-center p-4 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 <div>
                   <div className="font-medium text-blue-800">Standing Position</div>
                   <div className="text-sm text-blue-600">110cm</div>
                 </div>
-                <div className="text-blue-600">Go →</div>
+                <div className="text-blue-600">{isControlling ? '...' : 'Go →'}</div>
               </button>
 
-              <button className="flex justify-between items-center p-4 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors">
+              <button
+                onClick={() => controlDeskHeight(95)}
+                disabled={isControlling}
+                className="flex justify-between items-center p-4 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 <div>
                   <div className="font-medium text-purple-800">Meeting Height</div>
                   <div className="text-sm text-purple-600">95cm</div>
                 </div>
-                <div className="text-purple-600">Go →</div>
+                <div className="text-purple-600">{isControlling ? '...' : 'Go →'}</div>
               </button>
             </div>
           </div>
@@ -186,7 +279,13 @@ export default function MyDesk() {
                 </div>
                 <div className="flex gap-2">
                   <button className="text-blue-600 text-sm hover:text-blue-700">Edit</button>
-                  <button className="text-green-600 text-sm hover:text-green-700">Use</button>
+                  <button
+                    onClick={() => controlDeskHeight(74)}
+                    disabled={isControlling}
+                    className="text-green-600 text-sm hover:text-green-700 disabled:opacity-50"
+                  >
+                    Use
+                  </button>
                 </div>
               </div>
 
@@ -197,7 +296,13 @@ export default function MyDesk() {
                 </div>
                 <div className="flex gap-2">
                   <button className="text-blue-600 text-sm hover:text-blue-700">Edit</button>
-                  <button className="text-green-600 text-sm hover:text-green-700">Use</button>
+                  <button
+                    onClick={() => controlDeskHeight(108)}
+                    disabled={isControlling}
+                    className="text-green-600 text-sm hover:text-green-700 disabled:opacity-50"
+                  >
+                    Use
+                  </button>
                 </div>
               </div>
 
@@ -208,7 +313,13 @@ export default function MyDesk() {
                 </div>
                 <div className="flex gap-2">
                   <button className="text-blue-600 text-sm hover:text-blue-700">Edit</button>
-                  <button className="text-green-600 text-sm hover:text-green-700">Use</button>
+                  <button
+                    onClick={() => controlDeskHeight(98)}
+                    disabled={isControlling}
+                    className="text-green-600 text-sm hover:text-green-700 disabled:opacity-50"
+                  >
+                    Use
+                  </button>
                 </div>
               </div>
             </div>

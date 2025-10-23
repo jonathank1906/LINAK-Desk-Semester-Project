@@ -5,6 +5,7 @@ import { NavUser } from "@/components/nav-user";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/useAuth";
 import MyDesk from "./MyDesk";
+import Reservations from "./Reservations";
 import axios from "axios";
 
 export default function EmployeeDashboard() {
@@ -177,7 +178,7 @@ export default function EmployeeDashboard() {
           </div>
         );
       case "reservations":
-        return <div className="p-4">Reservations</div>;
+        return <Reservations />;
       case "mydesk":
         return <MyDesk />;
       case "analytics":

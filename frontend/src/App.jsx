@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
 
 import Login from './routes/login';
 import Menu from './routes/menu';
@@ -25,6 +26,7 @@ function App() {
           </Routes>
         </AuthProvider>
       </Router>
+      <Toaster richColors />
     </ThemeProvider>
   );
 }
