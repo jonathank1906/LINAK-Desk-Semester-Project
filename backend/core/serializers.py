@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
 from djoser.serializers import UserCreateSerializer
+from .models import Desk
 
 User = get_user_model()
 
@@ -30,3 +31,22 @@ class UserCreateSerializer(UserCreateSerializer):
     class Meta:
         model = User
         fields = ['id', 'email', 'name', 'password']
+
+class DeskSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Desk
+        fields = [
+            "id",
+            "wifi2ble_id",
+            "name",
+            "location",
+            "current_height",
+            "min_height",
+            "max_height",
+            "current_status",
+            "api_endpoint",
+            "last_error",
+            "error_timestamp",
+            "total_activations",
+            "sit_stand_counter",
+        ]

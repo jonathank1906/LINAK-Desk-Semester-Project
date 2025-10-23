@@ -23,12 +23,16 @@ axios.interceptors.response.use(
             originalRequest._retry = true;
             try {
                 // Attempt to refresh the access token
-                await axios.post(REFRESH_URL, {}, { withCredentials: true });
-                // Retry the original request
-                return axios(originalRequest);
+                const refreshResponse = await axios.post(REFRESH_URL, {}, { withCredentials: true });
+                
+                // Only retry if refresh was successful
+                if (refreshResponse.status === 200) {
+                    return axios(originalRequest);
+                }
             } catch (refreshError) {
-                // Refresh failed, redirect to login or handle as needed
-                window.location.href = '/login';
+                // Refresh failed - clear state and don't retry
+                console.error('Token refresh failed:', refreshError);
+                // Don't redirect here, let the component handle it
                 return Promise.reject(refreshError);
             }
         }

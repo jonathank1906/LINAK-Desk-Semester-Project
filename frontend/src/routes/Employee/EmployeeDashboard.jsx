@@ -1,18 +1,56 @@
-import { AppSidebar } from "@/components/app-sidebar-employee"
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
-import { ModeToggle } from "@/components/mode-toggle"
-import { NavUser } from "@/components/nav-user"
-import { useState } from "react"
-import { useAuth } from "@/contexts/useAuth" 
-import MyDesk from "./MyDesk"
+import { AppSidebar } from "@/components/app-sidebar-employee";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { ModeToggle } from "@/components/mode-toggle";
+import { NavUser } from "@/components/nav-user";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/useAuth";
+import MyDesk from "./MyDesk";
+import axios from "axios";
 
 export default function EmployeeDashboard() {
-  const [selectedSection, setSelectedSection] = useState("dashboard")
-  const { user } = useAuth() 
+  const [selectedSection, setSelectedSection] = useState("dashboard");
+  const { user } = useAuth();
+
+  const [deskStatus, setDeskStatus] = useState(null);
+  const [usageStats, setUsageStats] = useState(null);
+
+  // Fetch desk status and usage only if the user is logged in
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchDeskStatus = async () => {
+      try {
+        const deskId = 1;
+        const config = {
+          headers: { Authorization: `Bearer ${user.token}` },
+          withCredentials: true,
+        };
+
+        const statusRes = await axios.get(
+          `http://localhost:8000/api/desks/${deskId}/status/`,
+          config
+        );
+        setDeskStatus(statusRes.data);
+
+        // Optional: separate try/catch so one failing API doesn't break the other
+        try {
+          const usageRes = await axios.get(
+            `http://localhost:8000/api/desks/${deskId}/usage/`,
+            config
+          );
+          setUsageStats(usageRes.data);
+        } catch {
+          setUsageStats(null);
+        }
+      } catch (err) {
+        console.warn("Error fetching desk data:", err);
+        setDeskStatus(null);
+        setUsageStats(null);
+      }
+    };
+
+    fetchDeskStatus();
+  }, [user]);
 
   function renderContent() {
     switch (selectedSection) {
@@ -20,39 +58,57 @@ export default function EmployeeDashboard() {
       default:
         return (
           <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+            {/* Top Cards */}
             <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-
-              {/* Current Desk Status Card */}
+              {/* Desk Status */}
               <div className="bg-muted/50 aspect-video rounded-xl flex flex-col items-center justify-center gap-2 p-4 animate-fade-up">
-                <div className="text-2xl font-bold text-green-600">Desk #23</div>
-                <div className="text-lg">Height: 110cm</div>
-                <div className="text-sm text-gray-600">Status: Standing</div>
-                <div className="text-xs text-gray-500">Working for 2h 15min</div>
+                <div className="text-2xl font-bold text-green-600">
+                  {deskStatus ? `Desk #${deskStatus.desk_id}` : "Desk #--"}
+                </div>
+                <div className="text-lg">
+                  Height: {deskStatus ? `${deskStatus.current_height}cm` : "--"}
+                </div>
+                <div className="text-sm text-gray-600">
+                  Status: {deskStatus ? deskStatus.status : "--"}
+                </div>
+                <div className="text-xs text-gray-500">
+                  Working for {deskStatus ? deskStatus.session_duration : "--"}
+                </div>
               </div>
 
-              {/* Today's Usage Stats */}
+              {/* Usage Stats */}
               <div className="bg-muted/50 aspect-video rounded-xl flex flex-col items-center justify-center gap-2 p-4 animate-fade-up">
                 <div className="text-xl font-semibold">Today's Usage</div>
-                <div className="text-sm">Sitting: 4h 32min</div>
-                <div className="text-sm">Standing: 1h 28min</div>
-                <div className="text-xs text-gray-500">8 position changes</div>
-                <div className="text-xs text-green-600">Currently standing 23min</div>
+                <div className="text-sm">
+                  Sitting: {usageStats ? usageStats.sitting_time : "--"}
+                </div>
+                <div className="text-sm">
+                  Standing: {usageStats ? usageStats.standing_time : "--"}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {usageStats
+                    ? `${usageStats.position_changes} position changes`
+                    : "--"}
+                </div>
+                <div className="text-xs text-green-600">
+                  Currently standing {usageStats ? usageStats.current_standing : "--"}
+                </div>
               </div>
 
-              {/* Health Recommendation */}
+              {/* Health Tip */}
               <div className="bg-muted/50 aspect-video rounded-xl flex flex-col items-center justify-center gap-2 p-4 text-center animate-fade-up">
                 <div className="text-lg font-medium text-blue-600">Health Tip</div>
                 <div className="text-sm">Great progress today!</div>
-                <div className="text-xs text-gray-600">You've met your 2-hour standing goal. Consider a 5-minute walk break.</div>
+                <div className="text-xs text-gray-600">
+                  You've met your 2-hour standing goal. Consider a 5-minute walk break.
+                </div>
               </div>
-
             </div>
 
-            {/* Bottom Large Section */}
+            {/* Bottom Section */}
             <div className="bg-muted/50 min-h-[100vh] flex-1 rounded-xl md:min-h-min p-6 animation-delay-100 animate-fade-up">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
-
-                {/* Recent Activity Timeline */}
+                {/* Recent Activity */}
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
                   <div className="space-y-3">
@@ -75,12 +131,11 @@ export default function EmployeeDashboard() {
                   </div>
                 </div>
 
-                {/* Upcoming Reservations & Quick Actions */}
+                {/* Upcoming & Quick Actions */}
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Upcoming & Quick Actions</h3>
                   <div className="space-y-4">
-
-                    {/* Upcoming Reservations */}
+                    {/* Next Reservation */}
                     <div className="bg-blue-50 p-4 rounded-lg">
                       <h4 className="font-medium text-blue-800 mb-2">Next Reservation</h4>
                       <div className="text-sm text-blue-700">Today 2:00-4:00 PM</div>
@@ -115,20 +170,18 @@ export default function EmployeeDashboard() {
                         <div>Most productive day: Wednesday</div>
                       </div>
                     </div>
-
                   </div>
                 </div>
-
               </div>
             </div>
           </div>
-        )
+        );
       case "reservations":
-        return <div className="p-4">Reservations</div>
+        return <div className="p-4">Reservations</div>;
       case "mydesk":
-        return <MyDesk />
+        return <MyDesk />;
       case "analytics":
-        return <div className="p-4">Health & Analytics</div>
+        return <div className="p-4">Health & Analytics</div>;
     }
   }
 
@@ -150,5 +203,5 @@ export default function EmployeeDashboard() {
         {renderContent()}
       </SidebarInset>
     </SidebarProvider>
-  )
+  );
 }
