@@ -202,6 +202,43 @@ def get_desk_live_status(request, desk_id):
     })
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def desk_usage(request, desk_id):
+    """Get desk usage statistics"""
+    try:
+        desk = Desk.objects.get(id=desk_id)
+        
+        # TODO: Replace with actual usage tracking from DeskUsage model
+        # For now, return mock data
+        return Response({
+            'desk_id': desk.id,
+            'sitting_time': '3h 20m',
+            'standing_time': '1h 45m',
+            'position_changes': 8,
+            'total_activations': desk.total_activations,
+            'sit_stand_counter': desk.sit_stand_counter,
+            'current_standing': '15 mins',
+            'today_stats': {
+                'sitting': '2h 10m',
+                'standing': '45m',
+                'changes': 5
+            }
+        })
+        
+    except Desk.DoesNotExist:
+        return Response(
+            {'error': 'Desk not found'}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        print(f"Error in desk_usage: {e}")
+        return Response(
+            {'error': 'Internal server error'}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def control_desk_height(request, desk_id):

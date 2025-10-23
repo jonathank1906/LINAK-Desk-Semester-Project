@@ -1,28 +1,95 @@
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/useAuth";
+import axios from "axios";
 
 export default function MyDesk() {
+  const { user } = useAuth();
+  const [deskStatus, setDeskStatus] = useState(null);
+  const [usageStats, setUsageStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchDeskData = async () => {
+      try {
+        const deskId = 1;
+        const config = {
+          headers: { Authorization: `Bearer ${user.token}` },
+          withCredentials: true,
+        };
+
+        // Fetch both status and usage
+        const [statusRes, usageRes] = await Promise.all([
+          axios.get(`http://localhost:8000/api/desks/${deskId}/status/`, config),
+          axios.get(`http://localhost:8000/api/desks/${deskId}/usage/`, config),
+        ]);
+
+        console.log('Desk Status Response:', statusRes.data);
+        console.log('Usage Stats Response:', usageRes.data);
+
+        setDeskStatus(statusRes.data);
+        setUsageStats(usageRes.data);
+      } catch (err) {
+        console.error("Error fetching desk data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDeskData();
+
+    // Optional: Poll every 5 seconds for live updates
+    const interval = setInterval(fetchDeskData, 5000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-4">
+        <div className="text-lg">Loading desk information...</div>
+      </div>
+    );
+  }
+
+  const currentHeight = deskStatus?.current_height || 85;
+  const minHeight = 60;
+  const maxHeight = 120;
+  const heightPercentage = ((currentHeight - minHeight) / (maxHeight - minHeight)) * 100;
+
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
 
       {/* Current Desk Status Header */}
       <div className="bg-muted/50 rounded-xl p-6 shadow-sm border">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold">Desk #23 - Conference Area</h2>
+          <h2 className="text-2xl font-bold">
+            {deskStatus?.name || "Desk #23"}
+          </h2>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-            <span className="text-sm text-green-600 font-medium">Connected</span>
+            <div className={`w-3 h-3 rounded-full ${deskStatus?.is_moving ? 'bg-yellow-500' : 'bg-green-500'}`}></div>
+            <span className={`text-sm font-medium ${deskStatus?.is_moving ? 'text-yellow-600' : 'text-green-600'}`}>
+              {deskStatus?.is_moving ? 'Moving' : 'Connected'}
+            </span>
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="text-center">
-            <div className="text-3xl font-bold text-blue-600">85cm</div>
+            <div className="text-3xl font-bold text-blue-600">
+              {currentHeight}cm
+            </div>
             <div className="text-sm text-gray-500">Current Height</div>
           </div>
           <div className="text-center">
-            <div className="text-lg font-semibold text-gray-700">Idle</div>
+            <div className="text-lg font-semibold text-gray-700">
+              {deskStatus?.status || "Idle"}
+            </div>
             <div className="text-sm text-gray-500">Status</div>
           </div>
           <div className="text-center">
-            <div className="text-lg font-semibold text-gray-700">2h 45min</div>
+            <div className="text-lg font-semibold text-gray-700">
+              {usageStats?.current_standing || "2h 45min"}
+            </div>
             <div className="text-sm text-gray-500">Session Time</div>
           </div>
         </div>
@@ -41,14 +108,14 @@ export default function MyDesk() {
               {/* Height Display with Visual */}
               <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-600">Min: 60cm</span>
-                  <span className="text-lg font-bold">85cm</span>
-                  <span className="text-sm text-gray-600">Max: 120cm</span>
+                  <span className="text-sm text-gray-600">Min: {minHeight}cm</span>
+                  <span className="text-lg font-bold">{currentHeight}cm</span>
+                  <span className="text-sm text-gray-600">Max: {maxHeight}cm</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
                     className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: '41.7%' }}
+                    style={{ width: `${heightPercentage}%` }}
                   ></div>
                 </div>
               </div>
@@ -152,24 +219,28 @@ export default function MyDesk() {
             <h3 className="text-lg font-semibold mb-4">Desk Information</h3>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600">Model:</span>
-                <span className="font-medium">Linak DeskLine Pro</span>
+                <span className="text-gray-600">Desk ID:</span>
+                <span className="font-medium">#{deskStatus?.desk_id || "1"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Location:</span>
-                <span className="font-medium">Conference Area, Floor 2</span>
+                <span className="text-gray-600">Name:</span>
+                <span className="font-medium">{deskStatus?.name || "Unknown"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Last Maintenance:</span>
-                <span className="font-medium">Sep 15, 2025</span>
+                <span className="text-gray-600">Status:</span>
+                <span className="font-medium">{deskStatus?.status || "Idle"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Total Usage Today:</span>
-                <span className="font-medium">6h 22min</span>
+                <span className="text-gray-600">Speed:</span>
+                <span className="font-medium">{deskStatus?.speed || 0} mm/s</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Height Changes Today:</span>
-                <span className="font-medium">12 times</span>
+                <span className="text-gray-600">Total Activations:</span>
+                <span className="font-medium">{usageStats?.total_activations || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Sit/Stand Counter:</span>
+                <span className="font-medium">{usageStats?.sit_stand_counter || 0}</span>
               </div>
             </div>
           </div>
@@ -179,17 +250,26 @@ export default function MyDesk() {
             <h3 className="text-lg font-semibold mb-4">Today's Activity</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center p-3 bg-green-50 rounded-lg">
-                <div className="text-2xl font-bold text-green-600">4h 15min</div>
+                <div className="text-2xl font-bold text-green-600">
+                  {usageStats?.sitting_time || "0h 0m"}
+                </div>
                 <div className="text-sm text-green-700">Sitting Time</div>
               </div>
               <div className="text-center p-3 bg-blue-50 rounded-lg">
-                <div className="text-2xl font-bold text-blue-600">2h 07min</div>
+                <div className="text-2xl font-bold text-blue-600">
+                  {usageStats?.standing_time || "0h 0m"}
+                </div>
                 <div className="text-sm text-blue-700">Standing Time</div>
+              </div>
+            </div>
+            <div className="mt-4 p-3 bg-purple-50 rounded-lg text-center">
+              <div className="text-sm text-purple-700 font-medium">
+                Position Changes: {usageStats?.position_changes || 0}
               </div>
             </div>
             <div className="mt-4 p-3 bg-yellow-50 rounded-lg text-center">
               <div className="text-sm text-yellow-700">
-                Recommendation: You've been sitting for 35 minutes. Consider standing for better health.
+                Current session: {usageStats?.current_standing || "N/A"}
               </div>
             </div>
           </div>
@@ -197,5 +277,5 @@ export default function MyDesk() {
         </div>
       </div>
     </div>
-  )
+  );
 }
