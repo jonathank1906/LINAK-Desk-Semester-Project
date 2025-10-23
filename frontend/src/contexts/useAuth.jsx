@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom';
+import { toast } from "sonner";
 
 import { authenticated_user, login, logout, register } from '../endpoints/api';
 
@@ -30,7 +31,9 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
       return true;
     } else {
-      alert('Incorrect username or password');
+      toast.error('Login failed', {
+        description: 'Incorrect username or password',
+      });
       setUser(null);
       setLoading(false);
       return false;
@@ -42,6 +45,7 @@ export const AuthProvider = ({ children }) => {
     await logout();
     setUser(null);
     setLoading(false);
+    toast.success('Logged out successfully');
     nav('/login');
   };
 
@@ -50,11 +54,15 @@ export const AuthProvider = ({ children }) => {
     try {
       if (password === confirm_password) {
         await register(username, email, password);
-        alert('User successfully registered');
+        toast.success('Registration successful', {
+          description: 'User successfully registered',
+        });
         nav('/');
       }
     } catch {
-      alert('error registering user');
+      toast.error('Registration failed', {
+        description: 'Error registering user',
+      });
     } finally {
       setLoading(false);
     }

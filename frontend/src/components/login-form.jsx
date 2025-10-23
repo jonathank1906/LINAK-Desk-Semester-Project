@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Spinner } from '@/components/ui/shadcn-io/spinner';
 
 import { useState, useEffect } from "react"
 import { useAuth } from '../contexts/useAuth';
@@ -20,6 +21,7 @@ export function LoginForm({
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
   const { loginUser, user, loading } = useAuth();
   const nav = useNavigate();
 
@@ -31,11 +33,15 @@ export function LoginForm({
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (isLoggingIn) return; // Prevent multiple clicks
+    
+    setIsLoggingIn(true);
     const success = await loginUser(email, password)
     if (!success) {
       setEmail("")
       setPassword("")
     }
+    setIsLoggingIn(false);
   }
 
   return (
@@ -56,6 +62,7 @@ export function LoginForm({
                   type="email"
                   required
                   autoComplete="email"
+                  disabled={isLoggingIn}
                 />
               </div>
               <div className="grid gap-3">
@@ -74,11 +81,13 @@ export function LoginForm({
                   type="password"
                   required
                   autoComplete="current-password"
+                  disabled={isLoggingIn}
                 />
               </div>
               <div className="flex flex-col gap-3">
-                <Button onClick={handleLogin} type="submit" className="w-full">
-                  Sign in
+                <Button onClick={handleLogin} type="submit" className="w-full" disabled={isLoggingIn}>
+                  {isLoggingIn && <Spinner variant="circle"/>}
+                  {isLoggingIn ? "Signing in..." : "Sign in"}
                 </Button>
               </div>
             </div>
