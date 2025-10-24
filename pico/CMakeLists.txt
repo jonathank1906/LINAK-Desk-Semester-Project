@@ -33,9 +33,13 @@ project(06 C CXX ASM)
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-# Add executable. Default name is the project name, version 0.1
-
-add_executable(06 06.cpp MyApp MyApp.cpp Led Led.cpp PushButton PushButton.cpp)
+# Add executable - ONE program with everything
+add_executable(06 
+        06.cpp 
+        MyApp MyApp.cpp 
+        Led Led.cpp 
+        PushButton PushButton.cpp
+        ssd1306_i2c.c)
 
 pico_set_program_name(06 "06")
 pico_set_program_version(06 "0.1")
@@ -46,17 +50,12 @@ pico_enable_stdio_usb(06 0)
 
 # Add the standard library to the build
 target_link_libraries(06
-        pico_stdlib)
+        pico_stdlib
+        hardware_i2c)
 
 # Add the standard include files to the build
 target_include_directories(06 PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
 )
 
-# Add any user requested libraries
-target_link_libraries(06 
-        
-        )
-
 pico_add_extra_outputs(06)
-

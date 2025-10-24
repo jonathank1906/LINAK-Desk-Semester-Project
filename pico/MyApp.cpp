@@ -3,19 +3,34 @@
 #include "dbop.h"
 #include "MyApp.h"
 
-void MyApp() {
-    Led RedLED(7);                                                              C_MyApp("Create Red LED object on GPIO7");
-    Button button1(10, GPIO_IRQ_EDGE_RISE);                                     C_MyApp("Create Button object on GPIO10");
+extern "C" {
+    void oled_init();
+    void oled_display_text(char *line1, char *line2, char *line3, char *line4);
+}
 
-    printf("EXERCISE 6A started: LED & Button classes with debounce, events and debug info\n"); 
-                                                                                C_MyApp("Print startup message");
+void MyApp() {
+    Led RedLED(7);
+    Button button1(10, GPIO_IRQ_EDGE_RISE);
+    
+    // Initialize OLED once at startup
+    oled_init();
+    
+    // Display initial message
+    oled_display_text("BUTTON LED", "PRESS BUTTON", "TO TOGGLE LED", "");
 
     while (true) {
-        if (button1.hasEvent()) {                                               C_MyApp("Check for new button event");
-            RedLED.setState(button1.toggleState());                             C_MyApp("Set LED state based on button toggle state");
-            printf("New event: Button pressed %d times, LED state: %s\n",
+        if (button1.hasEvent()) {
+            RedLED.setState(button1.toggleState());
+            
+            // Update OLED with current status
+            char line1[20], line2[20];
+            sprintf(line1, "PRESSES %d", button1.getPressCount());
+            sprintf(line2, "LED %s", RedLED.isOn() ? "ON" : "OFF");
+            oled_display_text("BUTTON STATUS", line1, line2, "");
+            
+            printf("Button pressed %d times, LED: %s\n",
                    button1.getPressCount(),
-                   RedLED.isOn() ? "ON" : "OFF");                               C_MyApp("Print current counts and state");
+                   RedLED.isOn() ? "ON" : "OFF");
         }
 
         sleep_ms(10);
