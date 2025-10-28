@@ -143,6 +143,10 @@ npm install
 </code></pre>
 <p>Then, in the PostgreSQL prompt, run:</p>
 <pre><code class="language-sql">CREATE DATABASE db;
+CREATE USER &quot;user&quot; WITH PASSWORD 'localdevpw';
+GRANT ALL PRIVILEGES ON DATABASE db TO &quot;user&quot;;
+postgres=# ALTER USER &quot;user&quot; CREATEDB CREATEROLE;
+postgres=# ALTER USER &quot;user&quot; WITH SUPERUSER;
 </code></pre>
 <p>Type \q to exit.</p>
 <h3 id="backend-setup">Backend Setup</h3>
