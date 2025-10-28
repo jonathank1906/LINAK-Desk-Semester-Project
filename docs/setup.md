@@ -23,6 +23,10 @@ psql -U postgres
 Then, in the PostgreSQL prompt, run:
 ```sql
 CREATE DATABASE db;
+CREATE USER "user" WITH PASSWORD 'localdevpw';
+GRANT ALL PRIVILEGES ON DATABASE db TO "user";
+postgres=# ALTER USER "user" CREATEDB CREATEROLE;
+postgres=# ALTER USER "user" WITH SUPERUSER;
 ```
 Type \q to exit.
 
