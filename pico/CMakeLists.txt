@@ -25,6 +25,10 @@ endif()
 # ====================================================================================
 set(PICO_BOARD pico_w CACHE STRING "Board type")
 
+set(MQTT_SERVER "192.168.43.86")
+set(WIFI_SSID "Hotspot")
+set(WIFI_PASSWORD "JtqkdkM!906")
+
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
@@ -39,7 +43,8 @@ add_executable(06
         MyApp MyApp.cpp 
         Led Led.cpp 
         PushButton PushButton.cpp
-        ssd1306_i2c.c)
+        ssd1306_i2c.c
+        mqtt_client.c)
 
 pico_set_program_name(06 "06")
 pico_set_program_version(06 "0.1")
@@ -51,11 +56,21 @@ pico_enable_stdio_usb(06 0)
 # Add the standard library to the build
 target_link_libraries(06
         pico_stdlib
-        hardware_i2c)
+        hardware_i2c
+        hardware_adc
+        pico_cyw43_arch_lwip_threadsafe_background
+        pico_lwip_mqtt
+        pico_multicore)
 
 # Add the standard include files to the build
 target_include_directories(06 PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
+)
+
+target_compile_definitions(06 PRIVATE
+    WIFI_SSID=\"${WIFI_SSID}\"
+    WIFI_PASSWORD=\"${WIFI_PASSWORD}\"
+    MQTT_SERVER=\"${MQTT_SERVER}\"
 )
 
 pico_add_extra_outputs(06)
