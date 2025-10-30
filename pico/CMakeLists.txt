@@ -45,7 +45,8 @@ add_executable(06
         PushButton PushButton.cpp
         ssd1306_i2c.c
         mqtt_client.c
-        ws2812.c)
+        ws2812.c
+        Buzzer.cpp)
 
 pico_generate_pio_header(06 ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)
 

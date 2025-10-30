@@ -3,6 +3,7 @@
 #include "hardware/gpio.h"
 #include "dbop.h"
 #include "MyApp.h"
+#include "Buzzer.h"
 
 extern "C" {
     void oled_init();
@@ -31,6 +32,9 @@ void MyApp() {
     uint ws2812_offset;
     ws2812_init(&ws2812_pio, &ws2812_sm, &ws2812_offset);
     printf("WS2812 LED strip initialized\n");
+
+    buzzer_init();
+    moving_buzzer_pattern();
     
     // Set initial color to solid green
     pattern_solid_green(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
