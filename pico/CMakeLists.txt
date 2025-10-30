@@ -44,7 +44,10 @@ add_executable(06
         Led Led.cpp 
         PushButton PushButton.cpp
         ssd1306_i2c.c
-        mqtt_client.c)
+        mqtt_client.c
+        ws2812.c)
+
+pico_generate_pio_header(06 ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)
 
 pico_set_program_name(06 "06")
 pico_set_program_version(06 "0.1")
