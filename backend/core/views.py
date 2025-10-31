@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from .serializers import UserRegisterSerializer, UserSerializer, DeskSerializer
 from .models import Desk
 from .services.WiFi2BLEService import WiFi2BLEService
+from .services.MQTTService import MQTTService
 
 
 @api_view(['POST'])
@@ -271,5 +272,49 @@ def control_desk_height(request, desk_id):
     except Desk.DoesNotExist:
         return Response(
             {'error': 'Desk not found'}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+# -------------------------------------------------------------
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def control_pico_led(request, pico_id):
+    """Control LED on Pico device via MQTT"""
+    try:
+        pico = Pico.objects.get(id=pico_id)
+        on = request.data.get('on', False)
+        
+        mqtt_service = MQTTService()
+        mqtt_service.connect()
+        mqtt_service.control_led(pico.mac_address, on)
+        
+        return Response({
+            'success': True,
+            'message': f"LED turned {'on' if on else 'off'}"
+        })
+    except Pico.DoesNotExist:
+        return Response(
+            {'error': 'Pico device not found'}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_pico_sensor_data(request, pico_id):
+    """Get recent sensor readings from Pico"""
+    try:
+        pico = Pico.objects.get(id=pico_id)
+        readings = pico.sensor_readings.order_by('-timestamp')[:10]
+        
+        data = [{
+            'temperature': r.temperature,
+            'light_level': r.light_level,
+            'timestamp': r.timestamp
+        } for r in readings]
+        
+        return Response({'readings': data})
+    except Pico.DoesNotExist:
+        return Response(
+            {'error': 'Pico device not found'}, 
             status=status.HTTP_404_NOT_FOUND
         )

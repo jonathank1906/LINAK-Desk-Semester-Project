@@ -34,7 +34,7 @@ void MyApp() {
     printf("WS2812 LED strip initialized\n");
 
     buzzer_init();
-    moving_buzzer_pattern();
+    //moving_buzzer_pattern();
     
     // Set initial color to solid green
     pattern_solid_green(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
