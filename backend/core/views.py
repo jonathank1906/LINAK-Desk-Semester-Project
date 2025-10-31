@@ -13,7 +13,8 @@ from datetime import datetime, timedelta
 from .serializers import UserRegisterSerializer, UserSerializer, DeskSerializer
 from .models import Desk
 from .services.WiFi2BLEService import WiFi2BLEService
-from .services.MQTTService import MQTTService
+from core.services.MQTTService import get_mqtt_service
+from core.models import Pico, SensorReading
 
 
 @api_view(['POST'])
@@ -279,24 +280,23 @@ def control_desk_height(request, desk_id):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def control_pico_led(request, pico_id):
-    """Control LED on Pico device via MQTT"""
     try:
         pico = Pico.objects.get(id=pico_id)
         on = request.data.get('on', False)
-        
-        mqtt_service = MQTTService()
-        mqtt_service.connect()
+        mqtt_service = get_mqtt_service()
         mqtt_service.control_led(pico.mac_address, on)
-        
         return Response({
             'success': True,
             'message': f"LED turned {'on' if on else 'off'}"
         })
     except Pico.DoesNotExist:
-        return Response(
-            {'error': 'Pico device not found'}, 
-            status=status.HTTP_404_NOT_FOUND
-        )
+        return Response({'error': 'Pico device not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print("LED Control Error:", e)  # <-- Add this line
+        import traceback
+        traceback.print_exc()           # <-- Add this line
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

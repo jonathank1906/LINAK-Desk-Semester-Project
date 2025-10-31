@@ -18,6 +18,7 @@ import {
   IconCalendarWeek,
   IconDesk,
   IconLayoutDashboardFilled,
+  IconAtom,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -60,6 +61,12 @@ export function AppSidebar({
       url: "#",
       icon: IconChartBar,
       onClick: () => onSectionSelect?.("analytics"),
+    },
+    {
+      title: "Pico Lab",
+      url: "#",
+      icon: IconAtom,
+      onClick: () => onSectionSelect?.("pico_lab"),
     },
   ];
 

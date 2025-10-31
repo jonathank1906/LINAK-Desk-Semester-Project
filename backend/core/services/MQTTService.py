@@ -2,9 +2,10 @@ import paho.mqtt.client as mqtt
 import json
 import logging
 from django.conf import settings
-from core.models import Pico
+from core.models import Pico, SensorReading
 
 logger = logging.getLogger(__name__)
+_mqtt_service_instance = None
 
 class MQTTService:
     """Service to handle MQTT communication with Pico devices"""
@@ -54,17 +55,25 @@ class MQTTService:
             logger.error(f"Error processing MQTT message: {e}")
             
     def handle_temperature(self, device_id, temperature):
-        """Store temperature reading"""
+        """Store temperature reading, keeping max 10 per Pico device"""
         try:
-            # Find Pico by partial MAC address match
             pico = Pico.objects.filter(mac_address__icontains=device_id[:8]).first()
             if pico:
                 logger.info(f"Temperature {temperature}°C from device {device_id}")
-                # Update last_seen timestamp
                 from django.utils import timezone
                 pico.last_seen = timezone.now()
                 pico.save()
-                # You could create a SensorReading model later to store this
+                # Check count and delete oldest if needed
+                readings = SensorReading.objects.filter(pico_device_id=pico.id).order_by('timestamp')
+                if readings.count() >= 10:
+                    oldest = readings.first()
+                    oldest.delete()
+                # Save new temperature reading
+                SensorReading.objects.create(
+                    pico_device_id=pico.id,
+                    temperature=temperature,
+                    timestamp=timezone.now()
+                )
             else:
                 logger.warning(f"Pico device not found: {device_id}")
         except Exception as e:
@@ -117,3 +126,12 @@ class MQTTService:
         topic = f"/{device_id}/led"
         message = "On" if on else "Off"
         self.publish(topic, message)
+
+    
+
+def get_mqtt_service():
+    global _mqtt_service_instance
+    if _mqtt_service_instance is None:
+        _mqtt_service_instance = MQTTService()
+        _mqtt_service_instance.connect()
+    return _mqtt_service_instance

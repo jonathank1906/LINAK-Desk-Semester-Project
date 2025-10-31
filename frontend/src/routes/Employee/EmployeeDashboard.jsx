@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/useAuth";
 import MyDesk from "./MyDesk";
 import Reservations from "./Reservations";
+import PicoLab from "./PicoLab";
 import axios from "axios";
 import {
   Card,
@@ -198,6 +199,8 @@ export default function EmployeeDashboard() {
         return <MyDesk />;
       case "analytics":
         return <div className="p-4">Health & Analytics</div>;
+      case "pico_lab":
+        return <PicoLab picoId={1}/>;
     }
   }
 
