@@ -8,13 +8,14 @@ from rest_framework import status
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from djoser.utils import decode_uid
+from django.utils import timezone
 from datetime import datetime, timedelta
 
-from .serializers import UserRegisterSerializer, UserSerializer, DeskSerializer
+from .serializers import UserRegisterSerializer, UserSerializer, DeskSerializer, ReservationSerializer
 from .models import Desk
 from .services.WiFi2BLEService import WiFi2BLEService
 from core.services.MQTTService import get_mqtt_service
-from core.models import Pico, SensorReading
+from core.models import Pico, SensorReading, Reservation
 
 
 @api_view(['POST'])
@@ -318,3 +319,188 @@ def get_pico_sensor_data(request, pico_id):
             {'error': 'Pico device not found'}, 
             status=status.HTTP_404_NOT_FOUND
         )
+
+# -------------------------------------------------------------
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_available_hot_desks(request):
+    now = timezone.now()
+    desks = Desk.objects.filter(current_status='available').exclude(
+        reservations__start_time__lte=now,
+        reservations__end_time__gte=now,
+        reservations__status__in=['confirmed', 'active']
+    )
+    serializer = DeskSerializer(desks, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def start_hot_desk(request, desk_id):
+    try:
+        desk = Desk.objects.get(id=desk_id)
+        if desk.current_status != 'available':
+            return Response({'error': 'Desk not available'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Assign desk
+        desk.current_user = request.user
+        desk.current_status = 'occupied'
+        desk.save()
+
+        # Create usage log
+        DeskUsageLog.objects.create(
+            user=request.user,
+            desk=desk,
+            started_at=timezone.now(),
+            source='hotdesk'
+        )
+        return Response({'success': True, 'desk': desk.name})
+    except Desk.DoesNotExist:
+        return Response({'error': 'Desk not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def end_hot_desk(request, desk_id):
+    try:
+        desk = Desk.objects.get(id=desk_id)
+        if desk.current_user != request.user:
+            return Response({'error': 'You are not using this desk'}, status=status.HTTP_403_FORBIDDEN)
+
+        # End usage log
+        log = DeskUsageLog.objects.filter(user=request.user, desk=desk, ended_at__isnull=True, source='hotdesk').first()
+        if log:
+            log.ended_at = timezone.now()
+            log.save()
+
+        desk.current_user = None
+        desk.current_status = 'available'
+        desk.save()
+        return Response({'success': True})
+    except Desk.DoesNotExist:
+        return Response({'error': 'Desk not found'}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def hotdesk_status(request):
+    date_str = request.GET.get('date')
+    if not date_str:
+        return Response({"error": "Date parameter required"}, status=400)
+    date = timezone.datetime.strptime(date_str, "%Y-%m-%d").date()
+    desks = Desk.objects.all()
+    result = []
+    for desk in desks:
+        reservation = Reservation.objects.filter(
+            desk=desk,
+            start_time__date=date,
+            status__in=['confirmed', 'active']
+        ).order_by('start_time').first()
+        if reservation:
+            result.append({
+                "id": desk.id,
+                "reserved": True,
+                "reserved_time": reservation.start_time.strftime("%H:%M")
+            })
+        else:
+            result.append({
+                "id": desk.id,
+                "reserved": False
+            })
+    return Response(result)
+# ---------------- RESERVATION ENDPOINTS ----------------
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_user_reservations(request):
+    reservations = Reservation.objects.filter(user=request.user).order_by('-start_time')
+    serializer = ReservationSerializer(reservations, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_reservation(request):
+    data = request.data.copy()
+    data['user'] = request.user.id
+    serializer = ReservationSerializer(data=data)
+    if serializer.is_valid():
+        serializer.save(status='confirmed')
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def check_in_reservation(request, reservation_id):
+    try:
+        reservation = Reservation.objects.get(id=reservation_id, user=request.user)
+        if reservation.status != 'confirmed':
+            return Response({'error': 'Reservation not confirmed or already active'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Mark reservation as active
+        reservation.status = 'active'
+        reservation.checked_in_at = timezone.now()
+        reservation.save()
+
+        # Mark desk as occupied
+        desk = reservation.desk
+        desk.current_user = request.user
+        desk.current_status = 'occupied'
+        desk.save()
+
+        # Create usage log
+        DeskUsageLog.objects.create(
+            user=request.user,
+            desk=desk,
+            started_at=timezone.now(),
+            source='reservation'
+        )
+        return Response({'success': True})
+    except Reservation.DoesNotExist:
+        return Response({'error': 'Reservation not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def check_out_reservation(request, reservation_id):
+    try:
+        reservation = Reservation.objects.get(id=reservation_id, user=request.user)
+        if reservation.status != 'active':
+            return Response({'error': 'Reservation not active'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # End reservation
+        reservation.status = 'completed'
+        reservation.checked_out_at = timezone.now()
+        reservation.save()
+
+        # End usage log
+        log = DeskUsageLog.objects.filter(user=request.user, desk=reservation.desk, ended_at__isnull=True, source='reservation').first()
+        if log:
+            log.ended_at = timezone.now()
+            log.save()
+
+        # Free the desk
+        desk = reservation.desk
+        desk.current_user = None
+        desk.current_status = 'available'
+        desk.save()
+        return Response({'success': True})
+    except Reservation.DoesNotExist:
+        return Response({'error': 'Reservation not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def available_desks_for_date(request):
+    date_str = request.GET.get('date')
+    if not date_str:
+        return Response({"error": "Date parameter required"}, status=400)
+    date = timezone.datetime.strptime(date_str, "%Y-%m-%d").date()
+    # Get desks not reserved for this date
+    reserved_desks = Reservation.objects.filter(
+        start_time__date=date,
+        status__in=['confirmed', 'active']
+    ).values_list('desk_id', flat=True)
+    desks = Desk.objects.exclude(id__in=reserved_desks)
+    serializer = DeskSerializer(desks, many=True)
+    return Response(serializer.data)

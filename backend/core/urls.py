@@ -12,7 +12,10 @@ from .views import (
     control_desk_height,
     desk_usage,
     control_pico_led,          
-    get_pico_sensor_data
+    get_pico_sensor_data,
+    list_available_hot_desks, start_hot_desk, end_hot_desk,
+    list_user_reservations, create_reservation,
+    check_in_reservation, check_out_reservation, hotdesk_status, available_desks_for_date
 )
 
 urlpatterns = [
@@ -31,4 +34,16 @@ urlpatterns = [
     path('desks/<int:desk_id>/control/', control_desk_height, name='control_desk'),
      path('pico/<int:pico_id>/led/', control_pico_led, name='control_pico_led'),
     path('pico/<int:pico_id>/sensors/', get_pico_sensor_data, name='pico_sensor_data'),
+    # HOT DESK
+    path('desks/hotdesk/', list_available_hot_desks, name='hotdesk_list'),
+    path('desks/hotdesk_status/', hotdesk_status, name='hotdesk_status'),
+    path('desks/<int:desk_id>/hotdesk/start/', start_hot_desk, name='start_hot_desk'),
+    path('desks/<int:desk_id>/hotdesk/end/', end_hot_desk, name='end_hot_desk'),
+
+    # RESERVATIONS
+    path('reservations/', list_user_reservations, name='reservations_list'),
+    path('desks/available/', available_desks_for_date, name='available_desks_for_date'),
+    path('reservations/create/', create_reservation, name='reservation_create'),
+    path('reservations/<int:reservation_id>/check_in/', check_in_reservation, name='reservation_check_in'),
+    path('reservations/<int:reservation_id>/check_out/', check_out_reservation, name='reservation_check_out'),
 ]

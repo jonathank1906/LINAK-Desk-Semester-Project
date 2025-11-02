@@ -10,15 +10,21 @@ export default function Reservations() {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [availableDesks, setAvailableDesks] = useState([]);
+  const [hotdeskStatus, setHotdeskStatus] = useState([]);
+  const [userReservations, setUserReservations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState("hotdesk"); // "hotdesk" or "reserve"
 
   useEffect(() => {
-    // Only fetch when in reserve mode
-    if (mode === "reserve" && selectedDate) {
+    if (mode === "hotdesk") {
+      fetchHotdeskStatus();
+    } else if (mode === "reserve" && selectedDate) {
       fetchAvailableDesks();
+      fetchUserReservations();
     } else {
       setAvailableDesks([]);
+      setHotdeskStatus([]);
+      setUserReservations([]);
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -50,6 +56,53 @@ export default function Reservations() {
     }
   };
 
+  // Fetch hotdesk status for today
+  const fetchHotdeskStatus = async () => {
+    setLoading(true);
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const config = {
+        headers: { Authorization: `Bearer ${user?.token}` },
+        withCredentials: true,
+      };
+
+      // This endpoint should return all desks and their reservation status for today
+      const response = await axios.get(
+        `http://localhost:8000/api/desks/hotdesk_status/?date=${today}`,
+        config
+      );
+
+      setHotdeskStatus(response.data);
+    } catch (err) {
+      console.error("Error fetching hotdesk status:", err);
+      toast.error("Failed to fetch hotdesk status", {
+        description: err.response?.data?.error || err.message,
+      });
+      setHotdeskStatus([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch user's reservations for the selected date
+  const fetchUserReservations = async () => {
+    try {
+      const formattedDate = selectedDate.toISOString().split("T")[0];
+      const config = {
+        headers: { Authorization: `Bearer ${user?.token}` },
+        withCredentials: true,
+      };
+
+      const response = await axios.get(
+        `http://localhost:8000/api/reservations/?date=${formattedDate}`,
+        config
+      );
+      setUserReservations(response.data);
+    } catch (err) {
+      setUserReservations([]);
+    }
+  };
+
   const makeReservation = async (deskId) => {
     try {
       const formattedDate = selectedDate.toISOString().split("T")[0];
@@ -59,7 +112,7 @@ export default function Reservations() {
       };
 
       await axios.post(
-        `http://localhost:8000/api/reservations/`,
+        `http://localhost:8000/api/reservations/create/`,
         {
           desk_id: deskId,
           date: formattedDate,
@@ -71,11 +124,54 @@ export default function Reservations() {
         description: `Desk reserved for ${formattedDate}`,
       });
 
-      // Refresh available desks
       fetchAvailableDesks();
+      fetchUserReservations();
     } catch (err) {
       console.error("Error making reservation:", err);
       toast.error("Failed to create reservation", {
+        description: err.response?.data?.error || err.message,
+      });
+    }
+  };
+
+  const cancelReservation = async (reservationId) => {
+    try {
+      const config = {
+        headers: { Authorization: `Bearer ${user?.token}` },
+        withCredentials: true,
+      };
+
+      await axios.post(
+        `http://localhost:8000/api/reservations/${reservationId}/check_out/`,
+        {},
+        config
+      );
+
+      toast.success("Reservation cancelled!");
+      fetchUserReservations();
+      fetchAvailableDesks();
+    } catch (err) {
+      toast.error("Failed to cancel reservation", {
+        description: err.response?.data?.error || err.message,
+      });
+    }
+  };
+
+  const startHotDesk = async (deskId) => {
+    try {
+      const config = {
+        headers: { Authorization: `Bearer ${user?.token}` },
+        withCredentials: true,
+      };
+      await axios.post(
+        `http://localhost:8000/api/desks/${deskId}/hotdesk/start/`,
+        {},
+        config
+      );
+      toast.success("Hot desk started!");
+      fetchHotdeskStatus();
+    } catch (err) {
+      toast.error("Failed to start hot desk", {
         description: err.response?.data?.error || err.message,
       });
     }
@@ -111,25 +207,51 @@ export default function Reservations() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {mode === "hotdesk" ? (
-          // Empty / placeholder page for Hot Desk (no calendar, no desk list)
           <Card className="lg:col-span-3">
             <CardHeader>
-              <CardTitle>Hot Desk</CardTitle>
-              <CardDescription>Hot desk mode — content will be added later.</CardDescription>
+              <CardTitle>Hot Desk Status</CardTitle>
+              <CardDescription>
+                See which desks are free or reserved today.
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="py-12 flex items-center justify-center">
-                <div className="text-center">
-                  <h3 className="text-lg font-semibold mb-2">Hot Desk Mode</h3>
-                  <p className="text-sm text-muted-foreground">
-                    This space will contain the hot-desk UI. For now, switch to "Reserve" to select a date and book a desk.
-                  </p>
+              {loading ? (
+                <p className="text-center text-muted-foreground">Loading...</p>
+              ) : hotdeskStatus.length === 0 ? (
+                <p className="text-center text-muted-foreground">No desk data available.</p>
+              ) : (
+                <div className="space-y-3">
+                  {hotdeskStatus.map((desk) => (
+                    <div
+                      key={desk.id}
+                      className={`flex items-center justify-between p-4 border rounded-lg ${
+                        desk.reserved
+                          ? "bg-yellow-50 border-yellow-300"
+                          : "bg-green-50 border-green-300"
+                      }`}
+                    >
+                      <div>
+                        <h3 className="font-semibold">Desk {desk.id}</h3>
+                        {desk.reserved ? (
+                          <p className="text-sm text-yellow-700">
+                            Warning: Reserved at {desk.reserved_time}
+                          </p>
+                        ) : (
+                          <p className="text-sm text-green-700">Free all day</p>
+                        )}
+                      </div>
+                      {!desk.reserved && (
+                        <Button onClick={() => startHotDesk(desk.id)}>
+                          Use
+                        </Button>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         ) : (
-          // Reserve layout: calendar + available desks
           <>
             <Card className="lg:col-span-1">
               <CardHeader>
@@ -150,7 +272,7 @@ export default function Reservations() {
             <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle>
-                  Available Reserved Desks for {selectedDate?.toLocaleDateString()}
+                  Available Desks for {selectedDate?.toLocaleDateString()}
                 </CardTitle>
                 <CardDescription>Click reserve to book a desk for the selected date</CardDescription>
               </CardHeader>
@@ -171,6 +293,37 @@ export default function Reservations() {
                           <p className="text-sm text-muted-foreground">Location: {desk.location || "Building A"}</p>
                         </div>
                         <Button onClick={() => makeReservation(desk.id)}>Reserve</Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-3">
+              <CardHeader>
+                <CardTitle>Your Reservations for {selectedDate?.toLocaleDateString()}</CardTitle>
+                <CardDescription>Manage your desk reservations</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {userReservations.length === 0 ? (
+                  <p className="text-center text-muted-foreground">No reservations for this date.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {userReservations.map((reservation) => (
+                      <div
+                        key={reservation.id}
+                        className="flex items-center justify-between p-4 border rounded-lg"
+                      >
+                        <div>
+                          <h3 className="font-semibold">Desk {reservation.desk_id}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Reserved from {reservation.start_time?.slice(11, 16) || "N/A"} to {reservation.end_time?.slice(11, 16) || "N/A"}
+                          </p>
+                        </div>
+                        <Button variant="destructive" onClick={() => cancelReservation(reservation.id)}>
+                          Cancel
+                        </Button>
                       </div>
                     ))}
                   </div>
