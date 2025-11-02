@@ -9,6 +9,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
+import { AccordionLogin } from "@/components/accordian-login"; // <-- Import AccordionLogin
 
 import { useState, useEffect } from "react"
 import { useAuth } from '../contexts/useAuth';
@@ -94,6 +95,8 @@ export function LoginForm({
           </form>
         </CardContent>
       </Card>
+      {/* AccordionLogin below the sign-in form */}
+      <AccordionLogin />
     </div>
   );
 }

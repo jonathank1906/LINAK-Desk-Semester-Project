@@ -21,6 +21,7 @@ import {
   IconAtom,
 } from "@tabler/icons-react"
 
+import Logo from "../assets/Logo.svg";
 import { NavMain } from "@/components/nav-main"
 
 import {
@@ -76,10 +77,18 @@ export function AppSidebar({
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:!p-1.5">
+            <SidebarMenuButton
+              asChild
+              className="data-[slot=sidebar-menu-button]:!p-2 flex items-center min-h-[48px]"
+            >
               <a href="#" onClick={() => onSectionSelect?.("dashboard")}>
-                <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">Desk App</span>
+                <img
+                  src={Logo}
+                  alt="Logo"
+                  className="h-8 w-8 object-contain align-middle"
+                  style={{ display: "inline-block" }}
+                />
+                <span className="text-base font-semibold ml-2">Sevanta</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
