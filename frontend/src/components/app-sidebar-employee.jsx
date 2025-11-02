@@ -58,10 +58,10 @@ export function AppSidebar({
       onClick: () => onSectionSelect?.("reservations"),
     },
     {
-      title: "Health & Analytics",
+      title: "Metrics",
       url: "#",
       icon: IconChartBar,
-      onClick: () => onSectionSelect?.("analytics"),
+      onClick: () => onSectionSelect?.("metrics"),
     },
     {
       title: "Pico Lab",

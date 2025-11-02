@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/useAuth";
 import MyDesk from "./MyDesk";
 import Reservations from "./Reservations";
 import PicoLab from "./PicoLab";
+import Metrics from "./Metrics";
 import axios from "axios";
 import {
   Card,
@@ -71,134 +72,15 @@ export default function EmployeeDashboard() {
       case "dashboard":
       default:
         return (
-          <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-            {/* Top Cards */}
-            <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-              {/* Desk Status Card */}
-              <Card className="animate-fade-up">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-2xl font-bold text-green-600">
-                    {deskStatus ? `Desk #${deskStatus.desk_id}` : "Desk #--"}
-                  </CardTitle>
-                  <CardDescription>Current Desk Status</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="text-lg">
-                      Height: {deskStatus ? `${deskStatus.current_height}cm` : "--"}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      Status: {deskStatus ? deskStatus.status : "--"}
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <p className="text-xs text-gray-500">
-                    Working for {deskStatus ? deskStatus.session_duration : "--"}
-                  </p>
-                </CardFooter>
-              </Card>
-
-              {/* Usage Stats Card */}
-              <Card className="animate-fade-up">
-                <CardHeader className="pb-3">
-                  <CardTitle>Today's Usage</CardTitle>
-                  <CardDescription>Standing & Sitting Time</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="text-sm">
-                      Sitting: {usageStats ? usageStats.sitting_time : "--"}
-                    </div>
-                    <div className="text-sm">
-                      Standing: {usageStats ? usageStats.standing_time : "--"}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {usageStats
-                        ? `${usageStats.position_changes} position changes`
-                        : "--"}
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <p className="text-xs text-green-600">
-                    Currently standing {usageStats ? usageStats.current_standing : "--"}
-                  </p>
-                </CardFooter>
-              </Card>
-
-              {/* Health Tip Card */}
-              <Card className="animate-fade-up">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-blue-600">Health Tip</CardTitle>
-                  <CardDescription>Great progress today!</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-600">
-                    You've met your 2-hour standing goal. Consider a 5-minute walk break.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Bottom Section - Quick Actions & Info */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animation-delay-100 animate-fade-up">
-              {/* Next Reservation */}
-              <Card className="bg-blue-50 border-blue-200">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-blue-800">Next Reservation</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-sm text-blue-700">Today 2:00-4:00 PM</div>
-                  <div className="text-sm text-blue-600">Conference Room Desk A</div>
-                </CardContent>
-              </Card>
-
-              {/* Quick Actions */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle>Quick Actions</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button className="bg-green-100 text-green-700 p-2 rounded text-sm hover:bg-green-200">
-                      Go Sitting
-                    </button>
-                    <button className="bg-blue-100 text-blue-700 p-2 rounded text-sm hover:bg-blue-200">
-                      Go Standing
-                    </button>
-                    <button className="bg-orange-100 text-orange-700 p-2 rounded text-sm hover:bg-orange-200">
-                      Book Desk
-                    </button>
-                    <button className="bg-purple-100 text-purple-700 p-2 rounded text-sm hover:bg-purple-200">
-                      View Health
-                    </button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Weekly Summary */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle>This Week</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-sm space-y-1">
-                    <div>Total desk time: 32.5 hours</div>
-                    <div>Standing time: 8.2 hours (25%)</div>
-                    <div>Most productive day: Wednesday</div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+          <div>
           </div>
         );
       case "reservations":
         return <Reservations />;
       case "mydesk":
         return <MyDesk />;
-      case "analytics":
-        return <div className="p-4">Health & Analytics</div>;
+      case "metrics":
+        return <Metrics />;
       case "pico_lab":
         return <PicoLab picoId={1}/>;
     }
