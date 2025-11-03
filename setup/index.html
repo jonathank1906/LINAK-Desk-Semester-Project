@@ -145,8 +145,8 @@ npm install
 <pre><code class="language-sql">CREATE DATABASE db;
 CREATE USER &quot;user&quot; WITH PASSWORD 'localdevpw';
 GRANT ALL PRIVILEGES ON DATABASE db TO &quot;user&quot;;
-postgres=# ALTER USER &quot;user&quot; CREATEDB CREATEROLE;
-postgres=# ALTER USER &quot;user&quot; WITH SUPERUSER;
+ALTER USER &quot;user&quot; CREATEDB CREATEROLE;
+ALTER USER &quot;user&quot; WITH SUPERUSER;
 </code></pre>
 <p>Type \q to exit.</p>
 <h3 id="backend-setup">Backend Setup</h3>
@@ -175,6 +175,11 @@ npm run dev
 <pre><code class="language-sh">env\Scripts\activate  
 cd backend
 py manage.py runserver
+</code></pre>
+<p>Running the simulator (in another terminal).</p>
+<pre><code class="language-sh">env\Scripts\activate
+cd wifi2ble-box-simulator
+py simulator/main.py --port 8001
 </code></pre></div>
             </div>
         </div>
