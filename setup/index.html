@@ -141,7 +141,7 @@ npm install
 <h3 id="create-the-postgresql-database">Create the PostgreSQL database</h3>
 <pre><code class="language-sh">psql -U postgres
 </code></pre>
-<p>Then, in the PostgreSQL prompt, run:</p>
+<p>Then in the PostgreSQL prompt run:</p>
 <pre><code class="language-sql">CREATE DATABASE db;
 CREATE USER &quot;user&quot; WITH PASSWORD 'localdevpw';
 GRANT ALL PRIVILEGES ON DATABASE db TO &quot;user&quot;;
@@ -150,7 +150,7 @@ ALTER USER &quot;user&quot; WITH SUPERUSER;
 </code></pre>
 <p>Type \q or exit to quit.</p>
 <h3 id="backend-setup">Backend Setup</h3>
-<p>In root directory, a create virtual environment and activate it.</p>
+<p>In root directory, a create virtual environment.</p>
 <pre><code class="language-sh">py -m venv env
 </code></pre>
 <p>Install backend dependencies:</p>
