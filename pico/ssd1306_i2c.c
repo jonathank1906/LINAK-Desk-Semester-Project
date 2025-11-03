@@ -12,6 +12,7 @@
 #include "pico/binary_info.h"
 #include "hardware/i2c.h"
 #include "ssd1306_font.h"
+#include "ssd1306_i2c.h"
 
 /* Simplified SSD1306 OLED display driver - TEXT ONLY
    
@@ -185,7 +186,7 @@ void oled_init() {
 #if !defined(i2c_default) || !defined(PICO_DEFAULT_I2C_SDA_PIN) || !defined(PICO_DEFAULT_I2C_SCL_PIN)
     puts("Default I2C pins were not defined");
 #else
-    printf("Initializing SSD1306 OLED...\n");
+    printf("DEBUG: Initializing SSD1306 OLED...\n");
 
     // Initialize I2C
     i2c_init(i2c_default, SSD1306_I2C_CLK * 1000);
@@ -208,18 +209,25 @@ void oled_init() {
     ClearDisplay(display_buf);
     UpdateDisplay();
 
-    printf("Display initialized!\n");
+    printf("DEBUG: Display initialized!\n");
 #endif
 }
 
 // Helper function to display text on the OLED
 void oled_display_text(char *line1, char *line2, char *line3, char *line4) {
+    printf("DEBUG: oled_display_text called\n");
+    printf("DEBUG: line1: %s\n", line1 ? line1 : "(null)");
+    printf("DEBUG: line2: %s\n", line2 ? line2 : "(null)");
+    printf("DEBUG: line3: %s\n", line3 ? line3 : "(null)");
+    printf("DEBUG: line4: %s\n", line4 ? line4 : "(null)");
+
     ClearDisplay(display_buf);
-    
+
     if (line1) WriteString(display_buf, 5, 0, line1);
     if (line2) WriteString(display_buf, 5, 8, line2);
     if (line3) WriteString(display_buf, 5, 16, line3);
     if (line4) WriteString(display_buf, 5, 24, line4);
-    
+
     UpdateDisplay();
+    printf("DEBUG: OLED display updated\n");
 }

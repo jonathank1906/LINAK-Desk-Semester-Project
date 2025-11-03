@@ -13,6 +13,17 @@
 #include "lwip/apps/mqtt.h"
 #include "lwip/apps/mqtt_priv.h"
 #include "lwip/dns.h"
+#include "ssd1306_i2c.h"
+#include "globals.h"
+
+// FIX: Declare extern only once at the top, not inside handler blocks
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern void set_pending_verification(bool state);
+#ifdef __cplusplus
+}
+#endif
 
 void mqtt_init();
 void mqtt_poll();  // New function for non-blocking operation
@@ -124,29 +135,37 @@ static const char *full_topic(MQTT_CLIENT_DATA_T *state, const char *name) {
 static void control_led(MQTT_CLIENT_DATA_T *state, bool on) {
     const char* message = on ? "On" : "Off";
     INFO_printf("LED: %s\n", message);
-    
+
     if (on)
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
     else
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
 
-    mqtt_publish(state->mqtt_client_inst, full_topic(state, "/led/state"), 
-                 message, strlen(message), MQTT_PUBLISH_QOS, MQTT_PUBLISH_RETAIN, 
+    mqtt_publish(state->mqtt_client_inst, full_topic(state, "/led/state"),
+                 message, strlen(message), MQTT_PUBLISH_QOS, MQTT_PUBLISH_RETAIN,
                  pub_request_cb, state);
+}
+
+void publish_desk_confirm(MQTT_CLIENT_DATA_T* state) {
+    printf("DEBUG: publish_desk_confirm called\n");
+    const char* confirm_topic = "/desk/1/confirm"; // TODO: Replace with your desk_id
+    const char* confirm_msg = "{\"action\": \"confirm_button\"}";
+    printf("DEBUG: Publishing to topic: %s, message: %s\n", confirm_topic, confirm_msg);
+    mqtt_publish(state->mqtt_client_inst, confirm_topic, confirm_msg, strlen(confirm_msg), MQTT_PUBLISH_QOS, MQTT_PUBLISH_RETAIN, pub_request_cb, state);
 }
 
 static void publish_temperature(MQTT_CLIENT_DATA_T *state) {
     static float old_temperature = 0;
     const char *temperature_key = full_topic(state, "/temperature");
     float temperature = read_onboard_temperature(TEMPERATURE_UNITS);
-    
+
     if (temperature != old_temperature) {
         old_temperature = temperature;
         char temp_str[16];
         snprintf(temp_str, sizeof(temp_str), "%.2f", temperature);
         INFO_printf("Publishing temperature: %s°%c to %s\n", temp_str, TEMPERATURE_UNITS, temperature_key);
-        mqtt_publish(state->mqtt_client_inst, temperature_key, temp_str, 
-                    strlen(temp_str), MQTT_PUBLISH_QOS, MQTT_PUBLISH_RETAIN, 
+        mqtt_publish(state->mqtt_client_inst, temperature_key, temp_str,
+                    strlen(temp_str), MQTT_PUBLISH_QOS, MQTT_PUBLISH_RETAIN,
                     pub_request_cb, state);
     }
 }
@@ -197,8 +216,9 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
     state->len = len;
     state->data[len] = '\0';
 
-    INFO_printf("Received: Topic='%s', Message='%s'\n", state->topic, state->data);
-    
+    printf("DEBUG: MQTT message received on topic: %s\n", state->topic);
+    printf("DEBUG: MQTT payload: %s\n", state->data);
+    printf("DEBUG: basic_topic = '%s'\n", basic_topic);
     if (strcmp(basic_topic, "/led") == 0) {
         if (lwip_stricmp(state->data, "On") == 0 || strcmp(state->data, "1") == 0)
             control_led(state, true);
@@ -210,19 +230,37 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
         char buf[11];
         snprintf(buf, sizeof(buf), "%u", to_ms_since_boot(get_absolute_time()) / 1000);
         INFO_printf("Ping received, sending uptime: %s seconds\n", buf);
-        mqtt_publish(state->mqtt_client_inst, full_topic(state, "/uptime"), 
-                    buf, strlen(buf), MQTT_PUBLISH_QOS, MQTT_PUBLISH_RETAIN, 
+        mqtt_publish(state->mqtt_client_inst, full_topic(state, "/uptime"),
+                    buf, strlen(buf), MQTT_PUBLISH_QOS, MQTT_PUBLISH_RETAIN,
                     pub_request_cb, state);
     } else if (strcmp(basic_topic, "/exit") == 0) {
         INFO_printf("Exit command received\n");
         state->stop_client = true;
         sub_unsub_topics(state, false);
     }
+    else if (strcmp(state->topic, "/desk/1/display") == 0) { // TODO: Replace with your desk_id
+        printf("DEBUG: Handling /desk/1/display topic\n");
+        if (strstr(state->data, "show_confirm_button")) {
+            printf("DEBUG: Action is show_confirm_button\n");
+            oled_display_text("DESK #1", "Please press", "button to", "confirm");
+            set_pending_verification(true); // FIX: No extern here!
+        } else if (strstr(state->data, "show_in_use")) {
+            printf("DEBUG: Action is show_in_use\n");
+            oled_display_text("DESK #1", "In Use:", "John Doe", "");
+            set_pending_verification(false);
+        } else if (strstr(state->data, "show_available")) {
+            printf("DEBUG: Action is show_available\n");
+            oled_display_text("DESK #1", "Available", "", "");
+            set_pending_verification(false);
+        } else {
+            printf("DEBUG: Unknown action in payload\n");
+        }
+    }
 }
 
 static void mqtt_incoming_publish_cb(void *arg, const char *topic, u32_t tot_len) {
     MQTT_CLIENT_DATA_T* state = (MQTT_CLIENT_DATA_T*)arg;
-    DEBUG_printf("Incoming publish: %s (%u bytes)\n", topic, tot_len);
+    printf("DEBUG: Incoming publish: %s (%u bytes)\n", topic, tot_len);
     strncpy(state->topic, topic, sizeof(state->topic));
 }
 
@@ -235,23 +273,28 @@ static async_at_time_worker_t temperature_worker = { .do_work = temperature_work
 
 static void mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection_status_t status) {
     MQTT_CLIENT_DATA_T* state = (MQTT_CLIENT_DATA_T*)arg;
-    
+
     if (status == MQTT_CONNECT_ACCEPTED) {
         INFO_printf("✓ MQTT Connected!\n");
         state->connect_done = true;
-        
+
         sub_unsub_topics(state, true);
+
+        // Subscribe to desk display topic
+        const char* desk_display_topic = "/desk/1/display"; // TODO: Replace with your actual desk_id
+        printf("DEBUG: Subscribing to topic: %s\n", desk_display_topic);
+        mqtt_sub_unsub(state->mqtt_client_inst, desk_display_topic, MQTT_SUBSCRIBE_QOS, sub_request_cb, state, true);
 
         // Indicate online
         if (state->mqtt_client_info.will_topic) {
-            mqtt_publish(state->mqtt_client_inst, state->mqtt_client_info.will_topic, 
+            mqtt_publish(state->mqtt_client_inst, state->mqtt_client_info.will_topic,
                         "1", 1, MQTT_WILL_QOS, true, pub_request_cb, state);
         }
 
         // Start temperature publishing
         temperature_worker.user_data = state;
         async_context_add_at_time_worker_in_ms(cyw43_arch_async_context(), &temperature_worker, 0);
-        
+
     } else if (status == MQTT_CONNECT_DISCONNECTED) {
         ERROR_printf("MQTT Disconnected\n");
         if (!state->connect_done) {
@@ -271,27 +314,27 @@ static void start_client(MQTT_CLIENT_DATA_T *state) {
     if (!state->mqtt_client_inst) {
         panic("Failed to create MQTT client");
     }
-    
+
     INFO_printf("Local IP: %s\n", ipaddr_ntoa(&(netif_list->ip_addr)));
     INFO_printf("Server IP: %s\n", ipaddr_ntoa(&state->mqtt_server_address));
     INFO_printf("Client ID: %s\n", state->mqtt_client_info.client_id);
     INFO_printf("Connecting to MQTT broker...\n");
 
     cyw43_arch_lwip_begin();
-    err_t err = mqtt_client_connect(state->mqtt_client_inst, 
-                                    &state->mqtt_server_address, 
-                                    MQTT_PORT, 
-                                    mqtt_connection_cb, 
-                                    state, 
+    err_t err = mqtt_client_connect(state->mqtt_client_inst,
+                                    &state->mqtt_server_address,
+                                    MQTT_PORT,
+                                    mqtt_connection_cb,
+                                    state,
                                     &state->mqtt_client_info);
     if (err != ERR_OK) {
         ERROR_printf("mqtt_client_connect failed: %d\n", err);
         panic("MQTT connection error");
     }
-    
-    mqtt_set_inpub_callback(state->mqtt_client_inst, 
-                           mqtt_incoming_publish_cb, 
-                           mqtt_incoming_data_cb, 
+
+    mqtt_set_inpub_callback(state->mqtt_client_inst,
+                           mqtt_incoming_publish_cb,
+                           mqtt_incoming_data_cb,
                            state);
     cyw43_arch_lwip_end();
     INFO_printf("Waiting for connection...\n");
@@ -310,9 +353,9 @@ static void dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg) 
 }
 
 void mqtt_init(void) {
-    
+
     sleep_ms(2000); // Wait for USB serial
-    
+
     INFO_printf("\n\n=================================\n");
     INFO_printf("  Pico W MQTT Client (Local)\n");
     INFO_printf("=================================\n\n");
@@ -336,13 +379,13 @@ void mqtt_init(void) {
     memcpy(&client_id_buf[0], MQTT_DEVICE_NAME, sizeof(MQTT_DEVICE_NAME) - 1);
     memcpy(&client_id_buf[sizeof(MQTT_DEVICE_NAME) - 1], unique_id_buf, sizeof(unique_id_buf) - 1);
     client_id_buf[sizeof(client_id_buf) - 1] = 0;
-    
+
     INFO_printf("Device ID: %s\n", client_id_buf);
 
     // Configure MQTT client info
     g_state.mqtt_client_info.client_id = client_id_buf;
     g_state.mqtt_client_info.keep_alive = MQTT_KEEP_ALIVE_S;
-    
+
 #if defined(MQTT_USERNAME) && defined(MQTT_PASSWORD)
     g_state.mqtt_client_info.client_user = MQTT_USERNAME;
     g_state.mqtt_client_info.client_pass = MQTT_PASSWORD;
@@ -363,7 +406,7 @@ void mqtt_init(void) {
     // Connect to WiFi
     INFO_printf("\nConnecting to WiFi: %s\n", WIFI_SSID);
     cyw43_arch_enable_sta_mode();
-    
+
     if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 30000)) {
         panic("WiFi connection failed");
     }

@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import PendingVerificationModal from "@/components/pending-verification-modal";
+import { useNavigate } from "react-router-dom";
 
 export default function Reservations() {
   const { user } = useAuth();
@@ -14,6 +16,12 @@ export default function Reservations() {
   const [userReservations, setUserReservations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState("hotdesk"); // "hotdesk" or "reserve"
+
+  // Pending verification modal state
+  const [verificationModalOpen, setVerificationModalOpen] = useState(false);
+  const [pendingDeskId, setPendingDeskId] = useState(null);
+  const [polling, setPolling] = useState(false);
+  const nav = useNavigate();
 
   useEffect(() => {
     if (mode === "hotdesk") {
@@ -29,6 +37,34 @@ export default function Reservations() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, mode]);
+
+  // Poll for confirmation
+  useEffect(() => {
+    let interval;
+    if (polling && pendingDeskId) {
+      interval = setInterval(async () => {
+        try {
+          const config = {
+            headers: { Authorization: `Bearer ${user?.token}` },
+            withCredentials: true,
+          };
+          const res = await axios.get(
+            `http://localhost:8000/api/desks/${pendingDeskId}/status/`,
+            config
+          );
+          if (res.data.current_status === "occupied") {
+            setVerificationModalOpen(false);
+            setPolling(false);
+            toast.success("Desk confirmed! Redirecting...");
+            nav("/mydesk");
+          }
+        } catch (err) {
+          // Optionally handle error
+        }
+      }, 2000); // Poll every 2 seconds
+    }
+    return () => clearInterval(interval);
+  }, [polling, pendingDeskId, user, nav]);
 
   const fetchAvailableDesks = async () => {
     setLoading(true);
@@ -157,6 +193,7 @@ export default function Reservations() {
     }
   };
 
+  // Updated hotdesk flow with pending verification
   const startHotDesk = async (deskId) => {
     try {
       const config = {
@@ -168,7 +205,10 @@ export default function Reservations() {
         {},
         config
       );
-      toast.success("Hot desk started!");
+      toast.success("Hot desk started! Please confirm at the desk.");
+      setPendingDeskId(deskId);
+      setVerificationModalOpen(true);
+      setPolling(true);
       fetchHotdeskStatus();
     } catch (err) {
       toast.error("Failed to start hot desk", {
@@ -333,6 +373,11 @@ export default function Reservations() {
           </>
         )}
       </div>
+      <PendingVerificationModal
+        open={verificationModalOpen}
+        deskId={pendingDeskId}
+        onClose={() => setVerificationModalOpen(false)}
+      />
     </div>
   );
 }

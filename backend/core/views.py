@@ -13,6 +13,7 @@ from rest_framework_simplejwt.token_blacklist.models import (
 from djoser.utils import decode_uid
 from django.utils import timezone
 from datetime import datetime, timedelta
+import json
 from core.services.MQTTService import get_mqtt_service
 
 from .serializers import (
@@ -369,7 +370,7 @@ from core.services.MQTTService import get_mqtt_service
 def start_hot_desk(request, desk_id):
     try:
         desk = Desk.objects.get(id=desk_id)
-        if desk.current_status != "available":
+        if desk.current_status not in ["available", "Normal"]:
             return Response(
                 {"error": "Desk not available"}, status=status.HTTP_400_BAD_REQUEST
             )
@@ -381,14 +382,14 @@ def start_hot_desk(request, desk_id):
 
         # Notify Pico via MQTT to show "Press button to confirm"
         mqtt_service = get_mqtt_service()
-        topic = f"desk/{desk.id}/display"
+        topic = f"/desk/{desk.id}/display"
         message = {
             "action": "show_confirm_button",
             "desk_id": desk.id,
             "desk_name": desk.name,
             "user": request.user.get_full_name() or request.user.username,
         }
-        mqtt_service.publish(topic, message)
+        mqtt_service.publish(topic, json.dumps(message))
 
         # Optionally: create a DeskUsageLog with status 'pending'
         # DeskUsageLog.objects.create(
@@ -436,12 +437,25 @@ def confirm_hot_desk(request, desk_id):
             "desk_name": desk.name,
             "user": request.user.get_full_name() or request.user.username,
         }
-        mqtt_service.publish(topic, message)
+        mqtt_service.publish(topic, json.dumps(message))
 
         return Response({"success": True, "desk": desk.name})
     except Desk.DoesNotExist:
         return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)
 
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def cancel_pending_verification(request, desk_id):
+    try:
+        desk = Desk.objects.get(id=desk_id)
+        if desk.current_status == "pending_verification":
+            desk.current_user = None
+            desk.current_status = "available"
+            desk.save()
+            return Response({"success": True})
+        return Response({"error": "Desk not pending verification"}, status=status.HTTP_400_BAD_REQUEST)
+    except Desk.DoesNotExist:
+        return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])

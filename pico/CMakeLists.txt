@@ -46,7 +46,8 @@ add_executable(06
         ssd1306_i2c.c
         mqtt_client.c
         ws2812.c
-        Buzzer.cpp)
+        Buzzer.cpp
+        globals.cpp)
 
 pico_generate_pio_header(06 ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)
 
