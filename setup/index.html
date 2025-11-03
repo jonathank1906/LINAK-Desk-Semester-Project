@@ -148,20 +148,18 @@ GRANT ALL PRIVILEGES ON DATABASE db TO &quot;user&quot;;
 ALTER USER &quot;user&quot; CREATEDB CREATEROLE;
 ALTER USER &quot;user&quot; WITH SUPERUSER;
 </code></pre>
-<p>Type \q to exit.</p>
+<p>Type \q or exit to quit.</p>
 <h3 id="backend-setup">Backend Setup</h3>
-<p>In root directory a create virtual environment and activate it.</p>
+<p>In root directory, a create virtual environment and activate it.</p>
 <pre><code class="language-sh">py -m venv env
-env\Scripts\activate
 </code></pre>
 <p>Install backend dependencies:</p>
-<pre><code class="language-sh">pip install -r requirements.txt
+<pre><code class="language-sh">env\Scripts\activate
+pip install -r requirements.txt
 </code></pre>
-<p>Navigate to the backend folder:</p>
+<p>Navigate to the backend folder and apply migrations:</p>
 <pre><code class="language-sh">cd backend
-</code></pre>
-<p>Apply migrations:</p>
-<pre><code class="language-sh">py manage.py migrate
+py manage.py migrate
 </code></pre>
 <p>Seed initial data:</p>
 <pre><code class="language-sh">py manage.py seed_data
@@ -180,6 +178,11 @@ py manage.py runserver
 <pre><code class="language-sh">env\Scripts\activate
 cd wifi2ble-box-simulator
 py simulator/main.py --port 8001
+</code></pre>
+<p>Running the MQTT listener for the Pico (in another terminal).</p>
+<pre><code class="language-sh">env\Scripts\activate
+cd backend
+py manage.py mqtt_listener
 </code></pre></div>
             </div>
         </div>
