@@ -17,7 +17,6 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-// ...existing code...
 import { MoreVertical } from "lucide-react";
 import {
     DropdownMenu,
@@ -26,6 +25,7 @@ import {
     DropdownMenuItem,
     DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import PendingVerificationModal from "@/components/pending-verification-modal";
 
 export default function EmployeeDashboard() {
     const [selectedSection, setSelectedSection] = useState("dashboard");
@@ -47,6 +47,10 @@ export default function EmployeeDashboard() {
             location: "A10 · Floor 1, HQ San Francisco",
         },
     ]);
+
+    // Modal state for pending verification
+    const [verificationModalOpen, setVerificationModalOpen] = useState(false);
+    const [pendingDeskId, setPendingDeskId] = useState(null);
 
     // Fetch desk status and usage only if the user is logged in
     useEffect(() => {
@@ -104,6 +108,10 @@ export default function EmployeeDashboard() {
 
     function handleCheckInReservation(id) {
         console.log("checkin reservation", id);
+        // For demo, use deskId 1, or you can map reservation to deskId if available
+        setPendingDeskId(1);
+        setVerificationModalOpen(true);
+
         // mark checked-in locally for UI demo
         setUpcomingReservations((prev) =>
             prev.map((r) => (r.id === id ? { ...r, checkedIn: true } : r))
@@ -314,6 +322,11 @@ export default function EmployeeDashboard() {
                     </div>
                 </header>
                 {renderContent()}
+                <PendingVerificationModal
+                    open={verificationModalOpen}
+                    deskId={pendingDeskId}
+                    onClose={() => setVerificationModalOpen(false)}
+                />
             </SidebarInset>
         </SidebarProvider>
     );
