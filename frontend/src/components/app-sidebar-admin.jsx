@@ -31,7 +31,10 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
+
+
 export function AppSidebar({
+  activeSection,
   onSectionSelect,
   ...props
 }) {
@@ -41,17 +44,21 @@ export function AppSidebar({
       url: "#",
       icon: IconLayoutDashboardFilled,
       onClick: () => onSectionSelect?.("dashboard"),
+      active: activeSection === "dashboard",
     },
     {
       title: "Analytics",
       url: "#",
       icon: IconChartBar,
+      onClick: () => onSectionSelect?.("analytics"), 
+      active: activeSection === "analytics",
     },
     {
       title: "Users",
       url: "#",
       icon: IconUsers,
       onClick: () => onSectionSelect?.("users"),
+      active: activeSection === "users",
     },
   ];
 
@@ -83,7 +90,12 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navMain} />
+        <NavMain
+          items={navMain.map((item) => ({
+            ...item,
+            className: item.active ? "bg-accent text-primary font-bold" : "",
+          }))}
+        />
         <NavDocuments items={documents} />
       </SidebarContent>
     </Sidebar>

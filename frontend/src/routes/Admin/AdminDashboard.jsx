@@ -9,6 +9,8 @@ import { NavUser } from "@/components/nav-user";
 import { useAuth } from "@/contexts/useAuth";
 import { useState } from "react";
 import UserManagement from "./UserManagement";
+import AnalyticsPage from "./AnalyticsPage"
+
 
 import {
   IconUsers,
@@ -51,7 +53,7 @@ export default function AdminDashboard() {
   const { user } = useAuth();
 
  const hourlyUtilizationData = {
-  labels: ["8AM", "9AM", "10AM", "11AM", "12PM", "1PM", "2PM", "3PM", "4PM", "5PM"],
+  labels: ["6AM","7AM","8AM", "9AM", "10AM", "11AM", "12PM", "1PM", "2PM", "3PM", "4PM", "5PM", "6PM"],
   datasets: [
     {
       label: "Utilization %",
@@ -88,10 +90,10 @@ export default function AdminDashboard() {
   };
 
   const recentBookings = [
-    { user: "User A", desk: "Desk 5" },
-    { user: "User B", desk: "Desk 3" },
-    { user: "User A", desk: "Desk 12" },
-    { user: "User B", desk: "Desk 3" },
+    { user: "Daniils", desk: "Desk 5" },
+    { user: "Jonathan", desk: "Desk 3" },
+    { user: "Lukas", desk: "Desk 12" },
+    { user: "Benjamin", desk: "Desk 3" },
   ];
   const complains = [
     { user: "Daniils", note: "Desk 5 is slow and problematic" },
@@ -102,6 +104,8 @@ export default function AdminDashboard() {
     switch (selectedSection) {
       case "users":
         return <UserManagement />;
+      case "analytics":
+        return <AnalyticsPage />;
       case "dashboard":
       default:
         return (
@@ -174,7 +178,7 @@ export default function AdminDashboard() {
           <NavUser user={user} />
         </div>
       </div>
-      <AppSidebar onSectionSelect={setSelectedSection} />
+      <AppSidebar onSectionSelect={setSelectedSection} activeSection={selectedSection} />
       <SidebarInset>
         <header className="relative flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2 px-4">
