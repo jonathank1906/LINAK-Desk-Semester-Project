@@ -134,18 +134,24 @@ export const columns = ({ setUsers, openViewDialog, openEditDialog }) => [
             <DropdownMenuItem onClick={() => openViewDialog(user)}>View</DropdownMenuItem>
             <DropdownMenuItem onClick={() => openEditDialog(user)}>Edit</DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => {
-                if (confirm(`Disable ${user.name}?`)) {
-                  setUsers((prev) =>
-                    prev.map((u) =>
-                      u.id === user.id ? { ...u, status: "Disabled" } : u
-                    )
-                  );
-                }
-              }}
-            >
-              Disable
-            </DropdownMenuItem>
+  onClick={() => {
+    const isDisabled = user.status === "Disabled";
+    const action = isDisabled ? "Activate" : "Disable";
+
+    if (confirm(`${action} ${user.name}?`)) {
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === user.id
+            ? { ...u, status: isDisabled ? "Active" : "Disabled" }
+            : u
+        )
+      );
+    }
+  }}
+>
+  {user.status === "Disabled" ? "Activate" : "Disable"}
+</DropdownMenuItem>
+
           </DropdownMenuContent>
         </DropdownMenu>
       );
