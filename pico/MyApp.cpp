@@ -88,12 +88,6 @@ void MyApp() {
             printf("DEBUG: Main loop iteration %d, pending_verification = %s\n", loop_count, pending_verification ? "true" : "false");
         }
 
-        // SPAM publish_desk_confirm every 1000 iterations (~10 seconds)
-        if (loop_count % 1000 == 0) {
-            printf("DEBUG: SPAMMING publish_desk_confirm\n");
-            publish_desk_confirm(get_mqtt_state());
-        }
-
         loop_count++;
 
         // Check button events
