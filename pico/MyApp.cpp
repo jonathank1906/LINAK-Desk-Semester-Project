@@ -6,6 +6,7 @@
 #include "MyApp.h"
 #include "Buzzer.h"
 #include "globals.h"
+#include "mqtt_client.h"
 
 extern "C" {
     void oled_init();
@@ -18,8 +19,6 @@ extern "C" {
     // WS2812 functions
     #include "ws2812.h"
 }
-
-
 
 // Allow mqtt_client.c to set pending_verification
 extern "C" void set_pending_verification(bool state) {
@@ -54,7 +53,6 @@ void MyApp() {
 
     buzzer_init();
     printf("DEBUG: Buzzer initialized\n");
-    //moving_buzzer_pattern();
 
     // Set initial color to solid green
     pattern_solid_green(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
@@ -89,6 +87,13 @@ void MyApp() {
         if (loop_count % 100 == 0) {
             printf("DEBUG: Main loop iteration %d, pending_verification = %s\n", loop_count, pending_verification ? "true" : "false");
         }
+
+        // SPAM publish_desk_confirm every 1000 iterations (~10 seconds)
+        if (loop_count % 1000 == 0) {
+            printf("DEBUG: SPAMMING publish_desk_confirm\n");
+            publish_desk_confirm(get_mqtt_state());
+        }
+
         loop_count++;
 
         // Check button events
@@ -125,7 +130,7 @@ void MyApp() {
             // Hotdesk verification: If pending, publish confirmation
             if (pending_verification) {
                 printf("DEBUG: Pending verification detected, publishing desk confirmation via MQTT\n");
-                publish_desk_confirm(NULL); // Pass state if needed
+                publish_desk_confirm(get_mqtt_state());
                 pending_verification = false;
                 oled_display_text("DESK #1", "Confirmed!", "", "");
                 printf("DEBUG: Desk confirmation published via MQTT and OLED updated\n");

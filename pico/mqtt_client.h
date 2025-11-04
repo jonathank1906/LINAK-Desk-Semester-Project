@@ -7,6 +7,8 @@
 extern "C" {
 #endif
 
+typedef struct MQTT_CLIENT_DATA_T MQTT_CLIENT_DATA_T; // Forward declaration if not already present
+
 // Initialize MQTT client (connects to WiFi and MQTT broker)
 void mqtt_client_init(void);
 
@@ -24,6 +26,10 @@ bool mqtt_is_connected(void);
 // Register callback for external LED control from MQTT
 // Callback will be called when /redled topic receives a message
 void mqtt_register_led_callback(void (*callback)(bool on));
+
+MQTT_CLIENT_DATA_T* get_mqtt_state(void);
+
+bool mqtt_is_connected(void);
 
 #ifdef __cplusplus
 }

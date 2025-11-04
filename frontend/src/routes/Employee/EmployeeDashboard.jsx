@@ -90,7 +90,7 @@ export default function EmployeeDashboard() {
         fetchDeskStatus();
 
         // Poll every 500ms for live updates (same as MyDesk)
-        const interval = setInterval(fetchDeskStatus, 500);
+        const interval = setInterval(fetchDeskStatus, 30000);
         return () => clearInterval(interval);
     }, [user]);
 

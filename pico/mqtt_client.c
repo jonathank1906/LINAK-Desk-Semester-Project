@@ -148,7 +148,7 @@ static void control_led(MQTT_CLIENT_DATA_T *state, bool on) {
 
 void publish_desk_confirm(MQTT_CLIENT_DATA_T* state) {
     printf("DEBUG: publish_desk_confirm called\n");
-    const char* confirm_topic = "/desk/1/confirm"; // TODO: Replace with your desk_id
+    const char* confirm_topic = full_topic(state, "/desk/1/confirm");
     const char* confirm_msg = "{\"action\": \"confirm_button\"}";
     printf("DEBUG: Publishing to topic: %s, message: %s\n", confirm_topic, confirm_msg);
     mqtt_publish(state->mqtt_client_inst, confirm_topic, confirm_msg, strlen(confirm_msg), MQTT_PUBLISH_QOS, MQTT_PUBLISH_RETAIN, pub_request_cb, state);
@@ -428,9 +428,11 @@ void mqtt_init(void) {
     INFO_printf("\n=== MQTT initialization complete ===\n\n");
 }
 
+MQTT_CLIENT_DATA_T* get_mqtt_state(void) {
+    return &g_state;
+}
+
 // Non-blocking poll function
 void mqtt_poll(void) {
-    if (!g_state.connect_done || mqtt_client_is_connected(g_state.mqtt_client_inst)) {
-        cyw43_arch_poll();
-    }
+    cyw43_arch_poll();
 }
