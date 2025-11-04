@@ -1,12 +1,11 @@
-// app/users/data-table.jsx
-"use client"
+"use client";
 
+import React, { useEffect } from "react";
 import {
   flexRender,
   getCoreRowModel,
   useReactTable,
-} from "@tanstack/react-table"
-
+} from "@tanstack/react-table";
 import {
   Table,
   TableBody,
@@ -14,17 +13,29 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 
-export function DataTable({ columns, data }) {
+export function DataTable({ columns, data, onSelectionChange }) {
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-  })
+    getRowId: (row) => row.id,
+    enableRowSelection: true,
+  });
+
+  // Sync selected rows with parent state
+  useEffect(() => {
+    const selected = table.getSelectedRowModel().rows.map((r) => r.original);
+    onSelectionChange && onSelectionChange(selected);
+  }, [table.getState().rowSelection]); // re-run whenever selection changes
+
+  const toggleRowSelection = (row) => {
+    row.toggleSelected();
+  };
 
   return (
-    <div className="rounded-md border">
+    <div className="rounded-md border overflow-hidden">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
@@ -48,10 +59,17 @@ export function DataTable({ columns, data }) {
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
+                className={`cursor-pointer hover:bg-muted/40 ${
+                  row.getIsSelected() ? "bg-muted" : ""
+                }`}
+                onClick={() => toggleRowSelection(row)}
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    {flexRender(
+                      cell.column.columnDef.cell,
+                      cell.getContext()
+                    )}
                   </TableCell>
                 ))}
               </TableRow>
@@ -66,5 +84,5 @@ export function DataTable({ columns, data }) {
         </TableBody>
       </Table>
     </div>
-  )
+  );
 }

@@ -146,7 +146,10 @@ export default function UserManagement() {
 
   // Bulk actions
   const handleBulkAction = (action) => {
-    if (!selectedUsers.length) return;
+    if (!selectedUsers.length) {
+      alert("Please select at least one user first.");
+      return;
+    }
 
     const selectedNames = selectedUsers.map((u) => u.name).join(", ");
     if (!confirm(`Are you sure you want to ${action} ${selectedNames}?`)) return;
@@ -181,36 +184,15 @@ export default function UserManagement() {
       <div className="flex items-center justify-between mb-8 gap-4">
         <h2 className="text-3xl font-bold">User Management</h2>
 
-        <div className="flex items-center gap-3">
-          {selectedUsers.length > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="secondary">Bulk Actions</Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => handleBulkAction("disable")}>
-                  Disable Selected
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleBulkAction("activate")}>
-                  Activate Selected
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleBulkAction("delete")}>
-                  Delete Selected
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-
-          <Dialog>
-            <DialogTrigger className="btn btn-primary flex items-center gap-2 px-4 py-2">
-              <IconPlus className="w-5 h-5" /> Add User
-            </DialogTrigger>
-            <DialogContent>
-              <DialogTitle>Create New Account</DialogTitle>
-              <NewAccountForm />
-            </DialogContent>
-          </Dialog>
-        </div>
+        <Dialog>
+          <DialogTrigger className="btn btn-primary flex items-center gap-2 px-4 py-2">
+            <IconPlus className="w-5 h-5" /> Add User
+          </DialogTrigger>
+          <DialogContent>
+            <DialogTitle>Create New Account</DialogTitle>
+            <NewAccountForm />
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Filter Row */}
@@ -293,9 +275,28 @@ export default function UserManagement() {
           className="border rounded px-3 py-2"
         />
 
+        {/* Reset Filters */}
         <Button variant="secondary" onClick={resetFilters}>
           <IconFilterX className="mr-2 h-4 w-4" /> Reset Filters
         </Button>
+
+        {/* Bulk Actions Dropdown (Always Visible) */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="secondary">Bulk Actions</Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={() => handleBulkAction("disable")}>
+              Disable Selected
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleBulkAction("activate")}>
+              Activate Selected
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleBulkAction("delete")}>
+              Delete Selected
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Table */}

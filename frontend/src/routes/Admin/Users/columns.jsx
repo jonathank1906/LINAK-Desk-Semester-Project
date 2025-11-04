@@ -58,26 +58,12 @@ export const columns = ({ setUsers, openViewDialog, openEditDialog }) => [
     header: "Department",
   },
   {
-    accessorKey: "role",
-    header: "Role",
-    cell: ({ row }) => (
-      <select
-        value={row.original.role}
-        onChange={(e) => {
-          const newRole = e.target.value;
-          setUsers((prev) =>
-            prev.map((user) =>
-              user.id === row.original.id ? { ...user, role: newRole } : user
-            )
-          );
-        }}
-      >
-        <option value="Admin">Admin</option>
-        <option value="Manager">Manager</option>
-        <option value="Employee">Employee</option>
-      </select>
-    ),
-  },
+  accessorKey: "role",
+  header: "Role",
+  cell: ({ row }) => (
+    <div className="text-sm font-medium">{row.original.role}</div>
+  ),
+},
   {
     accessorKey: "lastLogin",
     header: "Last login",
