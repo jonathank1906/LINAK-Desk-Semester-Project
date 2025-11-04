@@ -10,6 +10,7 @@ import {
 
 import { IconPlus } from "@tabler/icons-react";
 import { NewAccountForm } from "@/components/new-account-form";
+import { EditUserDialog } from "@/components/EditUserDialog"; // AI suggested
 
 const users = [
   {
@@ -85,9 +86,9 @@ export default function UserManagement() {
     openEditDialog: setEditingUser,
   });
 
-  // Disable selected button handler
+  // Disable selected button handler - note: implement selected rows retrieval according to DataTable API
   const handleDisableSelected = () => {
-    const selected = /* get selected rows somehow, depends on DataTable API */[];
+    const selected = []; // TODO: replace with actual selected users retrieval
     if (!selected.length) return;
     if (!confirm("Disable selected users?")) return;
 
@@ -132,10 +133,7 @@ export default function UserManagement() {
           <option value="Employee">Employee</option>
           <option value="Manager">Manager</option>
         </select>
-        <button
-          className="btn btn-danger"
-          onClick={handleDisableSelected}
-        >
+        <button className="btn btn-danger" onClick={handleDisableSelected}>
           Disable Selected
         </button>
       </div>
@@ -154,8 +152,17 @@ export default function UserManagement() {
         </Dialog>
       )}
 
-      {/* Optional: Edit User Dialog */}
-      {/* You can implement similar dialog for editingUser */}
+      {/* Edit User Dialog */}
+      <EditUserDialog
+        user={editingUser}
+        onClose={() => setEditingUser(null)}
+        onSave={(updatedUser) => {
+          setUsersData((prev) =>
+            prev.map((user) => (user.id === updatedUser.id ? updatedUser : user))
+          );
+          setEditingUser(null);
+        }}
+      />
     </div>
   );
 }
