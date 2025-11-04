@@ -1,12 +1,9 @@
-// UserManagement.jsx
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { DataTable } from "./Users/data-table";
-import { columns } from "./Users/columns";
+import { columns as columnsFunc } from "./Users/columns";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -14,7 +11,6 @@ import {
 import { IconPlus } from "@tabler/icons-react";
 import { NewAccountForm } from "@/components/new-account-form";
 
-// Sample data - you can move this to a separate file if preferred
 const users = [
   {
     id: "1",
@@ -67,6 +63,41 @@ const users = [
 ];
 
 export default function UserManagement() {
+  const [usersData, setUsersData] = useState(users);
+  const [viewingUser, setViewingUser] = useState(null);
+  const [editingUser, setEditingUser] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterRole, setFilterRole] = useState("");
+
+  // Filtered users based on search and role
+  const filteredUsers = useMemo(() => {
+    return usersData.filter(
+      (user) =>
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        (filterRole ? user.role === filterRole : true)
+    );
+  }, [usersData, searchTerm, filterRole]);
+
+  // Columns configured with handlers
+  const columns = columnsFunc({
+    setUsers: setUsersData,
+    openViewDialog: setViewingUser,
+    openEditDialog: setEditingUser,
+  });
+
+  // Disable selected button handler
+  const handleDisableSelected = () => {
+    const selected = /* get selected rows somehow, depends on DataTable API */[];
+    if (!selected.length) return;
+    if (!confirm("Disable selected users?")) return;
+
+    setUsersData((users) =>
+      users.map((u) =>
+        selected.find((s) => s.id === u.id) ? { ...u, status: "Disabled" } : u
+      )
+    );
+  };
+
   return (
     <div className="container mx-auto py-6">
       <div className="flex items-center justify-between mb-6">
@@ -76,14 +107,55 @@ export default function UserManagement() {
             <IconPlus className="w-5 h-5" />
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Account</DialogTitle>
-            </DialogHeader>
+            <DialogTitle>Create New Account</DialogTitle>
             <NewAccountForm />
           </DialogContent>
         </Dialog>
       </div>
-      <DataTable columns={columns} data={users} />
+
+      {/* Search and filter inputs */}
+      <div className="flex items-center gap-4 mb-4">
+        <input
+          type="text"
+          placeholder="Search by name..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="border rounded px-3 py-2"
+        />
+        <select
+          value={filterRole}
+          onChange={(e) => setFilterRole(e.target.value)}
+          className="border rounded px-3 py-2"
+        >
+          <option value="">All Roles</option>
+          <option value="Admin">Admin</option>
+          <option value="Employee">Employee</option>
+          <option value="Manager">Manager</option>
+        </select>
+        <button
+          className="btn btn-danger"
+          onClick={handleDisableSelected}
+        >
+          Disable Selected
+        </button>
+      </div>
+
+      <DataTable columns={columns} data={filteredUsers} />
+
+      {/* View User Dialog */}
+      {viewingUser && (
+        <Dialog open onOpenChange={() => setViewingUser(null)}>
+          <DialogContent>
+            <DialogTitle>{viewingUser.name}</DialogTitle>
+            <p>Email: {viewingUser.email}</p>
+            <p>Status: {viewingUser.status}</p>
+            {/* Add more user details here */}
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Optional: Edit User Dialog */}
+      {/* You can implement similar dialog for editingUser */}
     </div>
   );
 }
