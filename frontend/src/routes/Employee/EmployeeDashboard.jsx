@@ -41,12 +41,16 @@ export default function EmployeeDashboard() {
         {
             id: 1,
             date: "Tuesday, November 9, 2021",
-            location: "A3 · Floor 1, HQ San Francisco",
+            desk_name: "Desk XXXX",
+            start_time: "09:00",
+            end_time: "12:00",
         },
         {
             id: 2,
             date: "Thursday, November 11, 2021",
-            location: "A10 · Floor 1, HQ San Francisco",
+            desk_name: "Desk YYYY",
+            start_time: "13:00",
+            end_time: "17:00",
         },
     ]);
 
@@ -152,7 +156,12 @@ export default function EmployeeDashboard() {
                                     </div>
                                     {selectedDeskId && usageStats ? (
                                         <div className="text-xs text-muted-foreground mt-1">
-                                            Usage: {usageStats.usageMinutes ?? "—"} mins
+                                            Current usage: {usageStats.usageMinutes ?? "—"} mins
+                                        </div>
+                                    ) : null}
+                                    {selectedDeskId && usageStats ? (
+                                        <div className="text-xs text-muted-foreground mt-1">
+                                            Time remaining: {usageStats.usageMinutes ?? "—"} mins
                                         </div>
                                     ) : null}
                                 </div>
@@ -168,7 +177,12 @@ export default function EmployeeDashboard() {
                                         </button>
                                     ) : (
                                         <>
-                                            
+                                            <button
+                                                className="px-3 py-1 rounded-md bg-primary text-white text-sm hover:opacity-90"
+                                                aria-label="Select a Desk"
+                                            >
+                                                Release
+                                            </button>
                                         </>
                                     )}
                                 </div>
@@ -180,9 +194,6 @@ export default function EmployeeDashboard() {
                             <CardHeader className="flex items-start justify-between">
                                 <div>
                                     <CardTitle>Upcoming Reservations</CardTitle>
-                                    <CardDescription className="text-muted-foreground">
-                                        Next bookings assigned to you
-                                    </CardDescription>
                                 </div>
                             </CardHeader>
 
@@ -193,9 +204,18 @@ export default function EmployeeDashboard() {
                                             key={r.id}
                                             className="flex items-center justify-between rounded-md border p-3"
                                         >
-                                            <div>
-                                                <div className="text-sm font-medium">{r.date}</div>
-                                                <div className="text-xs text-muted-foreground">{r.location}</div>
+                                            <div className="text-xs text-muted-foreground">
+                                                <div>{r.date}</div>
+                                                <div>
+                                                    {r.desk_name}
+                                                    <span className="ml-2">
+                                                        {r.start_time && r.end_time && (
+                                                            <>
+                                                                ({r.start_time} - {r.end_time})
+                                                            </>
+                                                        )}
+                                                    </span>
+                                                </div>
                                             </div>
 
                                             <div className="flex items-center gap-2">
@@ -219,27 +239,10 @@ export default function EmployeeDashboard() {
                                                             className="px-3 py-1 rounded-md border text-sm hover:bg-muted/50"
                                                             aria-label="Release reservation"
                                                         >
-                                                            Release
+                                                            Cancel
                                                         </button>
                                                     </>
                                                 ) : null}
-
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <button className="p-1 rounded-md hover:bg-muted/50">
-                                                            <MoreVertical className="h-4 w-4" />
-                                                        </button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem onClick={() => handleEditReservation(r.id)}>
-                                                            Edit
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem onClick={() => handleDeleteReservation(r.id)}>
-                                                            Delete
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
                                             </div>
                                         </div>
                                     ))
@@ -253,7 +256,7 @@ export default function EmployeeDashboard() {
             case "reservations":
                 return <Reservations setSelectedDeskId={setSelectedDeskId} />;
             case "mydesk":
-                return <MyDesk />;
+                return <MyDesk selectedDeskId={selectedDeskId} />;
             case "metrics":
                 return <Metrics />;
             case "pico_lab":
