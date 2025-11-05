@@ -501,9 +501,11 @@ def hotdesk_status(request):
     date_str = request.GET.get("date")
     if not date_str:
         return Response({"error": "Date parameter required"}, status=400)
+
     date = timezone.datetime.strptime(date_str, "%Y-%m-%d").date()
     desks = Desk.objects.all()
     result = []
+
     for desk in desks:
         reservation = (
             Reservation.objects.filter(
@@ -516,13 +518,20 @@ def hotdesk_status(request):
             result.append(
                 {
                     "id": desk.id,
+                    "desk_name": desk.name,  # added
                     "reserved": True,
                     "reserved_time": reservation.start_time.strftime("%H:%M"),
                 }
             )
         else:
-            result.append({"id": desk.id, "reserved": False})
+            result.append({
+                "id": desk.id,
+                "desk_name": desk.name,  # added
+                "reserved": False
+            })
+
     return Response(result)
+
 
 
 # ---------------- RESERVATION ENDPOINTS ----------------

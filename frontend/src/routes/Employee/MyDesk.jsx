@@ -18,19 +18,38 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 
-export default function MyDesk() {
+// Accept selectedDeskId as a prop
+export default function MyDesk({ selectedDeskId }) {
   const { user } = useAuth();
   const [deskStatus, setDeskStatus] = useState(null);
   const [usageStats, setUsageStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isControlling, setIsControlling] = useState(false);
 
+  // If no desk is selected, show message and hide all controls
+  if (!selectedDeskId) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center p-8">
+        <Card className="max-w-md w-full text-center">
+          <CardHeader>
+            <CardTitle>No Desk Selected</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-4">
+              Please select a desk from the Reservations page to use desk controls and view information.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   useEffect(() => {
-    if (!user) return;
+    if (!user || !selectedDeskId) return;
 
     const fetchDeskData = async () => {
       try {
-        const deskId = 1;
+        const deskId = selectedDeskId;
         const config = {
           headers: { Authorization: `Bearer ${user.token}` },
           withCredentials: true,
@@ -54,12 +73,12 @@ export default function MyDesk() {
 
     const interval = setInterval(fetchDeskData, 5000);
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user, selectedDeskId]);
 
   const controlDeskHeight = async (targetHeight) => {
     setIsControlling(true);
     try {
-      const deskId = 1;
+      const deskId = selectedDeskId;
       const config = {
         headers: { Authorization: `Bearer ${user.token}` },
         withCredentials: true,
@@ -103,7 +122,7 @@ export default function MyDesk() {
 
   const emergencyStop = async () => {
     try {
-      const deskId = 1;
+      const deskId = selectedDeskId;
       const config = {
         headers: { Authorization: `Bearer ${user.token}` },
         withCredentials: true,
@@ -142,7 +161,7 @@ export default function MyDesk() {
           ) : (
             <div className="flex items-center justify-between">
               <CardTitle className="text-2xl">
-                {deskStatus?.name || "Desk #23"}
+                {deskStatus?.name || `Desk #${selectedDeskId}`}
               </CardTitle>
               <Pill>
                 <PillIndicator pulse variant={deskStatus?.is_moving ? 'warning' : 'success'} />
@@ -343,7 +362,7 @@ export default function MyDesk() {
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Desk ID:</span>
-                    <span className="font-medium">#{deskStatus?.desk_id || "1"}</span>
+                    <span className="font-medium">#{deskStatus?.desk_id || selectedDeskId}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Name:</span>

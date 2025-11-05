@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import PendingVerificationModal from "@/components/pending-verification-modal";
 import { useNavigate } from "react-router-dom";
 
-export default function Reservations() {
+// Accept setSelectedDeskId as a prop
+export default function Reservations({ setSelectedDeskId }) {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [availableDesks, setAvailableDesks] = useState([]);
@@ -38,7 +39,7 @@ export default function Reservations() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, mode]);
 
-  // Poll for confirmation
+  // Poll for confirmation and clear desk if released/cancelled
   useEffect(() => {
     let interval;
     if (polling && pendingDeskId) {
@@ -56,6 +57,11 @@ export default function Reservations() {
             setVerificationModalOpen(false);
             setPolling(false);
             toast.success("Desk confirmed!");
+            if (setSelectedDeskId) setSelectedDeskId(pendingDeskId);
+          }
+          // If desk is released/cancelled, clear selection
+          if (res.data.current_status === "available") {
+            if (setSelectedDeskId) setSelectedDeskId(null);
           }
         } catch (err) {
           // Optionally handle error
@@ -63,7 +69,7 @@ export default function Reservations() {
       }, 2000); // Poll every 2 seconds
     }
     return () => clearInterval(interval);
-  }, [polling, pendingDeskId, user, nav]);
+  }, [polling, pendingDeskId, user, nav, setSelectedDeskId]);
 
   const fetchAvailableDesks = async () => {
     setLoading(true);
@@ -161,6 +167,7 @@ export default function Reservations() {
 
       fetchAvailableDesks();
       fetchUserReservations();
+      // Do NOT setSelectedDeskId here; only after confirmation
     } catch (err) {
       console.error("Error making reservation:", err);
       toast.error("Failed to create reservation", {
@@ -185,6 +192,8 @@ export default function Reservations() {
       toast.success("Reservation cancelled!");
       fetchUserReservations();
       fetchAvailableDesks();
+      // Clear selected desk if this was the active one
+      if (setSelectedDeskId) setSelectedDeskId(null);
     } catch (err) {
       toast.error("Failed to cancel reservation", {
         description: err.response?.data?.error || err.message,
@@ -209,6 +218,7 @@ export default function Reservations() {
       setVerificationModalOpen(true);
       setPolling(true);
       fetchHotdeskStatus();
+      // Do NOT setSelectedDeskId here; only after confirmation
     } catch (err) {
       toast.error("Failed to start hot desk", {
         description: err.response?.data?.error || err.message,
@@ -250,7 +260,7 @@ export default function Reservations() {
             <CardHeader>
               <CardTitle>Hot Desk Status</CardTitle>
               <CardDescription>
-                See which desks are free or reserved today.
+                See which desks are free right now.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -270,7 +280,7 @@ export default function Reservations() {
                       }`}
                     >
                       <div>
-                        <h3 className="font-semibold">Desk {desk.id}</h3>
+                        <h3 className="font-semibold">{desk.name ? desk.name : desk.desk_name ? desk.desk_name : `Desk ${desk.id}`}</h3>
                         {desk.reserved ? (
                           <p className="text-sm text-yellow-700">
                             Warning: Reserved at {desk.reserved_time}
@@ -328,7 +338,7 @@ export default function Reservations() {
                         className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
                       >
                         <div>
-                          <h3 className="font-semibold">Desk {desk.id}</h3>
+                          <h3 className="font-semibold">{desk.name ? desk.name : desk.desk_name ? desk.desk_name : `Desk ${desk.id}`}</h3>
                           <p className="text-sm text-muted-foreground">Location: {desk.location || "Building A"}</p>
                         </div>
                         <Button onClick={() => makeReservation(desk.id)}>Reserve</Button>

@@ -31,6 +31,8 @@ export default function EmployeeDashboard() {
     const [selectedSection, setSelectedSection] = useState("dashboard");
     const { user } = useAuth();
 
+    // Track selected desk ID (null if none selected)
+    const [selectedDeskId, setSelectedDeskId] = useState(null);
     const [deskStatus, setDeskStatus] = useState(null);
     const [usageStats, setUsageStats] = useState(null);
 
@@ -52,28 +54,30 @@ export default function EmployeeDashboard() {
     const [verificationModalOpen, setVerificationModalOpen] = useState(false);
     const [pendingDeskId, setPendingDeskId] = useState(null);
 
-    // Fetch desk status and usage only if the user is logged in
+    // Fetch desk status and usage only if the user is logged in and a desk is selected
     useEffect(() => {
-        if (!user) return;
+        if (!user || !selectedDeskId) {
+            setDeskStatus(null);
+            setUsageStats(null);
+            return;
+        }
 
         const fetchDeskStatus = async () => {
             try {
-                const deskId = 1;
                 const config = {
                     headers: { Authorization: `Bearer ${user.token}` },
                     withCredentials: true,
                 };
 
                 const statusRes = await axios.get(
-                    `http://localhost:8000/api/desks/${deskId}/status/`,
+                    `http://localhost:8000/api/desks/${selectedDeskId}/status/`,
                     config
                 );
                 setDeskStatus(statusRes.data);
 
-                // Optional: separate try/catch so one failing API doesn't break the other
                 try {
                     const usageRes = await axios.get(
-                        `http://localhost:8000/api/desks/${deskId}/usage/`,
+                        `http://localhost:8000/api/desks/${selectedDeskId}/usage/`,
                         config
                     );
                     setUsageStats(usageRes.data);
@@ -81,7 +85,6 @@ export default function EmployeeDashboard() {
                     setUsageStats(null);
                 }
             } catch (err) {
-                console.warn("Error fetching desk data:", err);
                 setDeskStatus(null);
                 setUsageStats(null);
             }
@@ -89,30 +92,24 @@ export default function EmployeeDashboard() {
 
         fetchDeskStatus();
 
-        // Poll every 500ms for live updates (same as MyDesk)
         const interval = setInterval(fetchDeskStatus, 30000);
         return () => clearInterval(interval);
-    }, [user]);
+    }, [user, selectedDeskId]);
 
     function handleEditReservation(id) {
-        console.log("edit reservation", id);
         // TODO: open edit modal / navigate to edit form
     }
 
     function handleDeleteReservation(id) {
-        console.log("delete reservation", id);
-        // simple local delete for UI demo
         setUpcomingReservations((prev) => prev.filter((r) => r.id !== id));
         // TODO: call API to delete on backend
     }
 
     function handleCheckInReservation(id) {
-        console.log("checkin reservation", id);
-        // For demo, use deskId 1, or you can map reservation to deskId if available
-        setPendingDeskId(1);
+        // For demo, use the selected deskId if available
+        setPendingDeskId(selectedDeskId);
         setVerificationModalOpen(true);
 
-        // mark checked-in locally for UI demo
         setUpcomingReservations((prev) =>
             prev.map((r) => (r.id === id ? { ...r, checkedIn: true } : r))
         );
@@ -120,14 +117,16 @@ export default function EmployeeDashboard() {
     }
 
     function handleReleaseReservation(id) {
-        console.log("release reservation", id);
-        // remove from upcoming list locally for demo (simulate release)
         setUpcomingReservations((prev) => prev.filter((r) => r.id !== id));
         // TODO: call backend API to release/cancel the reservation
     }
 
     function goToMyDesk() {
         setSelectedSection("mydesk");
+    }
+
+    function goToReservations() {
+        setSelectedSection("reservations");
     }
 
     function renderContent() {
@@ -142,35 +141,16 @@ export default function EmployeeDashboard() {
                                 <div>
                                     <CardTitle>My Desk</CardTitle>
                                 </div>
-
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <button
-                                            aria-label="My desk options"
-                                            className="p-1 rounded-md hover:bg-muted/50"
-                                        >
-                                            <MoreVertical className="h-5 w-5" />
-                                        </button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => goToMyDesk()}>
-                                            Open My Desk
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem onClick={() => console.log("desk settings")}>
-                                            Desk settings
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
                             </CardHeader>
 
                             <CardContent className="flex items-center justify-between gap-4">
                                 <div>
                                     <div className="text-sm font-medium">
-                                        {deskStatus?.name ?? "No desk selected or assigned"}
+                                        {selectedDeskId
+                                            ? deskStatus?.name ?? `Desk #${selectedDeskId}`
+                                            : "No desk selected"}
                                     </div>
-                                   
-                                    {usageStats ? (
+                                    {selectedDeskId && usageStats ? (
                                         <div className="text-xs text-muted-foreground mt-1">
                                             Usage: {usageStats.usageMinutes ?? "—"} mins
                                         </div>
@@ -178,20 +158,19 @@ export default function EmployeeDashboard() {
                                 </div>
 
                                 <div>
-                                    <button
-                                        onClick={goToMyDesk}
-                                        className="px-3 py-1 rounded-md bg-primary text-white text-sm hover:opacity-90"
-                                        aria-label="Go to My Desk"
-                                    >
-                                        Hotdesk Now
-                                    </button>
-                                     <button
-                                        onClick={goToMyDesk}
-                                        className="px-3 py-1 rounded-md bg-primary text-white text-sm hover:opacity-90"
-                                        aria-label="Go to My Desk"
-                                    >
-                                        Reserve
-                                    </button>
+                                    {!selectedDeskId ? (
+                                        <button
+                                            onClick={goToReservations}
+                                            className="px-3 py-1 rounded-md bg-primary text-white text-sm hover:opacity-90"
+                                            aria-label="Select a Desk"
+                                        >
+                                            Select a Desk
+                                        </button>
+                                    ) : (
+                                        <>
+                                            
+                                        </>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>
@@ -205,30 +184,6 @@ export default function EmployeeDashboard() {
                                         Next bookings assigned to you
                                     </CardDescription>
                                 </div>
-
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <button
-                                            aria-label="More"
-                                            className="p-1 rounded-md hover:bg-muted/50"
-                                        >
-                                            <MoreVertical className="h-5 w-5" />
-                                        </button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem
-                                            onClick={() => console.log("open manage reservations")}
-                                        >
-                                            Manage reservations
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem
-                                            onClick={() => setUpcomingReservations([])}
-                                        >
-                                            Clear all
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
                             </CardHeader>
 
                             <CardContent className="grid gap-3">
@@ -296,7 +251,7 @@ export default function EmployeeDashboard() {
                     </div>
                 );
             case "reservations":
-                return <Reservations />;
+                return <Reservations setSelectedDeskId={setSelectedDeskId} />;
             case "mydesk":
                 return <MyDesk />;
             case "metrics":
