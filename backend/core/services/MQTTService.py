@@ -40,9 +40,10 @@ class MQTTService:
             logger.info(f"Received: {topic} = {payload}")
 
             # --- Desk confirmation handler ---
-            if topic.startswith("/desk/") and topic.endswith("/confirm"):
+            parts = topic.split('/')
+            if len(parts) >= 5 and parts[2] == "desk" and parts[4] == "confirm":
                 try:
-                    desk_id = int(topic.split("/")[2])
+                    desk_id = int(parts[3])
                     data = json.loads(payload)
                     if data.get("action") == "confirm_button":
                         self.handle_desk_confirm(desk_id)

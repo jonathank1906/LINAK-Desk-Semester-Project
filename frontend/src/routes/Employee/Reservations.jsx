@@ -49,14 +49,13 @@ export default function Reservations() {
             withCredentials: true,
           };
           const res = await axios.get(
-            `http://localhost:8000/api/desks/${pendingDeskId}/status/`,
+            `http://localhost:8000/api/desks/${pendingDeskId}/`,
             config
           );
           if (res.data.current_status === "occupied") {
             setVerificationModalOpen(false);
             setPolling(false);
-            toast.success("Desk confirmed! Redirecting...");
-            nav("/mydesk");
+            toast.success("Desk confirmed!");
           }
         } catch (err) {
           // Optionally handle error

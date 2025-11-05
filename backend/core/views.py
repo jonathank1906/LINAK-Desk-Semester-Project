@@ -193,6 +193,17 @@ def set_initial_password(request, uid, token):
 
 # ===== DESK MANAGEMENT ENDPOINTS =====
 
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def desk_detail(request, desk_id):
+    """Get desk info from database (including current_status)"""
+    try:
+        desk = Desk.objects.get(id=desk_id)
+        serializer = DeskSerializer(desk)
+        return Response(serializer.data)
+    except Desk.DoesNotExist:
+        return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
