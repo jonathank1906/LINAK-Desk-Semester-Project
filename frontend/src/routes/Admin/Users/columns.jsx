@@ -1,9 +1,8 @@
-// app/users/columns.jsx
-"use client"
+"use client";
 
-import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,10 +10,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { ArrowUpDown, MoreHorizontal } from "lucide-react"
+} from "@/components/ui/dropdown-menu";
+import { ArrowUpDown, MoreHorizontal } from "lucide-react";
+import { Sparklines, SparklinesLine } from "react-sparklines";
 
-export const columns = [
+export const columns = ({ setUsers, openViewDialog, openEditDialog }) => [
   {
     id: "select",
     header: ({ table }) => (
@@ -58,14 +58,12 @@ export const columns = [
     header: "Department",
   },
   {
-    accessorKey: "role",
-    header: "Role",
-    cell: ({ row }) => (
-      <Badge variant={row.original.role === "Admin" ? "default" : "secondary"}>
-        {row.original.role}
-      </Badge>
-    ),
-  },
+  accessorKey: "role",
+  header: "Role",
+  cell: ({ row }) => (
+    <div className="text-sm font-medium">{row.original.role}</div>
+  ),
+},
   {
     accessorKey: "lastLogin",
     header: "Last login",
@@ -73,8 +71,15 @@ export const columns = [
   {
     accessorKey: "deskUsage",
     header: "Total desk usage (hrs this week)",
+    cell: ({ row }) => <div className="text-right">{row.original.deskUsage}</div>,
+  },
+  {
+    accessorKey: "deskUsageGraph",
+    header: "Weekly Usage",
     cell: ({ row }) => (
-      <div className="text-right">{row.original.deskUsage}</div>
+      <Sparklines data={row.original.deskUsageHistory || [3, 4, 2, 5, 3, 6]}>
+        <SparklinesLine color="blue" />
+      </Sparklines>
     ),
   },
   {
@@ -112,12 +117,30 @@ export const columns = [
               Copy Email
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>View</DropdownMenuItem>
-            <DropdownMenuItem>Edit</DropdownMenuItem>
-            <DropdownMenuItem>Disable</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => openViewDialog(user)}>View</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => openEditDialog(user)}>Edit</DropdownMenuItem>
+            <DropdownMenuItem
+  onClick={() => {
+    const isDisabled = user.status === "Disabled";
+    const action = isDisabled ? "Activate" : "Disable";
+
+    if (confirm(`${action} ${user.name}?`)) {
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === user.id
+            ? { ...u, status: isDisabled ? "Active" : "Disabled" }
+            : u
+        )
+      );
+    }
+  }}
+>
+  {user.status === "Disabled" ? "Activate" : "Disable"}
+</DropdownMenuItem>
+
           </DropdownMenuContent>
         </DropdownMenu>
       );
     },
   },
-]
+];
