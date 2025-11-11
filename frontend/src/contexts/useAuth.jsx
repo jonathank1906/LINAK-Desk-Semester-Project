@@ -2,7 +2,14 @@ import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
 
-import { authenticated_user, login, logout, register } from '../endpoints/api';
+import { 
+  authenticated_user, 
+  login, 
+  logout, 
+  register,
+  startTokenRefresh,
+  stopTokenRefresh 
+} from '../endpoints/api';
 
 const AuthContext = createContext();
 
@@ -16,8 +23,14 @@ export const AuthProvider = ({ children }) => {
     try {
       const user = await authenticated_user();
       setUser(user);
+      
+      // If user is authenticated, start token refresh
+      if (user) {
+        startTokenRefresh();
+      }
     } catch (error) {
       setUser(null);
+      stopTokenRefresh();
     } finally {
       setLoading(false);
     }
@@ -25,8 +38,8 @@ export const AuthProvider = ({ children }) => {
 
   const loginUser = async (email, password) => {
     setLoading(true);
-    const user = await login(email, password);
-    if (user && user.success !== false) {
+    const result = await login(email, password);
+    if (result && result.success !== false) {
       await get_authenticated_user(); // Ensure user state is up-to-date
       setLoading(false);
       return true;
@@ -70,8 +83,13 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     get_authenticated_user();
+    
+    // Cleanup on unmount
+    return () => {
+      stopTokenRefresh();
+    };
     // eslint-disable-next-line
-  }, [window.location.pathname]);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, loading, loginUser, logoutUser, registerUser }}>

@@ -9,50 +9,117 @@ const NOTES_URL = `${BASE_URL}todos/`
 const AUTHENTICATED_URL = `${BASE_URL}authenticated/`
 const REFRESH_URL = `${BASE_URL}token/refresh/`
 
-axios.defaults.withCredentials = true; 
+axios.defaults.withCredentials = true;
 
+// Track refresh state
+let isRefreshing = false;
+let failedQueue = [];
+
+// Process queued requests after refresh
+const processQueue = (error, token = null) => {
+    failedQueue.forEach(prom => {
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve(token);
+        }
+    });
+    failedQueue = [];
+};
+
+// Setup axios interceptor for automatic token refresh
 axios.interceptors.response.use(
     response => response,
     async error => {
         const originalRequest = error.config;
-        if (
-            error.response &&
-            error.response.status === 401 &&
-            !originalRequest._retry
-        ) {
+        
+        // Check if error is 401 and we haven't already tried to refresh
+        if (error.response?.status === 401 && !originalRequest._retry) {
+            
+            if (isRefreshing) {
+                // Already refreshing, queue this request
+                return new Promise((resolve, reject) => {
+                    failedQueue.push({ resolve, reject });
+                }).then(() => {
+                    return axios(originalRequest);
+                }).catch(err => {
+                    return Promise.reject(err);
+                });
+            }
+
             originalRequest._retry = true;
+            isRefreshing = true;
+
             try {
                 // Attempt to refresh the access token
-                const refreshResponse = await axios.post(REFRESH_URL, {}, { withCredentials: true });
+                await axios.post(REFRESH_URL, {}, { withCredentials: true });
                 
-                // Only retry if refresh was successful
-                if (refreshResponse.status === 200) {
-                    return axios(originalRequest);
-                }
+                // Refresh successful, process queued requests
+                processQueue(null);
+                
+                // Retry the original request
+                return axios(originalRequest);
             } catch (refreshError) {
-                // Refresh failed - clear state and don't retry
+                // Refresh failed - clear queue and reject
+                processQueue(refreshError);
+                
+                // Optional: Clear user state and redirect to login
+                // This could trigger a global event or callback
                 console.error('Token refresh failed:', refreshError);
-                // Don't redirect here, let the component handle it
+                
                 return Promise.reject(refreshError);
+            } finally {
+                isRefreshing = false;
             }
         }
+        
         return Promise.reject(error);
     }
 );
+
+// Proactive token refresh - call this periodically
+let refreshInterval = null;
+
+export const startTokenRefresh = () => {
+    // Refresh token every 45 seconds (before 1-minute expiry)
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+    }
+    
+    refreshInterval = setInterval(async () => {
+        try {
+            await axios.post(REFRESH_URL, {}, { withCredentials: true });
+            console.log('Token refreshed proactively');
+        } catch (error) {
+            console.error('Proactive token refresh failed:', error);
+            // If proactive refresh fails, stop trying and let the interceptor handle it
+            stopTokenRefresh();
+        }
+    }, 45000); // 45 seconds
+};
+
+export const stopTokenRefresh = () => {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+    }
+};
 
 export const login = async (email, password) => {
     try {
         const response = await axios.post(
             LOGIN_URL, 
-            { email, password },  // Object shorthand for cleaner syntax
-            { withCredentials: true }  // Ensures cookies are included
+            { email, password },
+            { withCredentials: true }
         );
         
-        // Check if the response contains a success attribute (depends on backend response structure)
-        return response.data
+        // Start proactive token refresh after successful login
+        startTokenRefresh();
+        
+        return response.data;
     } catch (error) {
         console.error("Login failed:", error);
-        return false;  // Return false or handle the error as needed
+        return { success: false };
     }
 };
 
@@ -62,16 +129,24 @@ export const get_notes = async () => {
 };
 
 export const logout = async () => {
-    const response = await axios.post(LOGOUT_URL, { withCredentials: true });
-    return response.data;
+    // Stop token refresh on logout
+    stopTokenRefresh();
+    
+    try {
+        const response = await axios.post(LOGOUT_URL, {}, { withCredentials: true });
+        return response.data;
+    } catch (error) {
+        console.error("Logout failed:", error);
+        return null;
+    }
 };
 
 export const register = async (username, email, password) => {
-    const response = await axios.post(REGISTER_URL, {username, email, password}, { withCredentials: true });
+    const response = await axios.post(REGISTER_URL, { username, email, password }, { withCredentials: true });
     return response.data;
 };
 
 export const authenticated_user = async () => {
     const response = await axios.get(AUTHENTICATED_URL, { withCredentials: true });
-    return response.data
-}
+    return response.data;
+};
