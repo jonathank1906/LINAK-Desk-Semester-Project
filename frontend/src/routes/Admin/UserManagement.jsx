@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState,useEffect, useMemo } from "react";
 import { DataTable } from "./Users/data-table";
 import { columns as columnsFunc } from "./Users/columns";
 import {
@@ -13,65 +13,19 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+
 import { UserProfileDialog } from "@/components/UserProfileDialog";
 import { IconPlus, IconFilterX } from "@tabler/icons-react";
 import { NewAccountForm } from "@/components/new-account-form";
 import { EditUserDialog } from "@/components/EditUserDialog";
 import { Button } from "@/components/ui/button";
 
-const users = [
-  {
-    id: "1",
-    name: "Alice Smith",
-    email: "alice@example.com",
-    department: "Engineering",
-    role: "Admin",
-    lastLogin: "2024-06-10 09:15",
-    deskUsage: 12,
-    favoriteDesk: "Desk 42",
-    status: "Active",
-    created: "2024-01-15",
-  },
-  {
-    id: "2",
-    name: "Bob Johnson",
-    email: "bob@example.com",
-    department: "Design",
-    role: "Employee",
-    lastLogin: "2024-06-09 17:22",
-    deskUsage: 8,
-    favoriteDesk: "Desk 17",
-    status: "Disabled",
-    created: "2023-11-03",
-  },
-  {
-    id: "3",
-    name: "Carol Williams",
-    email: "carol@example.com",
-    department: "Marketing",
-    role: "Manager",
-    lastLogin: "2024-06-11 14:30",
-    deskUsage: 15,
-    favoriteDesk: "Desk 23",
-    status: "Active",
-    created: "2024-02-20",
-  },
-  {
-    id: "4",
-    name: "David Brown",
-    email: "david@example.com",
-    department: "Engineering",
-    role: "Employee",
-    lastLogin: "2024-06-08 11:45",
-    deskUsage: 9,
-    favoriteDesk: "Desk 15",
-    status: "Active",
-    created: "2024-03-10",
-  },
-];
 
 export default function UserManagement() {
-  const [usersData, setUsersData] = useState(users);
+  const [usersData, setUsersData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [viewingUser, setViewingUser] = useState(null);
   const [editingUser, setEditingUser] = useState(null);
   const [selectedUsers, setSelectedUsers] = useState([]);
@@ -82,6 +36,46 @@ export default function UserManagement() {
   const [filterCreatedAfter, setFilterCreatedAfter] = useState("");
   const [filterLastLoginAfter, setFilterLastLoginAfter] = useState("");
   const [filterDesk, setFilterDesk] = useState("");
+
+// Fetch users from backend
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await fetch("http://localhost:8000/api/users/", {
+          credentials: "include", // send cookies if using JWT or session auth
+        });
+        if (!res.ok) throw new Error("Failed to fetch users");
+
+        const data = await res.json();
+
+        // Map backend format to frontend table fields
+        const formatted = data.map((user) => ({
+          id: user.id,
+          name: `${user.first_name} ${user.last_name}`,
+          email: user.email,
+          department: user.department || "—",
+          role: user.is_admin ? "Admin" : "Employee",
+          lastLogin: user.last_login
+            ? new Date(user.last_login).toLocaleString()
+            : "Never",
+          deskUsage: Math.floor(Math.random() * 20), // 🔧 placeholder
+          favoriteDesk: "Desk 01", // 🔧 placeholder
+          deskUsageHistory: [3, 4, 2, 5, 3, 6], // 🔧 placeholder
+          status: user.is_active ? "Active" : "Disabled",
+          created: new Date(user.created_at).toLocaleDateString(),
+        }));
+
+        setUsersData(formatted);
+        setLoading(false);
+      } catch (err) {
+        console.error(err);
+        setError("Could not load user list.");
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, []);
 
   // Filtering logic
   const filteredUsers = useMemo(() => {
@@ -102,8 +96,9 @@ export default function UserManagement() {
         ? new Date(user.lastLogin) >= new Date(filterLastLoginAfter)
         : true;
       const deskMatch = filterDesk
-        ? user.favoriteDesk.toLowerCase().includes(filterDesk.toLowerCase())
+        ? (user.favoriteDesk || "").toLowerCase().includes(filterDesk.toLowerCase())
         : true;
+
 
       return (
         nameMatch &&
@@ -177,6 +172,10 @@ export default function UserManagement() {
     }
     setSelectedUsers([]);
   };
+
+  // Loading and error handling as suggested
+  if (loading) return <div className="p-6 text-muted-foreground">Loading users...</div>;
+  if (error) return <div className="p-6 text-red-500">{error}</div>;
 
   return (
     <div className="container mx-auto py-6">
@@ -319,6 +318,9 @@ export default function UserManagement() {
       )}
 
       {/* Edit Dialog */}
+{editingUser && (
+  <Dialog open onOpenChange={() => setEditingUser(null)}>
+    <DialogContent>
       <EditUserDialog
         user={editingUser}
         onClose={() => setEditingUser(null)}
@@ -331,6 +333,10 @@ export default function UserManagement() {
           setEditingUser(null);
         }}
       />
+    </DialogContent>
+  </Dialog>
+)}
+
     </div>
   );
 }

@@ -3,6 +3,12 @@ import {
   IconUserCircle,
   IconSettings,
 } from "@tabler/icons-react"
+import { useState } from "react";
+
+
+import AdminAccountModal from "@/components/modals/AdminAccountModal";
+import EmployeeAccountModal from "@/components/modals/EmployeeAccountModal";
+
 
 import {
   Avatar,
@@ -31,12 +37,14 @@ import { useAuth } from "@/contexts/useAuth";
 export function NavUser({ user }) {
   const { isMobile } = useSidebar()
   const { logoutUser } = useAuth();
+  const [showAccount, setShowAccount] = useState(false);
 
   const handleLogout = async () => {
     await logoutUser();
   };
 
   return (
+    <>
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
@@ -85,7 +93,7 @@ export function NavUser({ user }) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setShowAccount(true)}>
                 <IconUserCircle />
                 Account
               </DropdownMenuItem>
@@ -103,5 +111,13 @@ export function NavUser({ user }) {
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
+{showAccount && (
+  user?.is_admin
+    ? <AdminAccountModal open={showAccount} onClose={() => setShowAccount(false)} />
+    : <EmployeeAccountModal open={showAccount} onClose={() => setShowAccount(false)} />
+)}
+
+</>
+    
   );
 }

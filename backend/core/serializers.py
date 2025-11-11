@@ -7,6 +7,15 @@ from django.utils import timezone
 
 User = get_user_model()
 
+class AdminUserListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            'id', 'email', 'username', 'first_name', 'last_name',
+            'is_admin', 'is_active', 'last_login', 'created_at',
+            'department',
+        ]
+
 class UserRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
 
