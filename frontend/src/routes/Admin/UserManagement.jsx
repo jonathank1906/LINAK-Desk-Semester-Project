@@ -1,4 +1,4 @@
-import React, { useState,useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { DataTable } from "./Users/data-table";
 import { columns as columnsFunc } from "./Users/columns";
 import {
@@ -37,7 +37,7 @@ export default function UserManagement() {
   const [filterLastLoginAfter, setFilterLastLoginAfter] = useState("");
   const [filterDesk, setFilterDesk] = useState("");
 
-// Fetch users from backend
+  // Fetch users from backend
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -188,7 +188,6 @@ export default function UserManagement() {
             <IconPlus className="w-5 h-5" /> Add User
           </DialogTrigger>
           <DialogContent>
-            <DialogTitle>Create New Account</DialogTitle>
             <NewAccountForm />
           </DialogContent>
         </Dialog>
@@ -318,24 +317,24 @@ export default function UserManagement() {
       )}
 
       {/* Edit Dialog */}
-{editingUser && (
-  <Dialog open onOpenChange={() => setEditingUser(null)}>
-    <DialogContent>
-      <EditUserDialog
-        user={editingUser}
-        onClose={() => setEditingUser(null)}
-        onSave={(updatedUser) => {
-          setUsersData((prev) =>
-            prev.map((user) =>
-              user.id === updatedUser.id ? updatedUser : user
-            )
-          );
-          setEditingUser(null);
-        }}
-      />
-    </DialogContent>
-  </Dialog>
-)}
+      {editingUser && (
+        <Dialog open onOpenChange={() => setEditingUser(null)}>
+          <DialogContent>
+            <EditUserDialog
+              user={editingUser}
+              onClose={() => setEditingUser(null)}
+              onSave={(updatedUser) => {
+                setUsersData((prev) =>
+                  prev.map((user) =>
+                    user.id === updatedUser.id ? updatedUser : user
+                  )
+                );
+                setEditingUser(null);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
 
     </div>
   );

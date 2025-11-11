@@ -1,24 +1,9 @@
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
-
-// Simple secure password generator
-function generateSecurePassword(length = 16) {
-  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:,.<>?";
-  let password = "";
-  for (let i = 0, n = charset.length; i < length; ++i) {
-    password += charset.charAt(Math.floor(Math.random() * n));
-  }
-  return password;
-}
 
 export function NewAccountForm({ className, ...props }) {
   const [firstName, setFirstName] = useState("John");
@@ -41,7 +26,7 @@ export function NewAccountForm({ className, ...props }) {
       email,
       first_name: firstName,
       last_name: lastName,
-      username: username,  // Added username field
+      username: username,
       password: tempPassword,
       re_password: tempPassword,
     };
@@ -56,8 +41,7 @@ export function NewAccountForm({ className, ...props }) {
       
       if (!res.ok) {
         const data = await res.json();
-        console.log("Full error response:", data); // Debug log
-        // Handle specific error messages
+        console.log("Full error response:", data);
         if (data.email) {
           throw new Error(`Email error: ${data.email[0]}`);
         }
@@ -97,63 +81,57 @@ export function NewAccountForm({ className, ...props }) {
   };
 
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card>
-        <CardHeader>
-          <CardTitle>Create New Account</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleCreateAccount}>
-            <div className="flex flex-col gap-6">
-              <div className="grid gap-3">
-                <Label htmlFor="firstName">First Name</Label>
-                <Input
-                  id="firstName"
-                  type="text"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="grid gap-3">
-                <Label htmlFor="lastName">Last Name</Label>
-                <Input
-                  id="lastName"
-                  type="text"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="grid gap-3">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="flex flex-col gap-3">
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Creating..." : "Create Account"}
-                </Button>
-                {error && (
-                  <div className="text-red-500 text-sm p-2 bg-red-50 rounded">
-                    {error}
-                  </div>
-                )}
-                {success && (
-                  <div className="text-green-500 text-sm p-2 bg-green-50 rounded">
-                    Account created successfully! Password reset email sent to {email}
-                  </div>
-                )}
-              </div>
+    <>
+      <DialogHeader>
+        <DialogTitle>Create New Account</DialogTitle>
+      </DialogHeader>
+      <form onSubmit={handleCreateAccount} className={cn("flex flex-col gap-6", className)} {...props}>
+        <div className="grid gap-3">
+          <Label htmlFor="firstName">First Name</Label>
+          <Input
+            id="firstName"
+            type="text"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            required
+          />
+        </div>
+        <div className="grid gap-3">
+          <Label htmlFor="lastName">Last Name</Label>
+          <Input
+            id="lastName"
+            type="text"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            required
+          />
+        </div>
+        <div className="grid gap-3">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+        <div className="flex flex-col gap-3">
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Creating..." : "Create Account"}
+          </Button>
+          {error && (
+            <div className="text-red-500 text-sm p-2 bg-red-50 rounded">
+              {error}
             </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+          )}
+          {success && (
+            <div className="text-green-500 text-sm p-2 bg-green-50 rounded">
+              Account created successfully! Password reset email sent to {email}
+            </div>
+          )}
+        </div>
+      </form>
+    </>
   );
 }
