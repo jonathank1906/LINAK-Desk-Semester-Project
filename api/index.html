@@ -8,7 +8,7 @@
         
         
         <link rel="shortcut icon" href="../img/favicon.ico">
-        <title>Setup Guide - Project Documentation</title>
+        <title>Api - Project Documentation</title>
         <link href="../css/bootstrap.min.css" rel="stylesheet">
         <link href="../css/fontawesome.min.css" rel="stylesheet">
         <link href="../css/brands.min.css" rel="stylesheet">
@@ -39,7 +39,7 @@
                                 <a href=".." class="nav-link">Home</a>
                             </li>
                             <li class="nav-item">
-                                <a href="./" class="nav-link active" aria-current="page">Setup Guide</a>
+                                <a href="../setup/" class="nav-link">Setup Guide</a>
                             </li>
                         </ul>
 
@@ -49,16 +49,6 @@
                                 <i class="fa fa-search"></i> Search
                             </a>
                         </li>
-                            <li class="nav-item">
-                                <a rel="prev" href=".." class="nav-link">
-                                    <i class="fa fa-arrow-left"></i> Previous
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a rel="next" class="nav-link disabled">
-                                    Next <i class="fa fa-arrow-right"></i>
-                                </a>
-                            </li>
                             <li class="nav-item dropdown">
                               <button id="theme-menu" aria-expanded="false" data-bs-toggle="dropdown" data-bs-display="static" aria-label="Toggle theme" class="nav-link dropdown-toggle">
                                 <i class="fa-solid fa-circle-half-stroke fa-fw"></i>
@@ -106,85 +96,12 @@
     
     <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
         <ul class="nav flex-column">
-            
-            <li class="nav-item" data-bs-level="1"><a href="#setup-guide-for-running-locally" class="nav-link">Setup Guide for Running Locally</a>
-              <ul class="nav flex-column">
-            <li class="nav-item" data-bs-level="2"><a href="#prerequisites" class="nav-link">Prerequisites</a>
-              <ul class="nav flex-column">
-              </ul>
-            </li>
-            <li class="nav-item" data-bs-level="2"><a href="#steps" class="nav-link">Steps</a>
-              <ul class="nav flex-column">
-              </ul>
-            </li>
-              </ul>
-            </li>
         </ul>
     </div>
 </div></div>
                     <div class="col-md-9" role="main">
 
-<h1 id="setup-guide-for-running-locally">Setup Guide for Running Locally</h1>
-<h2 id="prerequisites">Prerequisites</h2>
-<ul>
-<li>Python</li>
-<li>Node.js &amp; npm</li>
-<li>PostgreSQL</li>
-</ul>
-<p>See the <a href="../prerequisites/">prerequisites</a> page for detailed instructions.</p>
-<h2 id="steps">Steps</h2>
-<h3 id="frontend-setup">Frontend Setup</h3>
-<p>Install dependencies in the frontend folder:</p>
-<pre><code class="language-sh">cd frontend
-npm install
-</code></pre>
-<h3 id="create-the-postgresql-database">Create the PostgreSQL database</h3>
-<pre><code class="language-sh">psql -U postgres
-</code></pre>
-<p>Then in the PostgreSQL prompt run:</p>
-<pre><code class="language-sql">CREATE DATABASE db;
-CREATE USER &quot;user&quot; WITH PASSWORD 'localdevpw';
-GRANT ALL PRIVILEGES ON DATABASE db TO &quot;user&quot;;
-ALTER USER &quot;user&quot; CREATEDB CREATEROLE;
-ALTER USER &quot;user&quot; WITH SUPERUSER;
-</code></pre>
-<p>Type \q or exit to quit.</p>
-<h3 id="backend-setup">Backend Setup</h3>
-<p>In root directory, a create virtual environment.</p>
-<pre><code class="language-sh">py -m venv env
-</code></pre>
-<p>Install backend dependencies:</p>
-<pre><code class="language-sh">env\Scripts\activate
-pip install -r requirements.txt
-</code></pre>
-<p>Navigate to the backend folder and apply migrations:</p>
-<pre><code class="language-sh">cd backend
-py manage.py makemigrations
-py manage.py migrate
-</code></pre>
-<p>Seed initial data:</p>
-<pre><code class="language-sh">py manage.py seed_data
-</code></pre>
-<h3 id="running-the-project">Running the project</h3>
-<p>Starting the frontend (in one terminal).</p>
-<pre><code class="language-sh">cd frontend
-npm run dev
-</code></pre>
-<p>Starting the backend (in another terminal).</p>
-<pre><code class="language-sh">env\Scripts\activate  
-cd backend
-py manage.py runserver
-</code></pre>
-<p>Running the simulator (in another terminal).</p>
-<pre><code class="language-sh">env\Scripts\activate
-cd wifi2ble-box-simulator
-py simulator/main.py --port 8001
-</code></pre>
-<p>Running the MQTT listener for the Pico (in another terminal).</p>
-<pre><code class="language-sh">env\Scripts\activate
-cd backend
-py manage.py mqtt_listener
-</code></pre></div>
+</div>
             </div>
         </div>
 
