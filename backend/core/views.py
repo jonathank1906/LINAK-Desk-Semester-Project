@@ -163,6 +163,7 @@ def reset_password_confirm(request, uid, token):
 @api_view(['GET'])
 @permission_classes([IsAdminUser])
 def list_all_users(request):
+    User = get_user_model()  # Dynamically get the custom user model
     users = User.objects.all().order_by('-created_at')
     serializer = AdminUserListSerializer(users, many=True)
     return Response(serializer.data)
