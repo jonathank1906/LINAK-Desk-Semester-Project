@@ -138,11 +138,12 @@ const hours = [
       </div>
 
       <SidebarInset>
-        <header className="relative flex h-16 items-center gap-2 px-4">
-          <h1 className="text-2xl font-bold">Analytics</h1>
-        </header>
-
         <div className="flex flex-col gap-6 px-6 pb-12 pt-4">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8 gap-4">
+            <h1 className="text-2xl font-bold">Analytics</h1>
+          </div>
+
           {/* Row 1 */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Heatmap (larger) */}
@@ -209,7 +210,7 @@ const hours = [
             <ChartCard title="Booking Type Distribution">
               <div className="max-h-[260px]">
                 <Doughnut data={bookingTypes} />
-            </div>
+              </div>
             </ChartCard>
 
             <ChartCard title="Booking Cancellation Rate">

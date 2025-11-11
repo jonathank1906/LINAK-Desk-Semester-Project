@@ -13,6 +13,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 
 import { UserProfileDialog } from "@/components/UserProfileDialog";
 import { IconPlus, IconFilterX } from "@tabler/icons-react";
@@ -178,166 +179,168 @@ export default function UserManagement() {
   if (error) return <div className="p-6 text-red-500">{error}</div>;
 
   return (
-    <div className="container mx-auto py-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8 gap-4">
-        <h2 className="text-3xl font-bold">User Management</h2>
-
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button className="btn btn-primary flex items-center gap-2 px-4 py-2">
-              <IconPlus className="w-5 h-5" /> Create Employee Account
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <NewAccountForm />
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Filter Row */}
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        <input
-          type="text"
-          placeholder="Search by name or email"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="border rounded px-3 py-2"
-        />
-
-        <select
-          value={filterRole}
-          onChange={(e) => setFilterRole(e.target.value)}
-          className="border rounded px-3 py-2"
-        >
-          <option value="">All Roles</option>
-          <option value="Admin">Admin</option>
-          <option value="Employee">Employee</option>
-          <option value="Manager">Manager</option>
-        </select>
-
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="border rounded px-3 py-2"
-        >
-          <option value="">All Statuses</option>
-          <option value="Active">Active</option>
-          <option value="Disabled">Disabled</option>
-        </select>
-
-        <select
-          value={filterDepartment}
-          onChange={(e) => setFilterDepartment(e.target.value)}
-          className="border rounded px-3 py-2"
-        >
-          <option value="">All Departments</option>
-          <option value="Engineering">Engineering</option>
-          <option value="Design">Design</option>
-          <option value="Marketing">Marketing</option>
-        </select>
-
-        {/* Last Login */}
-        <div className="relative">
-          {!filterLastLoginAfter && (
-            <span className="absolute left-3 top-2 text-gray-400 text-sm pointer-events-none">
-              Last Login
-            </span>
-          )}
-          <input
-            type="date"
-            value={filterLastLoginAfter}
-            onChange={(e) => setFilterLastLoginAfter(e.target.value)}
-            className="border rounded px-3 py-2 pl-24"
-          />
+    <SidebarInset>
+      <div className="flex flex-col gap-6 px-6 pb-12 pt-4">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8 gap-4">
+          <h1 className="text-2xl font-bold">User Management</h1>
         </div>
 
-        {/* Date Created */}
-        <div className="relative">
-          {!filterCreatedAfter && (
-            <span className="absolute left-3 top-2 text-gray-400 text-sm pointer-events-none">
-              Date Created
-            </span>
-          )}
+        {/* Filter Row */}
+        <div className="flex flex-wrap items-center gap-3 mb-6">
           <input
-            type="date"
-            value={filterCreatedAfter}
-            onChange={(e) => setFilterCreatedAfter(e.target.value)}
-            className="border rounded px-3 py-2 pl-24"
+            type="text"
+            placeholder="Search by name or email"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="border rounded px-3 py-2"
           />
+
+          <select
+            value={filterRole}
+            onChange={(e) => setFilterRole(e.target.value)}
+            className="border rounded px-3 py-2"
+          >
+            <option value="">All Roles</option>
+            <option value="Admin">Admin</option>
+            <option value="Employee">Employee</option>
+            <option value="Manager">Manager</option>
+          </select>
+
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="border rounded px-3 py-2"
+          >
+            <option value="">All Statuses</option>
+            <option value="Active">Active</option>
+            <option value="Disabled">Disabled</option>
+          </select>
+
+          <select
+            value={filterDepartment}
+            onChange={(e) => setFilterDepartment(e.target.value)}
+            className="border rounded px-3 py-2"
+          >
+            <option value="">All Departments</option>
+            <option value="Engineering">Engineering</option>
+            <option value="Design">Design</option>
+            <option value="Marketing">Marketing</option>
+          </select>
+
+          {/* Last Login */}
+          <div className="relative">
+            {!filterLastLoginAfter && (
+              <span className="absolute left-3 top-2 text-gray-400 text-sm pointer-events-none">
+                Last Login
+              </span>
+            )}
+            <input
+              type="date"
+              value={filterLastLoginAfter}
+              onChange={(e) => setFilterLastLoginAfter(e.target.value)}
+              className="border rounded px-3 py-2 pl-24"
+            />
+          </div>
+
+          {/* Date Created */}
+          <div className="relative">
+            {!filterCreatedAfter && (
+              <span className="absolute left-3 top-2 text-gray-400 text-sm pointer-events-none">
+                Date Created
+              </span>
+            )}
+            <input
+              type="date"
+              value={filterCreatedAfter}
+              onChange={(e) => setFilterCreatedAfter(e.target.value)}
+              className="border rounded px-3 py-2 pl-24"
+            />
+          </div>
+
+          <input
+            type="text"
+            placeholder="Search Desk #"
+            value={filterDesk}
+            onChange={(e) => setFilterDesk(e.target.value)}
+            className="border rounded px-3 py-2"
+          />
+
+          {/* Reset Filters */}
+          <Button variant="secondary" onClick={resetFilters}>
+            <IconFilterX className="mr-2 h-4 w-4" /> Reset Filters
+          </Button>
+
+          {/* Bulk Actions Dropdown (Always Visible) */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="secondary">Bulk Actions</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => handleBulkAction("disable")}>
+                Disable Selected
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleBulkAction("activate")}>
+                Activate Selected
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleBulkAction("delete")}>
+                Delete Selected
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+           <Dialog>
+            <DialogTrigger asChild>
+              <Button className="btn btn-primary flex items-center gap-2 px-4 py-2">
+                <IconPlus className="w-5 h-5" /> Create Employee Account
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <NewAccountForm />
+            </DialogContent>
+          </Dialog>
         </div>
 
-        <input
-          type="text"
-          placeholder="Search Desk #"
-          value={filterDesk}
-          onChange={(e) => setFilterDesk(e.target.value)}
-          className="border rounded px-3 py-2"
+        {/* Table */}
+        <DataTable
+          columns={columns}
+          data={filteredUsers}
+          onSelectionChange={setSelectedUsers}
         />
 
-        {/* Reset Filters */}
-        <Button variant="secondary" onClick={resetFilters}>
-          <IconFilterX className="mr-2 h-4 w-4" /> Reset Filters
-        </Button>
+        {/* View Dialog */}
+        {viewingUser && (
+          <Dialog open onOpenChange={() => setViewingUser(null)}>
+            <DialogContent>
+              <UserProfileDialog
+                user={viewingUser}
+                onClose={() => setViewingUser(null)}
+              />
+            </DialogContent>
+          </Dialog>
+        )}
 
-        {/* Bulk Actions Dropdown (Always Visible) */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="secondary">Bulk Actions</Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={() => handleBulkAction("disable")}>
-              Disable Selected
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleBulkAction("activate")}>
-              Activate Selected
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleBulkAction("delete")}>
-              Delete Selected
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* Edit Dialog */}
+        {editingUser && (
+          <Dialog open onOpenChange={() => setEditingUser(null)}>
+            <DialogContent>
+              <EditUserDialog
+                user={editingUser}
+                onClose={() => setEditingUser(null)}
+                onSave={(updatedUser) => {
+                  setUsersData((prev) =>
+                    prev.map((user) =>
+                      user.id === updatedUser.id ? updatedUser : user
+                    )
+                  );
+                  setEditingUser(null);
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+        )}
+
       </div>
-
-      {/* Table */}
-      <DataTable
-        columns={columns}
-        data={filteredUsers}
-        onSelectionChange={setSelectedUsers}
-      />
-
-      {/* View Dialog */}
-      {viewingUser && (
-        <Dialog open onOpenChange={() => setViewingUser(null)}>
-          <DialogContent>
-            <UserProfileDialog
-              user={viewingUser}
-              onClose={() => setViewingUser(null)}
-            />
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* Edit Dialog */}
-      {editingUser && (
-        <Dialog open onOpenChange={() => setEditingUser(null)}>
-          <DialogContent>
-            <EditUserDialog
-              user={editingUser}
-              onClose={() => setEditingUser(null)}
-              onSave={(updatedUser) => {
-                setUsersData((prev) =>
-                  prev.map((user) =>
-                    user.id === updatedUser.id ? updatedUser : user
-                  )
-                );
-                setEditingUser(null);
-              }}
-            />
-          </DialogContent>
-        </Dialog>
-      )}
-
-    </div>
+    </SidebarInset>
   );
 }

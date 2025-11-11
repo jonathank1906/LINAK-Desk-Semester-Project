@@ -43,6 +43,7 @@ pip install -r requirements.txt
 Navigate to the backend folder and apply migrations:
 ```sh
 cd backend
+py manage.py makemigrations
 py manage.py migrate
 ```
 Seed initial data:
