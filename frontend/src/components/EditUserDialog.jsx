@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -56,7 +56,25 @@ export function EditUserDialog({ user, onClose, onSave }) {
       if (!res.ok) throw new Error("Failed to save");
 
       const updated = await res.json();
-      onSave(updated);
+      
+      const formatted = {
+  id: updated.id,
+  name: `${updated.first_name} ${updated.last_name}`,
+  email: updated.email,
+  department: updated.department || "—",
+  role: updated.is_admin ? "Admin" : "Employee",
+  lastLogin: updated.last_login
+    ? new Date(updated.last_login).toLocaleString()
+    : "Never",
+  deskUsage: Math.floor(Math.random() * 20),
+  favoriteDesk: "Desk 01", // or updated.favoriteDesk if available
+  deskUsageHistory: [3, 4, 2, 5, 3, 6],
+  status: updated.is_active ? "Active" : "Disabled",
+  created: new Date(updated.created_at).toLocaleDateString(),
+};
+
+onSave(formatted);
+
     } catch (err) {
       console.error(err);
       setError("Failed to save changes.");
@@ -69,7 +87,7 @@ export function EditUserDialog({ user, onClose, onSave }) {
   if (loading) return <DialogContent>Loading...</DialogContent>;
 
   return (
-    <DialogContent>
+    <>
       <DialogTitle>Edit User</DialogTitle>
 
       {error && <div className="text-red-500 mb-2">{error}</div>}
@@ -116,6 +134,6 @@ export function EditUserDialog({ user, onClose, onSave }) {
           {saving ? "Saving..." : "Save Changes"}
         </Button>
       </div>
-    </DialogContent>
+    </>
   );
 }

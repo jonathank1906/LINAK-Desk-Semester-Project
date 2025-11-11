@@ -13,6 +13,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+
 import { UserProfileDialog } from "@/components/UserProfileDialog";
 import { IconPlus, IconFilterX } from "@tabler/icons-react";
 import { NewAccountForm } from "@/components/new-account-form";
@@ -95,8 +96,9 @@ export default function UserManagement() {
         ? new Date(user.lastLogin) >= new Date(filterLastLoginAfter)
         : true;
       const deskMatch = filterDesk
-        ? user.favoriteDesk.toLowerCase().includes(filterDesk.toLowerCase())
+        ? (user.favoriteDesk || "").toLowerCase().includes(filterDesk.toLowerCase())
         : true;
+
 
       return (
         nameMatch &&
