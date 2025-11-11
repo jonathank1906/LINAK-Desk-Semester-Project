@@ -58,22 +58,22 @@ export function EditUserDialog({ user, onClose, onSave }) {
       const updated = await res.json();
       
       const formatted = {
-  id: updated.id,
-  name: `${updated.first_name} ${updated.last_name}`,
-  email: updated.email,
-  department: updated.department || "—",
-  role: updated.is_admin ? "Admin" : "Employee",
-  lastLogin: updated.last_login
-    ? new Date(updated.last_login).toLocaleString()
-    : "Never",
-  deskUsage: Math.floor(Math.random() * 20),
-  favoriteDesk: "Desk 01", // or updated.favoriteDesk if available
-  deskUsageHistory: [3, 4, 2, 5, 3, 6],
-  status: updated.is_active ? "Active" : "Disabled",
-  created: new Date(updated.created_at).toLocaleDateString(),
-};
+      id: updated.id,
+      name: `${updated.first_name} ${updated.last_name}`,
+      email: updated.email,
+      department: updated.department || "—",
+      role: updated.is_admin ? "Admin" : "Employee",
+      lastLogin: updated.last_login
+        ? new Date(updated.last_login).toLocaleString()
+        : "Never",
+      deskUsage: Math.floor(Math.random() * 20),
+      favoriteDesk: "Desk 01", // or updated.favoriteDesk if available
+      deskUsageHistory: [3, 4, 2, 5, 3, 6],
+      status: updated.is_active ? "Active" : "Disabled",
+      created: new Date(updated.created_at).toLocaleDateString(),
+    };
 
-onSave(formatted);
+    onSave(formatted);
 
     } catch (err) {
       console.error(err);
