@@ -9,18 +9,25 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # Create admin user
         User = get_user_model()
-        user, created = User.objects.get_or_create(username='admin', email='admin@example.com')
+        user, created = User.objects.get_or_create(username='admin', defaults={'email': 'admin@example.com'})
+        user.first_name = 'First'
+        user.last_name = 'Last'
         user.is_admin = True
+        user.is_staff = True
+        user.department = 'Engineering'
         user.set_password('123')
         user.save()
         if created:
-            self.stdout.write(self.style.SUCCESS('User "test" created successfully'))
+            self.stdout.write(self.style.SUCCESS('User "admin" created successfully'))
         else:
-            self.stdout.write(self.style.WARNING('User "test" updated'))
+            self.stdout.write(self.style.WARNING('User "admin" updated'))
 
-        # Create regular user
-        regular_user, created = User.objects.get_or_create(username='user', email='user@example.com')
+        regular_user, created = User.objects.get_or_create(username='user', defaults={'email': 'user@example.com'})
+        regular_user.first_name = 'First'
+        regular_user.last_name = 'Last'
         regular_user.is_admin = False
+        regular_user.is_staff = False
+        regular_user.department = 'Design'
         regular_user.set_password('123')
         regular_user.save()
         if created:
