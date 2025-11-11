@@ -77,20 +77,15 @@ export function AppSidebar({
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:!p-2 flex items-center min-h-[48px]"
-            >
-              <a href="#" onClick={() => onSectionSelect?.("dashboard")}>
-                <img
-                  src={Logo}
-                  alt="Logo"
-                  className="h-8 w-8 object-contain align-middle"
-                  style={{ display: "inline-block" }}
-                />
-                <span className="text-base font-semibold ml-2">Sevanta</span>
-              </a>
-            </SidebarMenuButton>
+            <div className="flex items-center min-h-[48px] px-2">
+              <img
+                src={Logo}
+                alt="Logo"
+                className="h-8 w-8 object-contain align-middle"
+                style={{ display: "inline-block" }}
+              />
+              <span className="text-base font-semibold ml-2">Sevanta</span>
+            </div>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
