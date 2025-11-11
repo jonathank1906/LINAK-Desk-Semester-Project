@@ -31,6 +31,23 @@ class UserAccount(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    DEPARTMENT_CHOICES = [
+        ('Engineering', 'Engineering'),
+        ('Design', 'Design'),
+        ('Marketing', 'Marketing'),
+        ('HR', 'HR'),
+        ('Finance', 'Finance'),
+    ]
+
+    department = models.CharField(
+        max_length=50,
+        choices=DEPARTMENT_CHOICES,
+        blank=True,
+        null=True
+    )
+   
+    
     
     """ Additional fields inherited from AbstractBaseUser and PermissionsMixin include:
     password, last_login, is_superuser,

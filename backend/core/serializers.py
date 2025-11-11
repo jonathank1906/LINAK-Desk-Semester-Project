@@ -12,7 +12,8 @@ class AdminUserListSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'email', 'username', 'first_name', 'last_name',
-            'is_admin', 'is_active', 'last_login', 'created_at'
+            'is_admin', 'is_active', 'last_login', 'created_at',
+            'department',
         ]
 
 class UserRegisterSerializer(serializers.ModelSerializer):

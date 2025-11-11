@@ -168,6 +168,26 @@ def list_all_users(request):
     serializer = AdminUserListSerializer(users, many=True)
     return Response(serializer.data)
 
+@api_view(["GET", "PATCH"])
+@permission_classes([IsAdminUser])
+def user_detail_or_update(request, user_id):
+    User = get_user_model()
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({"error": "User not found"}, status=404)
+
+    if request.method == "GET":
+        serializer = AdminUserListSerializer(user)
+        return Response(serializer.data)
+
+    if request.method == "PATCH":
+        serializer = AdminUserListSerializer(user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
 
 @api_view(["POST"])
 @permission_classes([AllowAny])

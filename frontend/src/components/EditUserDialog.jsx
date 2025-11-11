@@ -1,88 +1,121 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select"
-import { useState, useEffect } from "react"
+import React, { useEffect, useState } from "react";
+import { DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 export function EditUserDialog({ user, onClose, onSave }) {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    role: "",
-    department: "",
-  });
+  const [formData, setFormData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
 
+  // Fetch latest user data
   useEffect(() => {
-    if (user) {
-      setFormData({
-        name: user.name || "",
-        email: user.email || "",
-        role: user.role || "Employee",
-        department: user.department || "",
-      });
-    }
+    if (!user) return;
+
+    const fetchUser = async () => {
+      try {
+        const res = await fetch(`http://localhost:8000/api/users/${user.id}/`, {
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed to load user");
+
+        const data = await res.json();
+        setFormData(data);
+        setLoading(false);
+      } catch (err) {
+        console.error(err);
+        setError("Could not fetch user data.");
+        setLoading(false);
+      }
+    };
+
+    fetchUser();
   }, [user]);
 
-  const handleChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
-  const handleSubmit = () => {
-    onSave({ ...user, ...formData }); // merge updated data
-    onClose();
+  const handleSubmit = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`http://localhost:8000/api/users/${user.id}/`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!res.ok) throw new Error("Failed to save");
+
+      const updated = await res.json();
+      onSave(updated);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to save changes.");
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (!user) return null;
+  if (loading) return <DialogContent>Loading...</DialogContent>;
 
   return (
-    <Dialog open={!!user} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Edit User</DialogTitle>
-          <DialogDescription>Modify user details below.</DialogDescription>
-        </DialogHeader>
+    <DialogContent>
+      <DialogTitle>Edit User</DialogTitle>
 
-        <div className="flex flex-col gap-4 py-4">
-          <Input
-            placeholder="Name"
-            value={formData.name}
-            onChange={(e) => handleChange("name", e.target.value)}
-          />
-          <Input
-            placeholder="Email"
-            value={formData.email}
-            onChange={(e) => handleChange("email", e.target.value)}
-          />
-          <Input
-            placeholder="Department"
-            value={formData.department}
-            onChange={(e) => handleChange("department", e.target.value)}
-          />
-          <Select
-            value={formData.role}
-            onValueChange={(value) => handleChange("role", value)}
-          >
-            <SelectTrigger>{formData.role}</SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Admin">Admin</SelectItem>
-              <SelectItem value="Manager">Manager</SelectItem>
-              <SelectItem value="Employee">Employee</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      {error && <div className="text-red-500 mb-2">{error}</div>}
 
-        <DialogFooter>
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit}>Save</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <div className="space-y-4 mt-4">
+        <Input
+          label="First Name"
+          name="first_name"
+          value={formData.first_name || ""}
+          onChange={handleChange}
+        />
+        <Input
+          label="Last Name"
+          name="last_name"
+          value={formData.last_name || ""}
+          onChange={handleChange}
+        />
+        <Input
+          label="Email"
+          name="email"
+          value={formData.email || ""}
+          onChange={handleChange}
+        />
+        <select
+          name="department"
+          value={formData.department || ""}
+          onChange={handleChange}
+          className="w-full p-2 border rounded"
+        >
+          <option value="">Select Department</option>
+          <option value="Engineering">Engineering</option>
+          <option value="Design">Design</option>
+          <option value="Marketing">Marketing</option>
+          <option value="HR">HR</option>
+          <option value="Finance">Finance</option>
+        </select>
+      </div>
+
+      <div className="mt-6 flex justify-end gap-4">
+        <Button variant="ghost" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button onClick={handleSubmit} disabled={saving}>
+          {saving ? "Saving..." : "Save Changes"}
+        </Button>
+      </div>
+    </DialogContent>
   );
 }

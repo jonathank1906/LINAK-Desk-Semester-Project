@@ -316,6 +316,9 @@ export default function UserManagement() {
       )}
 
       {/* Edit Dialog */}
+{editingUser && (
+  <Dialog open onOpenChange={() => setEditingUser(null)}>
+    <DialogContent>
       <EditUserDialog
         user={editingUser}
         onClose={() => setEditingUser(null)}
@@ -328,6 +331,10 @@ export default function UserManagement() {
           setEditingUser(null);
         }}
       />
+    </DialogContent>
+  </Dialog>
+)}
+
     </div>
   );
 }
