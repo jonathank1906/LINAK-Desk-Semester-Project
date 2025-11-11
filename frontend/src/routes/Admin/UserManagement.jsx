@@ -184,8 +184,10 @@ export default function UserManagement() {
         <h2 className="text-3xl font-bold">User Management</h2>
 
         <Dialog>
-          <DialogTrigger className="btn btn-primary flex items-center gap-2 px-4 py-2">
-            <IconPlus className="w-5 h-5" /> Add User
+          <DialogTrigger asChild>
+            <Button className="btn btn-primary flex items-center gap-2 px-4 py-2">
+              <IconPlus className="w-5 h-5" /> Create Employee Account
+            </Button>
           </DialogTrigger>
           <DialogContent>
             <NewAccountForm />

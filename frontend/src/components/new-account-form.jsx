@@ -4,11 +4,14 @@ import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
+import {
+  MailIcon,
+} from "lucide-react"
 
 export function NewAccountForm({ className, ...props }) {
-  const [firstName, setFirstName] = useState("John");
-  const [lastName, setLastName] = useState("Doe");
-  const [email, setEmail] = useState("john.doe@company.com");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
@@ -38,7 +41,7 @@ export function NewAccountForm({ className, ...props }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      
+
       if (!res.ok) {
         const data = await res.json();
         console.log("Full error response:", data);
@@ -66,12 +69,12 @@ export function NewAccountForm({ className, ...props }) {
       }
 
       setSuccess(true);
-      
+
       // Clear form after success
       setFirstName("");
       setLastName("");
       setEmail("");
-      
+
     } catch (err) {
       setError(err.message);
       console.error("Account creation error:", err);
@@ -83,9 +86,10 @@ export function NewAccountForm({ className, ...props }) {
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Create New Account</DialogTitle>
+        <DialogTitle>Create Employee Account</DialogTitle>
       </DialogHeader>
       <form onSubmit={handleCreateAccount} className={cn("flex flex-col gap-6", className)} {...props}>
+         <div className="mt-2" /> 
         <div className="grid gap-3">
           <Label htmlFor="firstName">First Name</Label>
           <Input
@@ -94,6 +98,7 @@ export function NewAccountForm({ className, ...props }) {
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
             required
+            placeholder="Enter first name"
           />
         </div>
         <div className="grid gap-3">
@@ -104,17 +109,23 @@ export function NewAccountForm({ className, ...props }) {
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
             required
+            placeholder="Enter last name"
           />
         </div>
         <div className="grid gap-3">
           <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+          <div className="relative">
+            <MailIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="pl-10"
+              placeholder="Enter employee email address"
+            />
+          </div>
         </div>
         <div className="flex flex-col gap-3">
           <Button type="submit" className="w-full" disabled={loading}>
@@ -127,7 +138,7 @@ export function NewAccountForm({ className, ...props }) {
           )}
           {success && (
             <div className="text-green-500 text-sm p-2 bg-green-50 rounded">
-              Account created successfully! Password reset email sent to {email}
+              Account created successfully! Password reset email sent.
             </div>
           )}
         </div>

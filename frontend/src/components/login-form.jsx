@@ -15,6 +15,11 @@ import { useState, useEffect } from "react"
 import { useAuth } from '../contexts/useAuth';
 import { Link, useNavigate } from "react-router-dom"
 
+import {
+  MailIcon,
+  LockIcon,
+} from "lucide-react"
+
 export function LoginForm({
   className,
   ...props
@@ -35,7 +40,7 @@ export function LoginForm({
   const handleLogin = async (e) => {
     e.preventDefault();
     if (isLoggingIn) return; // Prevent multiple clicks
-    
+
     setIsLoggingIn(true);
     const success = await loginUser(email, password)
     if (!success) {
@@ -56,15 +61,20 @@ export function LoginForm({
             <div className="flex flex-col gap-6">
               <div className="grid gap-3">
                 <Label htmlFor="email">Email</Label>
-                <Input
-                  onChange={(e) => setEmail(e.target.value)}
-                  value={email}
-                  id="email"
-                  type="email"
-                  required
-                  autoComplete="email"
-                  disabled={isLoggingIn}
-                />
+                <div className="relative">
+                  <MailIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                    disabled={isLoggingIn}
+                    className="pl-10"
+                    placeholder="Enter your email"
+                  />
+                </div>
               </div>
               <div className="grid gap-3">
                 <div className="flex items-center">
@@ -75,19 +85,24 @@ export function LoginForm({
                     Forgot password?
                   </Link>
                 </div>
-                <Input
-                  onChange={(e) => setPassword(e.target.value)}
-                  value={password}
-                  id="password"
-                  type="password"
-                  required
-                  autoComplete="current-password"
-                  disabled={isLoggingIn}
-                />
+                <div className="relative">
+                  <LockIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
+                  <Input
+                    onChange={(e) => setPassword(e.target.value)}
+                    value={password}
+                    id="password"
+                    type="password"
+                    required
+                    autoComplete="current-password"
+                    disabled={isLoggingIn}
+                    className="pl-10"
+                    placeholder="Enter your password"
+                  />
+                </div>
               </div>
               <div className="flex flex-col gap-3">
                 <Button onClick={handleLogin} type="submit" className="w-full" disabled={isLoggingIn}>
-                  {isLoggingIn && <Spinner variant="circle"/>}
+                  {isLoggingIn && <Spinner variant="circle" />}
                   {isLoggingIn ? "Signing in..." : "Sign in"}
                 </Button>
               </div>

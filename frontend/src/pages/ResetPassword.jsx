@@ -5,6 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
+import {
+  MailIcon,
+} from "lucide-react"
+
 
 const ResetPassword = () => {
   const [status, setStatus] = useState(false);
@@ -39,14 +43,18 @@ const ResetPassword = () => {
           <form onSubmit={handleSubmit} className="flex flex-col gap-6">
             <div className="grid gap-3">
               <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-                placeholder="Enter your email address"
-              />
+              <div className="relative">
+                <MailIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                  className="pl-10"
+                  placeholder="Enter your email address"
+                />
+              </div>
             </div>
             <Button type="submit" className="w-full">
               Send password reset email
