@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
@@ -21,6 +21,7 @@ from .serializers import (
     UserSerializer,
     DeskSerializer,
     ReservationSerializer,
+    AdminUserListSerializer
 )
 from .models import Desk
 from .services.WiFi2BLEService import WiFi2BLEService
@@ -158,6 +159,13 @@ def reset_password_confirm(request, uid, token):
     user.set_password(new_password)
     user.save()
     return Response({"success": "Password has been reset."}, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def list_all_users(request):
+    users = User.objects.all().order_by('-created_at')
+    serializer = AdminUserListSerializer(users, many=True)
+    return Response(serializer.data)
 
 
 @api_view(["POST"])

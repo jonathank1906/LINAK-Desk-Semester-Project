@@ -111,13 +111,12 @@ export function NavUser({ user }) {
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
-{showAccount && user?.is_staff && (
-  <AdminAccountModal open={showAccount} onClose={() => setShowAccount(false)} />
+{showAccount && (
+  user?.is_admin
+    ? <AdminAccountModal open={showAccount} onClose={() => setShowAccount(false)} />
+    : <EmployeeAccountModal open={showAccount} onClose={() => setShowAccount(false)} />
 )}
 
-{showAccount && !user?.is_staff && (
-  <EmployeeAccountModal open={showAccount} onClose={() => setShowAccount(false)} />
-)}
 </>
     
   );

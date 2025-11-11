@@ -13,7 +13,7 @@ from .views import (
     desk_usage,
     desk_detail,
     control_pico_led,          
-    get_pico_sensor_data,
+    get_pico_sensor_data, list_all_users,
     list_available_hot_desks, start_hot_desk, confirm_hot_desk, end_hot_desk,
     list_user_reservations, create_reservation, cancel_pending_verification,
     check_in_reservation, check_out_reservation, hotdesk_status, available_desks_for_date
@@ -25,6 +25,7 @@ urlpatterns = [
     path('token/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
     path('register/', register),
     path('authenticated/', is_logged_in),
+    path('users/', list_all_users, name='list_users'),
     path('auth/', include('djoser.urls')),
     path('auth/', include('djoser.urls.jwt')),
     path('password/reset/confirm/<int:uid>/<str:token>', reset_password_confirm, name="password_reset_confirm"),
