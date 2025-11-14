@@ -8,7 +8,7 @@
         
         
         <link rel="shortcut icon" href="../img/favicon.ico">
-        <title>API Reference - Project Documentation</title>
+        <title>Running The Project - Project Documentation</title>
         <link href="../css/bootstrap.min.css" rel="stylesheet">
         <link href="../css/fontawesome.min.css" rel="stylesheet">
         <link href="../css/brands.min.css" rel="stylesheet">
@@ -42,10 +42,10 @@
                                 <a href="../setup/" class="nav-link">Setup Guide</a>
                             </li>
                             <li class="nav-item">
-                                <a href="../run/" class="nav-link">Running The Project</a>
+                                <a href="./" class="nav-link active" aria-current="page">Running The Project</a>
                             </li>
                             <li class="nav-item">
-                                <a href="./" class="nav-link active" aria-current="page">API Reference</a>
+                                <a href="../api/" class="nav-link">API Reference</a>
                             </li>
                             <li class="nav-item">
                                 <a href="../other/" class="nav-link">Other</a>
@@ -59,12 +59,12 @@
                             </a>
                         </li>
                             <li class="nav-item">
-                                <a rel="prev" href="../run/" class="nav-link">
+                                <a rel="prev" href="../setup/" class="nav-link">
                                     <i class="fa fa-arrow-left"></i> Previous
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a rel="next" href="../other/" class="nav-link">
+                                <a rel="next" href="../api/" class="nav-link">
                                     Next <i class="fa fa-arrow-right"></i>
                                 </a>
                             </li>
@@ -115,12 +115,57 @@
     
     <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
         <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#running-the-project-locally" class="nav-link">Running the Project Locally</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#frontend-startup" class="nav-link">Frontend Startup</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#backend-startup" class="nav-link">Backend Startup</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#simulator-startup" class="nav-link">Simulator Startup</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#mqtt-listener-startup" class="nav-link">MQTT Listener Startup</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
         </ul>
     </div>
 </div></div>
                     <div class="col-md-9" role="main">
 
-<p>API reference</p></div>
+<h1 id="running-the-project-locally">Running the Project Locally</h1>
+<h2 id="frontend-startup">Frontend Startup</h2>
+<p>(in one terminal):</p>
+<pre><code class="language-sh">cd frontend
+npm run dev
+</code></pre>
+<h2 id="backend-startup">Backend Startup</h2>
+<p>(in another terminal):</p>
+<pre><code class="language-sh">env\Scripts\activate  
+cd backend
+py manage.py runserver
+</code></pre>
+<h2 id="simulator-startup">Simulator Startup</h2>
+<p>(in another terminal):</p>
+<pre><code class="language-sh">env\Scripts\activate
+cd wifi2ble-box-simulator
+py simulator/main.py --port 8001
+</code></pre>
+<h2 id="mqtt-listener-startup">MQTT Listener Startup</h2>
+<p>Purpose: Checking messages sent by the Pico W. 
+(in another terminal):</p>
+<pre><code class="language-sh">env\Scripts\activate
+cd backend
+py manage.py mqtt_listener
+</code></pre></div>
             </div>
         </div>
 
