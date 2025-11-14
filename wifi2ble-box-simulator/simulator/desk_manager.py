@@ -66,6 +66,8 @@ class DeskManager:
         with self.lock:
             if desk_id not in self.desks:
                 desk = Desk(desk_id, name, manufacturer)
+                if desk_id == "cd:fb:1a:53:fb:e6":
+                    desk.state["isAntiCollision"] = False  # Disable collision for desk 1
                 self.desks[desk_id] = desk
                 self.users[desk_id] = self._create_user(desk, user_type)
                 logger.info(f"Desk ID={desk_id} added with user type {user_type}.")
@@ -126,6 +128,8 @@ class DeskManager:
             if self.is_daytime():
                 with self.lock:
                     for desk_id, user in self.users.items():
+                        if desk_id == "cd:fb:1a:53:fb:e6":
+                            continue  # Disable auto-movement for Desk #1
                         if desk_id not in self.powered_off_desks:
                             logger.debug(f"User simulation for desk {desk_id}.")
                             user.simulate(5*self.simulation_speed)
@@ -135,12 +139,12 @@ class DeskManager:
         """Randomly power off desks for a period of time."""
         while not self.stop_event.is_set():
             with self.lock:
-                if self.desks and random.random() < self.POWER_OFF_CHANCE:
-                    desk_id = random.choice(list(self.desks.keys()))
-                    if desk_id not in self.powered_off_desks:
-                        power_off_duration_s = random.randint(5*60, 2*60*60)
-                        self.powered_off_desks[desk_id] = self.current_time_s + power_off_duration_s
-                        logger.warning(f"Desk ID={desk_id} powered off for {power_off_duration_s // 60} minutes.")
+                eligible_desks = [desk_id for desk_id in self.desks if desk_id not in self.powered_off_desks and desk_id != "cd:fb:1a:53:fb:e6"]
+                if eligible_desks and random.random() < self.POWER_OFF_CHANCE:
+                    desk_id = random.choice(eligible_desks)
+                    power_off_duration_s = random.randint(5*60, 2*60*60)
+                    self.powered_off_desks[desk_id] = self.current_time_s + power_off_duration_s
+                    logger.warning(f"Desk ID={desk_id} powered off for {power_off_duration_s // 60} minutes.")
             time.sleep(5)
 
             with self.lock:
@@ -225,6 +229,8 @@ class DeskManager:
                         desk.usage.update(desk_data["usage"])
                         desk.lastErrors = desk_data["lastErrors"]
                         desk.clock_s = desk_data["clock_s"]
+                        if desk_id == "cd:fb:1a:53:fb:e6":
+                            desk.state["isAntiCollision"] = False  # Disable collision for desk 1
                         self.desks[desk_id] = desk
                         self.users[desk_id] = self._create_user(desk, user_type)
                     logger.info(f"Desk Manager state loaded from {self.STATE_FILE}")
