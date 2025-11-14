@@ -58,6 +58,40 @@ export default function EmployeeDashboard() {
     const [verificationModalOpen, setVerificationModalOpen] = useState(false);
     const [pendingDeskId, setPendingDeskId] = useState(null);
 
+    // Fetch user's occupied desk on login/page load
+    useEffect(() => {
+        if (!user) return;
+
+        const fetchOccupiedDesk = async () => {
+            try {
+                const config = {
+                    headers: { Authorization: `Bearer ${user.token}` },
+                    withCredentials: true,
+                };
+                const res = await axios.get(
+                    "http://localhost:8000/api/desks/",
+                    config
+                );
+                // Find desk where current_user matches logged-in user and is not available
+                const occupiedDesk = res.data.find(
+                    (desk) =>
+                        desk.current_user &&
+                        desk.current_user.id === user.id &&
+                        desk.current_status !== "available"
+                );
+                if (occupiedDesk) {
+                    setSelectedDeskId(occupiedDesk.id);
+                } else {
+                    setSelectedDeskId(null);
+                }
+            } catch (err) {
+                setSelectedDeskId(null);
+            }
+        };
+
+        fetchOccupiedDesk();
+    }, [user]);
+
     // Fetch desk status and usage only if the user is logged in and a desk is selected
     useEffect(() => {
         if (!user || !selectedDeskId) {
