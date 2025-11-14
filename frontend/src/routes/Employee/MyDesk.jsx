@@ -218,12 +218,12 @@ export default function MyDesk({ selectedDeskId }) {
           <Drawer>
             <DrawerTrigger asChild>
               <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
-                Height Controls
+                Manual Height Controls
               </button>
             </DrawerTrigger>
             <DrawerContent>
               <DrawerHeader>
-                <DrawerTitle>Height Control</DrawerTitle>
+                <DrawerTitle>Manual Height Control</DrawerTitle>
               </DrawerHeader>
               <div className="p-4 space-y-4">
                 {loading ? (
@@ -286,56 +286,66 @@ export default function MyDesk({ selectedDeskId }) {
                     </button>
                   </div>
                 )}
+              </div>
+            </DrawerContent>
+          </Drawer>
 
-                {/* Quick Presets */}
-                <div className="space-y-4 mt-6">
-                  <div className="font-semibold text-lg mb-2">Quick Presets</div>
-                  {loading ? (
-                    <div className="grid grid-cols-1 gap-3">
-                      <Skeleton className="h-20 w-full rounded-lg" />
-                      <Skeleton className="h-20 w-full rounded-lg" />
-                      <Skeleton className="h-20 w-full rounded-lg" />
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-3">
-                      <button
-                        onClick={() => controlDeskHeight(72)}
-                        disabled={isControlling}
-                        className="flex justify-between items-center p-4 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <div>
-                          <div className="font-medium text-green-800">Sitting Position</div>
-                          <div className="text-sm text-green-600">72cm</div>
-                        </div>
-                        <div className="text-green-600">{isControlling ? '...' : 'Go →'}</div>
-                      </button>
+          <Drawer>
+            <DrawerTrigger asChild>
+              <button className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors">
+                Quick Presets
+              </button>
+            </DrawerTrigger>
+            <DrawerContent>
+              <DrawerHeader>
+                <DrawerTitle>Quick Presets</DrawerTitle>
+              </DrawerHeader>
+              <div className="p-4 space-y-4">
+                {loading ? (
+                  <div className="grid grid-cols-1 gap-3">
+                    <Skeleton className="h-20 w-full rounded-lg" />
+                    <Skeleton className="h-20 w-full rounded-lg" />
+                    <Skeleton className="h-20 w-full rounded-lg" />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3">
+                    <button
+                      onClick={() => controlDeskHeight(72)}
+                      disabled={isControlling}
+                      className="flex justify-between items-center p-4 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <div>
+                        <div className="font-medium text-green-800">Sitting Position</div>
+                        <div className="text-sm text-green-600">72cm</div>
+                      </div>
+                      <div className="text-green-600">{isControlling ? '...' : 'Go →'}</div>
+                    </button>
 
-                      <button
-                        onClick={() => controlDeskHeight(110)}
-                        disabled={isControlling}
-                        className="flex justify-between items-center p-4 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <div>
-                          <div className="font-medium text-blue-800">Standing Position</div>
-                          <div className="text-sm text-blue-600">110cm</div>
-                        </div>
-                        <div className="text-blue-600">{isControlling ? '...' : 'Go →'}</div>
-                      </button>
+                    <button
+                      onClick={() => controlDeskHeight(110)}
+                      disabled={isControlling}
+                      className="flex justify-between items-center p-4 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <div>
+                        <div className="font-medium text-blue-800">Standing Position</div>
+                        <div className="text-sm text-blue-600">110cm</div>
+                      </div>
+                      <div className="text-blue-600">{isControlling ? '...' : 'Go →'}</div>
+                    </button>
 
-                      <button
-                        onClick={() => controlDeskHeight(95)}
-                        disabled={isControlling}
-                        className="flex justify-between items-center p-4 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <div>
-                          <div className="font-medium text-purple-800">Meeting Height</div>
-                          <div className="text-sm text-purple-600">95cm</div>
-                        </div>
-                        <div className="text-purple-600">{isControlling ? '...' : 'Go →'}</div>
-                      </button>
-                    </div>
-                  )}
-                </div>
+                    <button
+                      onClick={() => controlDeskHeight(95)}
+                      disabled={isControlling}
+                      className="flex justify-between items-center p-4 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <div>
+                        <div className="font-medium text-purple-800">Meeting Height</div>
+                        <div className="text-sm text-purple-600">95cm</div>
+                      </div>
+                      <div className="text-purple-600">{isControlling ? '...' : 'Go →'}</div>
+                    </button>
+                  </div>
+                )}
               </div>
             </DrawerContent>
           </Drawer>
