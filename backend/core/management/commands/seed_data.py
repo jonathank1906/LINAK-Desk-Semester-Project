@@ -14,6 +14,7 @@ class Command(BaseCommand):
         user.last_name = 'Last'
         user.is_admin = True
         user.is_staff = True
+        user.is_superuser = True
         user.department = 'Engineering'
         user.set_password('123')
         user.save()
