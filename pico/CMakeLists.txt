@@ -32,14 +32,14 @@ set(WIFI_PASSWORD "JtqkdkM!906")
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
-project(06 C CXX ASM)
+project(main C CXX ASM)
 
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
 # Add executable - ONE program with everything
-add_executable(06 
-        06.cpp 
+add_executable(main 
+        main.cpp 
         MyApp MyApp.cpp 
         Led Led.cpp 
         PushButton PushButton.cpp
@@ -50,17 +50,17 @@ add_executable(06
         globals.cpp
         ntp.c)
 
-pico_generate_pio_header(06 ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)
+pico_generate_pio_header(main ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)
 
-pico_set_program_name(06 "06")
-pico_set_program_version(06 "0.1")
+pico_set_program_name(main "main")
+pico_set_program_version(main "0.1")
 
 # Modify the below lines to enable/disable output over UART/USB
-pico_enable_stdio_uart(06 1)
-pico_enable_stdio_usb(06 0)
+pico_enable_stdio_uart(main 1)
+pico_enable_stdio_usb(main 0)
 
 # Add the standard library to the build
-target_link_libraries(06
+target_link_libraries(main
         pico_stdlib
         hardware_i2c
         hardware_adc
@@ -70,14 +70,14 @@ target_link_libraries(06
         hardware_rtc)
 
 # Add the standard include files to the build
-target_include_directories(06 PRIVATE
+target_include_directories(main PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
 )
 
-target_compile_definitions(06 PRIVATE
+target_compile_definitions(main PRIVATE
     WIFI_SSID=\"${WIFI_SSID}\"
     WIFI_PASSWORD=\"${WIFI_PASSWORD}\"
     MQTT_SERVER=\"${MQTT_SERVER}\"
 )
 
-pico_add_extra_outputs(06)
+pico_add_extra_outputs(main)
