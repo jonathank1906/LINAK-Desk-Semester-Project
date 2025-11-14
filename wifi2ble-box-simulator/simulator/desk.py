@@ -110,7 +110,8 @@ class Desk:
                     self.state["isAntiCollision"] = False
                     self.state["status"] = "Normal"
                     logger.info(f"Desk reset from collision: ID={self.desk_id}, Time={self.clock_s}, Position={self.state['position_mm']}")
-                elif random.random() < self.COLLISION_CHANCE:
+                # Only allow collision if not desk 1
+                elif random.random() < self.COLLISION_CHANCE and self.desk_id != "cd:fb:1a:53:fb:e6":
                     self._generate_error()
                     if self.state["speed_mms"] > 0:
                         self.state["position_mm"] = max(self.state["position_mm"] - 10, self.min_position)

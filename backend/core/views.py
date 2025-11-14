@@ -274,7 +274,7 @@ def get_desk_live_status(request, desk_id):
             "current_height": live_state.get("position_mm", 0) / 10,
             "speed": live_state.get("speed_mms", 0),
             "status": live_state.get("status", "unknown"),
-            "is_moving": live_state.get("speed_mms", 0) > 0,
+            "is_moving": abs(live_state.get("speed_mms", 0)) > 0,
         }
     )
 
