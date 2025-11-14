@@ -674,3 +674,25 @@ def available_desks_for_date(request):
     desks = Desk.objects.exclude(id__in=reserved_desks)
     serializer = DeskSerializer(desks, many=True)
     return Response(serializer.data)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def release_desk(request, desk_id):
+    """
+    Release a desk (hotdesk or reserved): set status to 'available' and clear current_user.
+    """
+    try:
+        desk = Desk.objects.get(id=desk_id)
+        # Only allow release if the current user is the one occupying the desk
+        if desk.current_user != request.user:
+            return Response(
+                {"error": "You are not using this desk"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        desk.current_user = None
+        desk.current_status = "available"
+        desk.save()
+        return Response({"success": True})
+    except Desk.DoesNotExist:
+        return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)

@@ -109,14 +109,14 @@ export default function MyDesk({ selectedDeskId }) {
   };
 
   const moveUp = () => {
-    const currentHeight = deskStatus?.current_height || 85;
-    const newHeight = Math.min(currentHeight + 5, 120);
+    if (currentHeight == null) return;
+    const newHeight = Math.min(currentHeight + 5, maxHeight);
     controlDeskHeight(newHeight);
   };
 
   const moveDown = () => {
-    const currentHeight = deskStatus?.current_height || 85;
-    const newHeight = Math.max(currentHeight - 5, 60);
+    if (currentHeight == null) return;
+    const newHeight = Math.max(currentHeight - 5, minHeight);
     controlDeskHeight(newHeight);
   };
 
@@ -190,7 +190,7 @@ export default function MyDesk({ selectedDeskId }) {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-center">
                 <div className="text-3xl font-bold text-blue-600">
-                  {currentHeight}cm
+                  {currentHeight != null ? `${currentHeight}cm` : "--"}
                 </div>
                 <div className="text-sm text-gray-500">Current Height</div>
               </div>

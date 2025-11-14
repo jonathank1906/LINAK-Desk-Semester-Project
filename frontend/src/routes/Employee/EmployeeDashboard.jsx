@@ -178,8 +178,25 @@ export default function EmployeeDashboard() {
                                     ) : (
                                         <>
                                             <button
+                                                onClick={async () => {
+                                                    if (!selectedDeskId) return;
+                                                    try {
+                                                        const config = {
+                                                            headers: { Authorization: `Bearer ${user.token}` },
+                                                            withCredentials: true,
+                                                        };
+                                                        await axios.post(
+                                                            `http://localhost:8000/api/desks/${selectedDeskId}/release/`,
+                                                            {},
+                                                            config
+                                                        );
+                                                    } catch (err) {
+                                                        // Optionally handle error
+                                                    }
+                                                    setSelectedDeskId(null);
+                                                }}
                                                 className="px-3 py-1 rounded-md bg-primary text-white text-sm hover:opacity-90"
-                                                aria-label="Select a Desk"
+                                                aria-label="Release desk"
                                             >
                                                 Release
                                             </button>

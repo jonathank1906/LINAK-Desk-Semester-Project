@@ -16,7 +16,7 @@ from .views import (
     get_pico_sensor_data, list_all_users, user_detail_or_update,
     list_available_hot_desks, start_hot_desk, confirm_hot_desk, end_hot_desk,
     list_user_reservations, create_reservation, cancel_pending_verification,
-    check_in_reservation, check_out_reservation, hotdesk_status, available_desks_for_date
+    check_in_reservation, check_out_reservation, hotdesk_status, available_desks_for_date, release_desk
 )
 
 urlpatterns = [
@@ -52,4 +52,6 @@ urlpatterns = [
     path('reservations/create/', create_reservation, name='reservation_create'),
     path('reservations/<int:reservation_id>/check_in/', check_in_reservation, name='reservation_check_in'),
     path('reservations/<int:reservation_id>/check_out/', check_out_reservation, name='reservation_check_out'),
+
+    path('desks/<int:desk_id>/release/', release_desk, name='release_desk'),
 ]
