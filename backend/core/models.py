@@ -217,6 +217,7 @@ class DeskUsageLog(models.Model):
     sitting_time = models.IntegerField(default=0)
     standing_time = models.IntegerField(default=0)
     position_changes = models.IntegerField(default=0)
+    last_height_change = models.DateTimeField(blank=True, null=True)
     
     # Height tracking
     average_height = models.FloatField(blank=True, null=True)
