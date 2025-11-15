@@ -36,6 +36,10 @@ export default function EmployeeDashboard() {
     const [deskStatus, setDeskStatus] = useState(null);
     const [usageStats, setUsageStats] = useState(null);
 
+    // NEW: Live elapsed time state
+    const [sessionStartTime, setSessionStartTime] = useState(null);
+    const [elapsedTime, setElapsedTime] = useState("00:00:00");
+
     // small local state for demo/upcoming reservations list
     const [upcomingReservations, setUpcomingReservations] = useState([
         {
@@ -83,9 +87,11 @@ export default function EmployeeDashboard() {
                     setSelectedDeskId(occupiedDesk.id);
                 } else {
                     setSelectedDeskId(null);
+                    setSessionStartTime(null); // Clear session time
                 }
             } catch (err) {
                 setSelectedDeskId(null);
+                setSessionStartTime(null);
             }
         };
 
@@ -97,6 +103,7 @@ export default function EmployeeDashboard() {
         if (!user || !selectedDeskId) {
             setDeskStatus(null);
             setUsageStats(null);
+            setSessionStartTime(null);
             return;
         }
 
@@ -119,20 +126,59 @@ export default function EmployeeDashboard() {
                         config
                     );
                     setUsageStats(usageRes.data);
+                    
+                    // NEW: Set session start time if active session exists
+                    if (usageRes.data.active_session && usageRes.data.started_at) {
+                        setSessionStartTime(new Date(usageRes.data.started_at));
+                    } else {
+                        setSessionStartTime(null);
+                    }
                 } catch {
                     setUsageStats(null);
+                    setSessionStartTime(null);
                 }
             } catch (err) {
                 setDeskStatus(null);
                 setUsageStats(null);
+                setSessionStartTime(null);
             }
         };
 
         fetchDeskStatus();
 
-        const interval = setInterval(fetchDeskStatus, 30000);
+        const interval = setInterval(fetchDeskStatus, 30000); // Refresh every 30 seconds
         return () => clearInterval(interval);
     }, [user, selectedDeskId]);
+
+    // NEW: Live timer that counts up every second
+    useEffect(() => {
+        if (!sessionStartTime) {
+            setElapsedTime("00:00:00");
+            return;
+        }
+
+        const updateElapsedTime = () => {
+            const now = new Date();
+            const diffMs = now - sessionStartTime;
+            const diffSeconds = Math.floor(diffMs / 1000);
+
+            const hours = Math.floor(diffSeconds / 3600);
+            const minutes = Math.floor((diffSeconds % 3600) / 60);
+            const seconds = diffSeconds % 60;
+
+            setElapsedTime(
+                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+            );
+        };
+
+        // Update immediately
+        updateElapsedTime();
+
+        // Then update every second
+        const timerInterval = setInterval(updateElapsedTime, 1000);
+
+        return () => clearInterval(timerInterval);
+    }, [sessionStartTime]);
 
     function handleEditReservation(id) {
         // TODO: open edit modal / navigate to edit form
@@ -188,14 +234,22 @@ export default function EmployeeDashboard() {
                                             ? deskStatus?.name ?? `Desk #${selectedDeskId}`
                                             : "No desk selected"}
                                     </div>
-                                    {selectedDeskId && usageStats ? (
+                                    
+                                    {/* NEW: Display live elapsed time */}
+                                    {selectedDeskId && sessionStartTime ? (
                                         <div className="text-xs text-muted-foreground mt-1">
-                                            Current usage: {usageStats.usageMinutes ?? "—"} mins
+                                            <span className="font-mono font-semibold text-primary">
+                                                {elapsedTime}
+                                            </span>
+                                            {" "}elapsed
                                         </div>
                                     ) : null}
-                                    {selectedDeskId && usageStats ? (
+                                    
+                                    {/* Optional: Show sitting/standing time */}
+                                    {selectedDeskId && usageStats?.sitting_time !== undefined ? (
                                         <div className="text-xs text-muted-foreground mt-1">
-                                            Time remaining: {usageStats.usageMinutes ?? "—"} mins
+                                            Sitting: {Math.floor(usageStats.sitting_time / 60)}m | 
+                                            Standing: {Math.floor(usageStats.standing_time / 60)}m
                                         </div>
                                     ) : null}
                                 </div>
@@ -224,10 +278,13 @@ export default function EmployeeDashboard() {
                                                             {},
                                                             config
                                                         );
+                                                        // Clear local state
+                                                        setSelectedDeskId(null);
+                                                        setSessionStartTime(null);
+                                                        setElapsedTime("00:00:00");
                                                     } catch (err) {
-                                                        // Optionally handle error
+                                                        console.error("Error releasing desk:", err);
                                                     }
-                                                    setSelectedDeskId(null);
                                                 }}
                                                 className="px-3 py-1 rounded-md bg-primary text-white text-sm hover:opacity-90"
                                                 aria-label="Release desk"

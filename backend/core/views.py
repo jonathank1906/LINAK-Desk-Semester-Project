@@ -23,7 +23,7 @@ from .serializers import (
     ReservationSerializer,
     AdminUserListSerializer,
 )
-from .models import Desk
+from .models import Desk, DeskUsageLog
 from .services.WiFi2BLEService import WiFi2BLEService
 from core.services.MQTTService import get_mqtt_service
 from core.models import Pico, SensorReading, Reservation
@@ -289,20 +289,42 @@ def desk_usage(request, desk_id):
     try:
         desk = Desk.objects.get(id=desk_id)
 
-        # TODO: Replace with actual usage tracking from DeskUsage model
-        # For now, return mock data
-        return Response(
-            {
-                "desk_id": desk.id,
-                "sitting_time": "3h 20m",
-                "standing_time": "1h 45m",
-                "position_changes": 8,
-                "total_activations": desk.total_activations,
-                "sit_stand_counter": desk.sit_stand_counter,
-                "current_standing": "15 mins",
-                "today_stats": {"sitting": "2h 10m", "standing": "45m", "changes": 5},
-            }
-        )
+        # Fetch the latest ACTIVE usage log for the desk
+        log = DeskUsageLog.objects.filter(
+            desk=desk, 
+            ended_at__isnull=True  # Only get active session
+        ).order_by("-started_at").first()
+
+        if not log:
+            return Response({
+                "desk_id": desk.id, 
+                "active_session": False,
+                "message": "No active session"
+            })
+
+        # Calculate elapsed time
+        started_at = log.started_at
+        elapsed_time = timezone.now() - started_at
+        elapsed_seconds = int(elapsed_time.total_seconds())
+
+        # Format for display
+        hours = elapsed_seconds // 3600
+        minutes = (elapsed_seconds % 3600) // 60
+        seconds = elapsed_seconds % 60
+
+        # Prepare response data
+        response_data = {
+            "desk_id": desk.id,
+            "active_session": True,
+            "started_at": started_at.isoformat(),  # ISO format for JavaScript
+            "elapsed_seconds": elapsed_seconds,  # Total seconds
+            "elapsed_formatted": f"{hours:02d}:{minutes:02d}:{seconds:02d}",  # HH:MM:SS
+            "sitting_time": log.sitting_time,
+            "standing_time": log.standing_time,
+            "position_changes": log.position_changes,
+        }
+
+        return Response(response_data)
 
     except Desk.DoesNotExist:
         return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -431,9 +453,16 @@ def start_hot_desk(request, desk_id):
         desk.current_status = "pending_verification"
         desk.save()
 
-         # Check if desk has a Pico (requires physical confirmation)
+        # Check if desk has a Pico (requires physical confirmation)
         has_pico = Pico.objects.filter(desk_id=desk.id).exists()
         print(f"Desk {desk.id} has_pico: {has_pico}")
+
+        DeskUsageLog.objects.create(
+            desk=desk,
+            user=request.user,
+            started_at=timezone.now(),
+            source="hotdesk",
+        )
 
         if has_pico:
             # Notify Pico via MQTT to show "Press button to confirm"
@@ -452,7 +481,9 @@ def start_hot_desk(request, desk_id):
             desk.current_status = "occupied"
             desk.save()
 
-        return Response({"success": True, "desk": desk.name, "requires_confirmation": has_pico})   
+        return Response(
+            {"success": True, "desk": desk.name, "requires_confirmation": has_pico}
+        )
     except Desk.DoesNotExist:
         return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -704,9 +735,20 @@ def release_desk(request, desk_id):
                 {"error": "You are not using this desk"},
                 status=status.HTTP_403_FORBIDDEN,
             )
+
+        # End usage log
+        log = DeskUsageLog.objects.filter(
+            user=request.user, desk=desk, ended_at__isnull=True
+        ).first()
+        if log:
+            log.ended_at = timezone.now()
+            log.save()
+
+        # Release the desk
         desk.current_user = None
         desk.current_status = "available"
         desk.save()
+
         return Response({"success": True})
     except Desk.DoesNotExist:
         return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)
