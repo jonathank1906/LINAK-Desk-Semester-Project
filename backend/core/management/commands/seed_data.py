@@ -197,12 +197,6 @@ class Command(BaseCommand):
                 if k in field_names:
                     defaults[k] = v
 
-            # set current_user or current_user_id if available
-            if "current_user" in field_names:
-                defaults["current_user"] = regular_user
-            elif "current_user_id" in field_names:
-                defaults["current_user_id"] = regular_user.id
-
             desk_obj, created = Desk.objects.update_or_create(
                 wifi2ble_id=sd["wifi2ble_id"],
                 defaults=defaults,
