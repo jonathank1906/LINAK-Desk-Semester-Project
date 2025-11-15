@@ -21,7 +21,7 @@ from .serializers import (
     UserSerializer,
     DeskSerializer,
     ReservationSerializer,
-    AdminUserListSerializer
+    AdminUserListSerializer,
 )
 from .models import Desk
 from .services.WiFi2BLEService import WiFi2BLEService
@@ -160,13 +160,15 @@ def reset_password_confirm(request, uid, token):
     user.save()
     return Response({"success": "Password has been reset."}, status=status.HTTP_200_OK)
 
-@api_view(['GET'])
+
+@api_view(["GET"])
 @permission_classes([IsAdminUser])
 def list_all_users(request):
     User = get_user_model()  # Dynamically get the custom user model
-    users = User.objects.all().order_by('-created_at')
+    users = User.objects.all().order_by("-created_at")
     serializer = AdminUserListSerializer(users, many=True)
     return Response(serializer.data)
+
 
 @api_view(["GET", "PATCH"])
 @permission_classes([IsAdminUser])
@@ -221,6 +223,7 @@ def set_initial_password(request, uid, token):
 
 
 # ===== DESK MANAGEMENT ENDPOINTS =====
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -392,14 +395,22 @@ def get_pico_sensor_data(request, pico_id):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def list_available_hot_desks(request):
+    """Get all desks available for hot-desking"""
     now = timezone.now()
     desks = Desk.objects.filter(current_status="available").exclude(
         reservations__start_time__lte=now,
         reservations__end_time__gte=now,
         reservations__status__in=["confirmed", "active"],
     )
-    serializer = DeskSerializer(desks, many=True)
-    return Response(serializer.data)
+
+    # Annotate each desk with whether it has a Pico (requires confirmation)
+    desk_data = []
+    for desk in desks:
+        serialized = DeskSerializer(desk).data
+        serialized["requires_confirmation"] = Pico.objects.filter(desk=desk).exists()
+        desk_data.append(serialized)
+
+    return Response(desk_data)
 
 
 from core.services.MQTTService import get_mqtt_service
@@ -420,27 +431,28 @@ def start_hot_desk(request, desk_id):
         desk.current_status = "pending_verification"
         desk.save()
 
-        # Notify Pico via MQTT to show "Press button to confirm"
-        mqtt_service = get_mqtt_service()
-        topic = f"/desk/{desk.id}/display"
-        message = {
-            "action": "show_confirm_button",
-            "desk_id": desk.id,
-            "desk_name": desk.name,
-            "user": request.user.get_full_name() or request.user.username,
-        }
-        mqtt_service.publish(topic, json.dumps(message))
+         # Check if desk has a Pico (requires physical confirmation)
+        has_pico = Pico.objects.filter(desk_id=desk.id).exists()
+        print(f"Desk {desk.id} has_pico: {has_pico}")
 
-        # Optionally: create a DeskUsageLog with status 'pending'
-        # DeskUsageLog.objects.create(
-        #     user=request.user,
-        #     desk=desk,
-        #     started_at=timezone.now(),
-        #     source='hotdesk',
-        #     status='pending_verification'
-        # )
+        if has_pico:
+            # Notify Pico via MQTT to show "Press button to confirm"
+            mqtt_service = get_mqtt_service()
+            topic = f"/desk/{desk.id}/display"
+            message = {
+                "action": "show_confirm_button",
+                "desk_id": desk.id,
+                "desk_name": desk.name,
+                "user": request.user.get_full_name() or request.user.username,
+            }
+            mqtt_service.publish(topic, json.dumps(message))
 
-        return Response({"success": True, "desk": desk.name})
+        else:
+            # If no Pico, auto-confirm the hot desk
+            desk.current_status = "occupied"
+            desk.save()
+
+        return Response({"success": True, "desk": desk.name, "requires_confirmation": has_pico})   
     except Desk.DoesNotExist:
         return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -483,6 +495,7 @@ def confirm_hot_desk(request, desk_id):
     except Desk.DoesNotExist:
         return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)
 
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def cancel_pending_verification(request, desk_id):
@@ -493,9 +506,13 @@ def cancel_pending_verification(request, desk_id):
             desk.current_status = "available"
             desk.save()
             return Response({"success": True})
-        return Response({"error": "Desk not pending verification"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": "Desk not pending verification"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     except Desk.DoesNotExist:
         return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)
+
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -553,14 +570,11 @@ def hotdesk_status(request):
                 }
             )
         else:
-            result.append({
-                "id": desk.id,
-                "desk_name": desk.name,  # added
-                "reserved": False
-            })
+            result.append(
+                {"id": desk.id, "desk_name": desk.name, "reserved": False}  # added
+            )
 
     return Response(result)
-
 
 
 # ---------------- RESERVATION ENDPOINTS ----------------

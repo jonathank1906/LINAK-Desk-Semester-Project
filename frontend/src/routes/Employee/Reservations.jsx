@@ -201,24 +201,35 @@ export default function Reservations({ setSelectedDeskId }) {
     }
   };
 
-  // Updated hotdesk flow with pending verification
+  // Hotdesk flow with pending verification
   const startHotDesk = async (deskId) => {
     try {
       const config = {
         headers: { Authorization: `Bearer ${user?.token}` },
         withCredentials: true,
       };
-      await axios.post(
+
+      // Send the request to start the hot desk
+      const response = await axios.post(
         `http://localhost:8000/api/desks/${deskId}/hotdesk/start/`,
         {},
         config
       );
-      toast.success("Hot desk started! Please confirm at the desk.");
-      setPendingDeskId(deskId);
-      setVerificationModalOpen(true);
-      setPolling(true);
-      fetchHotdeskStatus();
-      // Do NOT setSelectedDeskId here; only after confirmation
+
+      const { requires_confirmation } = response.data;
+
+      if (requires_confirmation) {
+        // Show the modal if the desk requires confirmation
+        toast.success("Hot desk started! Please confirm at the desk.");
+        setPendingDeskId(deskId);
+        setVerificationModalOpen(true);
+        setPolling(true);
+      } else {
+        // Automatically confirm the desk if no Pico is required
+        toast.success("Hot desk started!");
+        setSelectedDeskId(deskId);
+        fetchHotdeskStatus();
+      }
     } catch (err) {
       toast.error("Failed to start hot desk", {
         description: err.response?.data?.error || err.message,
@@ -235,9 +246,8 @@ export default function Reservations({ setSelectedDeskId }) {
             type="button"
             aria-pressed={mode === "hotdesk"}
             onClick={() => setMode("hotdesk")}
-            className={`px-4 py-2 focus:outline-none transition-colors ${
-              mode === "hotdesk" ? "bg-primary text-white" : "bg-transparent text-muted-foreground"
-            }`}
+            className={`px-4 py-2 focus:outline-none transition-colors ${mode === "hotdesk" ? "bg-primary text-white" : "bg-transparent text-muted-foreground"
+              }`}
           >
             Hot Desk
           </button>
@@ -245,9 +255,8 @@ export default function Reservations({ setSelectedDeskId }) {
             type="button"
             aria-pressed={mode === "reserve"}
             onClick={() => setMode("reserve")}
-            className={`px-4 py-2 focus:outline-none transition-colors ${
-              mode === "reserve" ? "bg-primary text-white" : "bg-transparent text-muted-foreground"
-            }`}
+            className={`px-4 py-2 focus:outline-none transition-colors ${mode === "reserve" ? "bg-primary text-white" : "bg-transparent text-muted-foreground"
+              }`}
           >
             Reserve
           </button>
@@ -273,11 +282,10 @@ export default function Reservations({ setSelectedDeskId }) {
                   {hotdeskStatus.map((desk) => (
                     <div
                       key={desk.id}
-                      className={`flex items-center justify-between p-4 border rounded-lg ${
-                        desk.reserved
+                      className={`flex items-center justify-between p-4 border rounded-lg ${desk.reserved
                           ? "bg-yellow-50 border-yellow-300"
                           : "bg-green-50 border-green-300"
-                      }`}
+                        }`}
                     >
                       <div>
                         <h3 className="font-semibold">{desk.name ? desk.name : desk.desk_name ? desk.desk_name : `Desk ${desk.id}`}</h3>
