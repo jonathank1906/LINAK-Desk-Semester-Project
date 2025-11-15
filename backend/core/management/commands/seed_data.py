@@ -205,3 +205,41 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f"Created desk {desk_obj.wifi2ble_id} -> {desk_obj.name}"))
             else:
                 self.stdout.write(self.style.SUCCESS(f"Updated desk {desk_obj.wifi2ble_id} -> {desk_obj.name}"))
+
+        # Create Pico W
+        try:
+            Pico = apps.get_model('core', 'Pico')
+        except LookupError:
+            self.stderr.write("core.Pico model not found - skipping Pico seeding")
+            return
+
+        pico_data = [
+            {
+                "id": 1,
+                "mac_address": "192.168.43.195",
+                "ip_address": "192.168.43.195",
+                "status": "nothing",
+                "last_seen": timezone.datetime(2025, 3, 4, 0, 18, 27, tzinfo=timezone.get_current_timezone()),
+                "has_temperature_sensor": True,
+                "has_light_sensor": True,
+                "has_led_display": True,
+                "has_buzzer": True,
+                "has_led_indicator": True,
+                "firmware_version": "1.0.0",
+                "notes": "ok",
+                "created_at": timezone.datetime(2025, 2, 17, 5, 32, 51, tzinfo=timezone.get_current_timezone()),
+                "updated_at": timezone.datetime(2025, 3, 4, 0, 18, 27, tzinfo=timezone.get_current_timezone()),
+                "desk_id": 1,  # Link to Desk 4486
+            },
+        ]
+
+        for pico in pico_data:
+            defaults = {k: v for k, v in pico.items() if k != "mac_address"}
+            pico_obj, created = Pico.objects.update_or_create(
+                mac_address=pico["mac_address"],
+                defaults=defaults,
+            )
+            if created:
+                self.stdout.write(self.style.SUCCESS(f"Created Pico {pico_obj.mac_address} -> Desk ID {pico_obj.desk_id}"))
+            else:
+                self.stdout.write(self.style.SUCCESS(f"Updated Pico {pico_obj.mac_address} -> Desk ID {pico_obj.desk_id}"))
