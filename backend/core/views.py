@@ -285,14 +285,14 @@ def get_desk_live_status(request, desk_id):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def desk_usage(request, desk_id):
-    """Get desk usage statistics"""
+    """Get desk usage statistics with live sitting/standing time"""
     try:
         desk = Desk.objects.get(id=desk_id)
 
-        # Fetch the latest ACTIVE usage log for the desk
+        # Get active session
         log = DeskUsageLog.objects.filter(
             desk=desk, 
-            ended_at__isnull=True  # Only get active session
+            ended_at__isnull=True
         ).order_by("-started_at").first()
 
         if not log:
@@ -303,64 +303,142 @@ def desk_usage(request, desk_id):
             })
 
         # Calculate elapsed time
+        now = timezone.now()
         started_at = log.started_at
-        elapsed_time = timezone.now() - started_at
-        elapsed_seconds = int(elapsed_time.total_seconds())
+        elapsed_seconds = int((now - started_at).total_seconds())
 
-        # Format for display
+        # Calculate LIVE sitting/standing time
+        last_update = log.last_height_change or log.started_at
+        time_since_last_change = int((now - last_update).total_seconds())
+        
+        # Add time since last change to appropriate counter
+        current_sitting_time = log.sitting_time
+        current_standing_time = log.standing_time
+        
+        if desk.current_height < 95:  # Currently sitting
+            current_sitting_time += time_since_last_change
+        else:  # Currently standing
+            current_standing_time += time_since_last_change
+
+        # Format times
         hours = elapsed_seconds // 3600
         minutes = (elapsed_seconds % 3600) // 60
         seconds = elapsed_seconds % 60
 
-        # Prepare response data
+        sitting_minutes = current_sitting_time // 60
+        standing_minutes = current_standing_time // 60
+
+        # Calculate percentages
+        total_time = current_sitting_time + current_standing_time
+        sitting_percentage = (current_sitting_time / total_time * 100) if total_time > 0 else 0
+        standing_percentage = (current_standing_time / total_time * 100) if total_time > 0 else 0
+
         response_data = {
             "desk_id": desk.id,
             "active_session": True,
-            "started_at": started_at.isoformat(),  # ISO format for JavaScript
-            "elapsed_seconds": elapsed_seconds,  # Total seconds
-            "elapsed_formatted": f"{hours:02d}:{minutes:02d}:{seconds:02d}",  # HH:MM:SS
-            "sitting_time": log.sitting_time,
-            "standing_time": log.standing_time,
+            "started_at": started_at.isoformat(),
+            "elapsed_seconds": elapsed_seconds,
+            "elapsed_formatted": f"{hours:02d}:{minutes:02d}:{seconds:02d}",
+            
+            # Live sitting/standing time
+            "sitting_time": current_sitting_time,
+            "standing_time": current_standing_time,
+            "sitting_minutes": sitting_minutes,
+            "standing_minutes": standing_minutes,
+            "sitting_percentage": round(sitting_percentage, 1),
+            "standing_percentage": round(standing_percentage, 1),
+            
             "position_changes": log.position_changes,
+            "current_height": desk.current_height,
+            "is_sitting": desk.current_height < 95,
         }
 
         return Response(response_data)
 
     except Desk.DoesNotExist:
         return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)
-    except Exception as e:
-        print(f"Error in desk_usage: {e}")
-        return Response(
-            {"error": "Internal server error"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def control_desk_height(request, desk_id):
-    """Control desk height"""
+    """Control desk height and track sitting/standing time"""
     try:
         desk = Desk.objects.get(id=desk_id)
-        height = request.data.get("height")
-
-        if not height:
+        
+        # Authorization check
+        if desk.current_user != request.user:
             return Response(
-                {"error": "Height required"}, status=status.HTTP_400_BAD_REQUEST
+                {"error": "You are not using this desk"}, 
+                status=status.HTTP_403_FORBIDDEN
             )
-
-        # Send command to WiFi2BLE
-        service = WiFi2BLEService()
-        result = service.set_desk_height(desk.wifi2ble_id, float(height))
-
-        if result:
-            return Response({"success": True, "new_height": result["position_mm"] / 10})
-
-        return Response(
-            {"error": "Failed to control desk"},
-            status=status.HTTP_503_SERVICE_UNAVAILABLE,
-        )
-
+        
+        target_height = request.data.get('height')
+        
+        if not target_height:
+            return Response(
+                {"error": "Height is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate height range
+        if target_height < desk.min_height or target_height > desk.max_height:
+            return Response(
+                {"error": f"Height must be between {desk.min_height} and {desk.max_height} cm"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get active usage log
+        log = DeskUsageLog.objects.filter(
+            user=request.user,
+            desk=desk,
+            ended_at__isnull=True
+        ).first()
+        
+        if log:
+            # Calculate time since last update
+            now = timezone.now()
+            last_update_time = getattr(log, 'last_height_change', log.started_at)
+            elapsed_seconds = (now - last_update_time).total_seconds()
+            
+            # Add elapsed time to appropriate counter based on CURRENT height (before moving)
+            current_height = desk.current_height
+            
+            if current_height < 95:  # Was sitting
+                log.sitting_time += int(elapsed_seconds)
+            else:  # Was standing
+                log.standing_time += int(elapsed_seconds)
+            
+            # Increment position changes
+            log.position_changes += 1
+            
+            # Store timestamp of this height change (we'll add this field)
+            log.last_height_change = now
+            
+            log.save()
+        
+        # Send command to WiFi2BLE simulator
+        from core.services.WiFi2BLEService import WiFi2BLEService
+        
+        wifi2ble = WiFi2BLEService()
+        success = wifi2ble.set_desk_height(desk.wifi2ble_id, target_height)
+        
+        if success:
+            desk.current_status = 'moving'
+            desk.current_height = target_height
+            desk.save()
+            
+            return Response({
+                "success": True,
+                "target_height": target_height,
+                "status": "moving"
+            })
+        else:
+            return Response(
+                {"error": "Failed to control desk"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+            
     except Desk.DoesNotExist:
         return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -461,6 +539,7 @@ def start_hot_desk(request, desk_id):
             desk=desk,
             user=request.user,
             started_at=timezone.now(),
+            last_height_change=timezone.now(),
             source="hotdesk",
         )
 
@@ -724,24 +803,36 @@ def available_desks_for_date(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def release_desk(request, desk_id):
-    """
-    Release a desk (hotdesk or reserved): set status to 'available' and clear current_user.
-    """
+    """Release a desk and finalize usage tracking"""
     try:
         desk = Desk.objects.get(id=desk_id)
-        # Only allow release if the current user is the one occupying the desk
+        
         if desk.current_user != request.user:
             return Response(
                 {"error": "You are not using this desk"},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # End usage log
+        # Get active usage log
         log = DeskUsageLog.objects.filter(
-            user=request.user, desk=desk, ended_at__isnull=True
+            user=request.user, 
+            desk=desk, 
+            ended_at__isnull=True
         ).first()
+        
         if log:
-            log.ended_at = timezone.now()
+            now = timezone.now()
+            log.ended_at = now
+            
+            # Add final time segment based on current height
+            last_update = log.last_height_change or log.started_at
+            elapsed_seconds = (now - last_update).total_seconds()
+            
+            if desk.current_height < 95:
+                log.sitting_time += int(elapsed_seconds)
+            else:
+                log.standing_time += int(elapsed_seconds)
+            
             log.save()
 
         # Release the desk
@@ -750,5 +841,6 @@ def release_desk(request, desk_id):
         desk.save()
 
         return Response({"success": True})
+        
     except Desk.DoesNotExist:
         return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)

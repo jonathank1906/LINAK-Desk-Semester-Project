@@ -248,8 +248,7 @@ export default function EmployeeDashboard() {
                                     {/* Optional: Show sitting/standing time */}
                                     {selectedDeskId && usageStats?.sitting_time !== undefined ? (
                                         <div className="text-xs text-muted-foreground mt-1">
-                                            Sitting: {Math.floor(usageStats.sitting_time / 60)}m | 
-                                            Standing: {Math.floor(usageStats.standing_time / 60)}m
+                                            {usageStats?.sitting_minutes || 0}m sitting | {usageStats?.standing_minutes || 0}m standing
                                         </div>
                                     ) : null}
                                 </div>
