@@ -47,8 +47,7 @@ add_executable(main
         mqtt_client.c
         ws2812.c
         Buzzer.cpp
-        globals.cpp
-        ntp.c)
+        globals.cpp)
 
 pico_generate_pio_header(main ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)
 
@@ -66,8 +65,7 @@ target_link_libraries(main
         hardware_adc
         pico_cyw43_arch_lwip_threadsafe_background
         pico_lwip_mqtt
-        pico_multicore
-        hardware_rtc)
+        pico_multicore)
 
 # Add the standard include files to the build
 target_include_directories(main PRIVATE

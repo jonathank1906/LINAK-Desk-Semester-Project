@@ -7,7 +7,6 @@
 #include "Buzzer.h"
 #include "globals.h"
 #include "mqtt_client.h"
-#include "ntp.h"
 
 extern "C"
 {
@@ -20,7 +19,6 @@ extern "C"
 
 // WS2812 functions
 #include "ws2812.h"
-#include "hardware/rtc.h"
 }
 
 // Allow mqtt_client.c to set pending_verification
@@ -79,12 +77,6 @@ void MyApp()
         sleep_ms(100);
     }
     printf("DEBUG: MQTT connection wait complete\n");
-
-    // Sync time via NTP now that network is ready
-    printf("DEBUG: Syncing time via NTP...\n");
-    rtc_init();                    // Start RTC hardware
-    ntp_sync_time("pool.ntp.org"); // Sync from NTP server
-    printf("DEBUG: Time sync done.\n");
 
     // Initialize LED and Button after WiFi is stable
     printf("DEBUG: Initializing LED and Button...\n");
