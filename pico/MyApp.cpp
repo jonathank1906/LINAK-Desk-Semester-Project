@@ -81,10 +81,8 @@ void MyApp()
     printf("DEBUG: MQTT connection wait complete\n");
 
     // Initialize LED and Button after WiFi is stable
-    printf("DEBUG: Initializing LED and Button...\n");
-    Led RedLED(7);
+    printf("DEBUG: Initializing Button...\n");
     Button button1(10, GPIO_IRQ_EDGE_RISE);
-    oled_display_text("BUTTON LED", "PRESS BUTTON", "TO TOGGLE", "LED & STRIP");
     printf("DEBUG: LED and Button initialized\n");
 
     // Main loop - handle MQTT, button events, and LED strip
@@ -106,36 +104,6 @@ void MyApp()
         {
             printf("DEBUG: Button event detected\n");
             bool ledState = button1.toggleState();
-            RedLED.setState(ledState);
-
-            // Update WS2812 LED strip based on button state
-            if (ledState)
-            {
-                // LED ON - show green
-                pattern_solid_green(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
-                printf("DEBUG: Button pressed, LED ON, strip GREEN\n");
-            }
-            else
-            {
-                // LED OFF - turn strip off (all pixels black)
-                for (int i = 0; i < NUM_PIXELS; i++)
-                {
-                    put_pixel(ws2812_pio, ws2812_sm, 0);
-                }
-                printf("DEBUG: Button pressed, LED OFF, strip OFF\n");
-            }
-
-            char line2[20], line3[20], line4[20];
-            sprintf(line2, "PRESSES %d", button1.getPressCount());
-            sprintf(line3, "LED %s", RedLED.isOn() ? "ON" : "OFF");
-            sprintf(line4, "STRIP %s", RedLED.isOn() ? "GREEN" : "OFF");
-
-            oled_display_text("BUTTON STATUS", line2, line3, line4);
-
-            printf("DEBUG: Button pressed %d times, LED: %s, Strip: %s\n",
-                   button1.getPressCount(),
-                   RedLED.isOn() ? "ON" : "OFF",
-                   RedLED.isOn() ? "GREEN" : "OFF");
 
             // Hotdesk verification: If pending, publish confirmation
             if (pending_verification)
