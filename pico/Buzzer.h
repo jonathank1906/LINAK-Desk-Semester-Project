@@ -5,13 +5,16 @@
 
 #define BUZZER_PIN 20
 
-// Initialize the buzzer
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void buzzer_init();
-
-// Play a tone of given frequency (Hz) and duration (ms)
 void play_tone(uint frequency, uint duration_ms);
-
-// Two short beeps and a pause
 void moving_buzzer_pattern();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // BUZZER_H

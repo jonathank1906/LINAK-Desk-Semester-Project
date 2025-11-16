@@ -81,3 +81,33 @@ void pattern_greys(PIO pio, uint sm, uint len, uint t) {
         put_pixel(pio, sm, urgb_u32(brightness, brightness, 0));
     }
 }
+
+void pattern_solid_blue(PIO pio, uint sm, uint num_pixels, uint8_t brightness) {
+    uint32_t color = urgb_u32(0, 0, brightness); // Blue
+    for (int i = 0; i < num_pixels; i++) {
+        put_pixel(pio, sm, color);
+    }
+}
+
+void pattern_pulse_blue(PIO pio, uint sm, uint num_pixels, uint8_t brightness) {
+    // Simple pulse: alternate bright and dim
+    static bool pulse_state = false;
+    uint8_t b = pulse_state ? brightness : brightness / 3;
+    pulse_state = !pulse_state;
+    
+    uint32_t color = urgb_u32(0, 0, b);
+    for (int i = 0; i < num_pixels; i++) {
+        put_pixel(pio, sm, color);
+    }
+}
+
+void pattern_pulse_yellow(PIO pio, uint sm, uint num_pixels, uint8_t brightness) {
+    static bool pulse_state = false;
+    uint8_t b = pulse_state ? brightness : brightness / 3;
+    pulse_state = !pulse_state;
+    
+    uint32_t color = urgb_u32(b, b, 0); // Yellow = Red + Green
+    for (int i = 0; i < num_pixels; i++) {
+        put_pixel(pio, sm, color);
+    }
+}

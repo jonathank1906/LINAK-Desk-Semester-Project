@@ -21,6 +21,10 @@ extern "C"
 #include "ws2812.h"
 }
 
+PIO ws2812_pio;
+uint ws2812_sm;
+uint ws2812_offset;
+
 // Allow mqtt_client.c to set pending_verification
 extern "C" void set_pending_verification(bool state)
 {
@@ -51,9 +55,7 @@ void MyApp()
     printf("DEBUG: OLED initialized and starting message displayed\n");
 
     // Initialize WS2812 LED strip
-    PIO ws2812_pio;
-    uint ws2812_sm;
-    uint ws2812_offset;
+
     ws2812_init(&ws2812_pio, &ws2812_sm, &ws2812_offset);
     printf("DEBUG: WS2812 LED strip initialized\n");
 

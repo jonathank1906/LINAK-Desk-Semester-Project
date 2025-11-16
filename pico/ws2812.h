@@ -18,6 +18,9 @@ void pattern_snakes(PIO pio, uint sm, uint len, uint t);
 void pattern_random(PIO pio, uint sm, uint len, uint t);
 void pattern_sparkle(PIO pio, uint sm, uint len, uint t);
 void pattern_greys(PIO pio, uint sm, uint len, uint t);
+void pattern_solid_blue(PIO pio, uint sm, uint num_pixels, uint8_t brightness);
+void pattern_pulse_blue(PIO pio, uint sm, uint num_pixels, uint8_t brightness);
+void pattern_pulse_yellow(PIO pio, uint sm, uint num_pixels, uint8_t brightness);
 
 // Utility functions - declared as static inline
 static inline void put_pixel(PIO pio, uint sm, uint32_t pixel_grb);

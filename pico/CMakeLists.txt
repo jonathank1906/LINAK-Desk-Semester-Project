@@ -40,9 +40,9 @@ pico_sdk_init()
 # Add executable - ONE program with everything
 add_executable(main 
         main.cpp 
-        MyApp MyApp.cpp 
-        Led Led.cpp 
-        PushButton PushButton.cpp
+        MyApp.cpp 
+        Led.cpp 
+        PushButton.cpp
         ssd1306_i2c.c
         mqtt_client.c
         ws2812.c
