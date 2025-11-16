@@ -172,6 +172,26 @@ void publish_desk_confirm(MQTT_CLIENT_DATA_T *state)
     mqtt_publish(state->mqtt_client_inst, confirm_topic, confirm_msg, strlen(confirm_msg), MQTT_PUBLISH_QOS, MQTT_PUBLISH_RETAIN, pub_request_cb, state);
 }
 
+void publish_pico_ready(MQTT_CLIENT_DATA_T* state) {
+    printf("DEBUG: publish_pico_ready called\n");
+    
+    // Topic: /picoXXXX/desk/1/pico/ready
+    const char* ready_topic = full_topic(state, "/desk/1/pico/ready");
+    
+    // Message with Pico MAC and desk info
+    const char* ready_msg = "{\"status\": \"ready\", \"pico_mac\": \"AA:BB:CC:DD:EE:FF\", \"desk_id\": 1}";
+    
+    printf("DEBUG: Publishing ready to topic: %s\n", ready_topic);
+    printf("DEBUG: Message: %s\n", ready_msg);
+    
+    mqtt_publish(state->mqtt_client_inst, ready_topic, 
+                 ready_msg, strlen(ready_msg), 
+                 MQTT_PUBLISH_QOS, MQTT_PUBLISH_RETAIN, 
+                 pub_request_cb, state);
+    
+    printf("DEBUG: Ready message published\n");
+}
+
 static void publish_temperature(MQTT_CLIENT_DATA_T *state)
 {
     static float old_temperature = 0;

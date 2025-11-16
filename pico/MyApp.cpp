@@ -15,6 +15,7 @@ extern "C"
     void mqtt_init(void);
     void mqtt_poll(void);                      // Non-blocking MQTT polling
     void publish_desk_confirm(void *state);    // From mqtt_client.c
+    void publish_pico_ready(void *state);
     void set_pending_verification(bool state); // To be called from mqtt_client.c
 
 // WS2812 functions
@@ -80,6 +81,8 @@ void MyApp()
     }
     printf("DEBUG: MQTT connection wait complete\n");
 
+    publish_pico_ready(get_mqtt_state());
+
     // Initialize LED and Button after WiFi is stable
     printf("DEBUG: Initializing Button...\n");
     Button button1(10, GPIO_IRQ_EDGE_RISE);
@@ -119,7 +122,6 @@ void MyApp()
                 printf("DEBUG: Button pressed, but no pending verification\n");
             }
         }
-
         sleep_ms(10);
     }
 }
