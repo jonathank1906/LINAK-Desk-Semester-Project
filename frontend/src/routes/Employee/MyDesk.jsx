@@ -56,7 +56,7 @@ export default function MyDesk({ selectedDeskId }) {
         };
 
         const [statusRes, usageRes] = await Promise.all([
-          axios.get(`http://localhost:8000/api/desks/${deskId}/status/`, config),
+          axios.get(`http://localhost:8000/api/desks/${deskId}/`, config), 
           axios.get(`http://localhost:8000/api/desks/${deskId}/usage/`, config),
         ]);
 
@@ -93,7 +93,7 @@ export default function MyDesk({ selectedDeskId }) {
       console.log('Control response:', response.data);
 
       const statusRes = await axios.get(
-        `http://localhost:8000/api/desks/${deskId}/status/`,
+        `http://localhost:8000/api/desks/${deskId}/`,
         config
       );
       setDeskStatus(statusRes.data);

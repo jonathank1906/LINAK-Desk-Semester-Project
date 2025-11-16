@@ -307,18 +307,30 @@ def desk_usage(request, desk_id):
         started_at = log.started_at
         elapsed_seconds = int((now - started_at).total_seconds())
 
-        # Calculate LIVE sitting/standing time
+       # Calculate LIVE sitting/standing time
         last_update = log.last_height_change or log.started_at
         time_since_last_change = int((now - last_update).total_seconds())
-        
-        # Add time since last change to appropriate counter
+
         current_sitting_time = log.sitting_time
         current_standing_time = log.standing_time
-        
-        if desk.current_height < 95:  # Currently sitting
+
+        # DEBUG LOGGING
+        print(f"\n=== DESK USAGE DEBUG ===")
+        print(f"Current time: {now}")
+        print(f"Last height change: {last_update}")
+        print(f"Time since last change: {time_since_last_change}s")
+        print(f"Current desk height: {desk.current_height}")
+        print(f"Stored - Sitting: {log.sitting_time}s, Standing: {log.standing_time}s")
+
+        if desk.current_height < 95:
             current_sitting_time += time_since_last_change
-        else:  # Currently standing
+            print(f"Currently SITTING - adding {time_since_last_change}s to sitting")
+        else:
             current_standing_time += time_since_last_change
+            print(f"Currently STANDING - adding {time_since_last_change}s to standing")
+
+        print(f"Live - Sitting: {current_sitting_time}s, Standing: {current_standing_time}s")
+        print(f"========================\n")
 
         # Format times
         hours = elapsed_seconds // 3600
@@ -362,9 +374,12 @@ def desk_usage(request, desk_id):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def control_desk_height(request, desk_id):
-    """Control desk height and track sitting/standing time"""
+    print(f"\n🔧 CONTROL_DESK_HEIGHT CALLED - Desk ID: {desk_id}")
+    print(f"   Request data: {request.data}")
+    
     try:
         desk = Desk.objects.get(id=desk_id)
+        print(f"   Current desk height in DB: {desk.current_height}")
         
         # Authorization check
         if desk.current_user != request.user:
@@ -396,26 +411,39 @@ def control_desk_height(request, desk_id):
         ).first()
         
         if log:
-            # Calculate time since last update
             now = timezone.now()
             last_update_time = getattr(log, 'last_height_change', log.started_at)
             elapsed_seconds = (now - last_update_time).total_seconds()
             
-            # Add elapsed time to appropriate counter based on CURRENT height (before moving)
             current_height = desk.current_height
             
-            if current_height < 95:  # Was sitting
+            print(f"\n=== CONTROL DESK HEIGHT DEBUG ===")
+            print(f"Current time: {now}")
+            print(f"Last height change BEFORE: {log.last_height_change}")  # ← Add this
+            print(f"Elapsed seconds: {elapsed_seconds}")
+            print(f"Current height (before move): {current_height}")
+            print(f"Target height: {target_height}")
+            print(f"BEFORE - Sitting: {log.sitting_time}s, Standing: {log.standing_time}s")
+            
+            if current_height < 95:
                 log.sitting_time += int(elapsed_seconds)
-            else:  # Was standing
+                print(f"Adding {int(elapsed_seconds)}s to SITTING")
+            else:
                 log.standing_time += int(elapsed_seconds)
+                print(f"Adding {int(elapsed_seconds)}s to STANDING")
             
-            # Increment position changes
             log.position_changes += 1
+            log.last_height_change = now  # ← Update timestamp
             
-            # Store timestamp of this height change (we'll add this field)
-            log.last_height_change = now
+            print(f"AFTER - Sitting: {log.sitting_time}s, Standing: {log.standing_time}s")
+            print(f"Last height change AFTER: {log.last_height_change}")  # ← Add this
+            print(f"=================================\n")
             
-            log.save()
+            log.save()  # ← Save to database
+            
+            # VERIFY IT SAVED
+            log.refresh_from_db()  # ← Add this
+            print(f"✅ VERIFIED - Last height change in DB: {log.last_height_change}")  # ← Add this
         
         # Send command to WiFi2BLE simulator
         from core.services.WiFi2BLEService import WiFi2BLEService
@@ -428,16 +456,13 @@ def control_desk_height(request, desk_id):
             desk.current_height = target_height
             desk.save()
             
+            print(f"✅ Desk height updated in database to: {desk.current_height}")
+            
             return Response({
                 "success": True,
                 "target_height": target_height,
                 "status": "moving"
             })
-        else:
-            return Response(
-                {"error": "Failed to control desk"}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
             
     except Desk.DoesNotExist:
         return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -526,10 +551,22 @@ def start_hot_desk(request, desk_id):
                 {"error": "Desk not available"}, status=status.HTTP_400_BAD_REQUEST
             )
 
+        # 🔧 FIX: Get current height from simulator BEFORE starting session
+        from core.services.WiFi2BLEService import WiFi2BLEService
+        wifi2ble = WiFi2BLEService()
+        try:
+            live_state = wifi2ble.get_desk_state(desk.wifi2ble_id)
+            current_height = live_state.get("position_mm", 750) / 10  # Convert mm to cm
+            desk.current_height = current_height  # ← Update database with real height
+            print(f"📊 Synced desk height from simulator: {current_height}cm")
+        except Exception as e:
+            print(f"⚠️ Could not sync desk height: {e}")
+            # Fallback to database value if simulator unreachable
+
         # Set desk to pending verification
         desk.current_user = request.user
         desk.current_status = "pending_verification"
-        desk.save()
+        desk.save()  # ← Save the synced height
 
         # Check if desk has a Pico (requires physical confirmation)
         has_pico = Pico.objects.filter(desk_id=desk.id).exists()
@@ -554,7 +591,6 @@ def start_hot_desk(request, desk_id):
                 "user": request.user.get_full_name() or request.user.username,
             }
             mqtt_service.publish(topic, json.dumps(message))
-
         else:
             # If no Pico, auto-confirm the hot desk
             desk.current_status = "occupied"

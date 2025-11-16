@@ -31,16 +31,20 @@ export default function EmployeeDashboard() {
     const [selectedSection, setSelectedSection] = useState("dashboard");
     const { user } = useAuth();
 
-    // Track selected desk ID (null if none selected)
     const [selectedDeskId, setSelectedDeskId] = useState(null);
     const [deskStatus, setDeskStatus] = useState(null);
     const [usageStats, setUsageStats] = useState(null);
 
-    // NEW: Live elapsed time state
+    // Live elapsed time state
     const [sessionStartTime, setSessionStartTime] = useState(null);
     const [elapsedTime, setElapsedTime] = useState("00:00:00");
 
-    // small local state for demo/upcoming reservations list
+    // NEW: Live sitting/standing time state
+    const [liveSittingSeconds, setLiveSittingSeconds] = useState(0);
+    const [liveStandingSeconds, setLiveStandingSeconds] = useState(0);
+    const [lastHeightChange, setLastHeightChange] = useState(null);
+    const [currentHeight, setCurrentHeight] = useState(null);
+
     const [upcomingReservations, setUpcomingReservations] = useState([
         {
             id: 1,
@@ -58,7 +62,6 @@ export default function EmployeeDashboard() {
         },
     ]);
 
-    // Modal state for pending verification
     const [verificationModalOpen, setVerificationModalOpen] = useState(false);
     const [pendingDeskId, setPendingDeskId] = useState(null);
 
@@ -76,7 +79,6 @@ export default function EmployeeDashboard() {
                     "http://localhost:8000/api/desks/",
                     config
                 );
-                // Find desk where current_user matches logged-in user and is not available
                 const occupiedDesk = res.data.find(
                     (desk) =>
                         desk.current_user &&
@@ -87,7 +89,7 @@ export default function EmployeeDashboard() {
                     setSelectedDeskId(occupiedDesk.id);
                 } else {
                     setSelectedDeskId(null);
-                    setSessionStartTime(null); // Clear session time
+                    setSessionStartTime(null);
                 }
             } catch (err) {
                 setSelectedDeskId(null);
@@ -98,7 +100,7 @@ export default function EmployeeDashboard() {
         fetchOccupiedDesk();
     }, [user]);
 
-    // Fetch desk status and usage only if the user is logged in and a desk is selected
+    // Fetch desk status and usage from API (every 30 seconds)
     useEffect(() => {
         if (!user || !selectedDeskId) {
             setDeskStatus(null);
@@ -115,10 +117,11 @@ export default function EmployeeDashboard() {
                 };
 
                 const statusRes = await axios.get(
-                    `http://localhost:8000/api/desks/${selectedDeskId}/status/`,
+                    `http://localhost:8000/api/desks/${selectedDeskId}/`,
                     config
                 );
                 setDeskStatus(statusRes.data);
+                setCurrentHeight(statusRes.data.current_height);
 
                 try {
                     const usageRes = await axios.get(
@@ -127,30 +130,40 @@ export default function EmployeeDashboard() {
                     );
                     setUsageStats(usageRes.data);
                     
-                    // NEW: Set session start time if active session exists
                     if (usageRes.data.active_session && usageRes.data.started_at) {
                         setSessionStartTime(new Date(usageRes.data.started_at));
+                        
+                        // Update base values for live calculation
+                        setLiveSittingSeconds(usageRes.data.sitting_time_seconds || 0);
+                        setLiveStandingSeconds(usageRes.data.standing_time_seconds || 0);
+                        setLastHeightChange(new Date(usageRes.data.started_at));
                     } else {
                         setSessionStartTime(null);
+                        setLiveSittingSeconds(0);
+                        setLiveStandingSeconds(0);
                     }
                 } catch {
                     setUsageStats(null);
                     setSessionStartTime(null);
+                    setLiveSittingSeconds(0);
+                    setLiveStandingSeconds(0);
                 }
             } catch (err) {
                 setDeskStatus(null);
                 setUsageStats(null);
                 setSessionStartTime(null);
+                setLiveSittingSeconds(0);
+                setLiveStandingSeconds(0);
             }
         };
 
         fetchDeskStatus();
 
-        const interval = setInterval(fetchDeskStatus, 30000); // Refresh every 30 seconds
+        const interval = setInterval(fetchDeskStatus, 30000);
         return () => clearInterval(interval);
     }, [user, selectedDeskId]);
 
-    // NEW: Live timer that counts up every second
+    // Live timer for session elapsed time
     useEffect(() => {
         if (!sessionStartTime) {
             setElapsedTime("00:00:00");
@@ -171,14 +184,45 @@ export default function EmployeeDashboard() {
             );
         };
 
-        // Update immediately
         updateElapsedTime();
-
-        // Then update every second
         const timerInterval = setInterval(updateElapsedTime, 1000);
 
         return () => clearInterval(timerInterval);
     }, [sessionStartTime]);
+
+    // NEW: Live timer for sitting/standing time (updates every second)
+    useEffect(() => {
+        if (!usageStats?.active_session || !lastHeightChange) {
+            return;
+        }
+
+        const updateLiveTimes = () => {
+            const now = new Date();
+            const elapsedSinceLastChange = Math.floor((now - lastHeightChange) / 1000);
+            
+            // Add elapsed time to appropriate counter based on current height
+            if (currentHeight !== null) {
+                if (currentHeight < 95) {
+                    // Currently sitting
+                    setLiveSittingSeconds(
+                        (usageStats.sitting_time_seconds || 0) + elapsedSinceLastChange
+                    );
+                    setLiveStandingSeconds(usageStats.standing_time_seconds || 0);
+                } else {
+                    // Currently standing
+                    setLiveSittingSeconds(usageStats.sitting_time_seconds || 0);
+                    setLiveStandingSeconds(
+                        (usageStats.standing_time_seconds || 0) + elapsedSinceLastChange
+                    );
+                }
+            }
+        };
+
+        updateLiveTimes();
+        const liveInterval = setInterval(updateLiveTimes, 1000);
+
+        return () => clearInterval(liveInterval);
+    }, [usageStats, lastHeightChange, currentHeight]);
 
     function handleEditReservation(id) {
         // TODO: open edit modal / navigate to edit form
@@ -186,23 +230,19 @@ export default function EmployeeDashboard() {
 
     function handleDeleteReservation(id) {
         setUpcomingReservations((prev) => prev.filter((r) => r.id !== id));
-        // TODO: call API to delete on backend
     }
 
     function handleCheckInReservation(id) {
-        // For demo, use the selected deskId if available
         setPendingDeskId(selectedDeskId);
         setVerificationModalOpen(true);
 
         setUpcomingReservations((prev) =>
             prev.map((r) => (r.id === id ? { ...r, checkedIn: true } : r))
         );
-        // TODO: call backend API to record check-in
     }
 
     function handleReleaseReservation(id) {
         setUpcomingReservations((prev) => prev.filter((r) => r.id !== id));
-        // TODO: call backend API to release/cancel the reservation
     }
 
     function goToMyDesk() {
@@ -212,6 +252,10 @@ export default function EmployeeDashboard() {
     function goToReservations() {
         setSelectedSection("reservations");
     }
+
+    // Format seconds to minutes
+    const sittingMinutes = Math.floor(liveSittingSeconds / 60);
+    const standingMinutes = Math.floor(liveStandingSeconds / 60);
 
     function renderContent() {
         switch (selectedSection) {
@@ -235,7 +279,6 @@ export default function EmployeeDashboard() {
                                             : "No desk selected"}
                                     </div>
                                     
-                                    {/* NEW: Display live elapsed time */}
                                     {selectedDeskId && sessionStartTime ? (
                                         <div className="text-xs text-muted-foreground mt-1">
                                             <span className="font-mono font-semibold text-primary">
@@ -245,10 +288,15 @@ export default function EmployeeDashboard() {
                                         </div>
                                     ) : null}
                                     
-                                    {/* Optional: Show sitting/standing time */}
-                                    {selectedDeskId && usageStats?.sitting_time !== undefined ? (
+                                    {selectedDeskId && usageStats?.active_session ? (
                                         <div className="text-xs text-muted-foreground mt-1">
-                                            {usageStats?.sitting_minutes || 0}m sitting | {usageStats?.standing_minutes || 0}m standing
+                                            <span className="font-semibold text-green-600">
+                                                {sittingMinutes}m sitting
+                                            </span>
+                                            {" | "}
+                                            <span className="font-semibold text-blue-600">
+                                                {standingMinutes}m standing
+                                            </span>
                                         </div>
                                     ) : null}
                                 </div>
@@ -277,10 +325,11 @@ export default function EmployeeDashboard() {
                                                             {},
                                                             config
                                                         );
-                                                        // Clear local state
                                                         setSelectedDeskId(null);
                                                         setSessionStartTime(null);
                                                         setElapsedTime("00:00:00");
+                                                        setLiveSittingSeconds(0);
+                                                        setLiveStandingSeconds(0);
                                                     } catch (err) {
                                                         console.error("Error releasing desk:", err);
                                                     }
@@ -326,7 +375,6 @@ export default function EmployeeDashboard() {
                                             </div>
 
                                             <div className="flex items-center gap-2">
-                                                {/* Topmost reservation gets Check-in + Release */}
                                                 {idx === 0 ? (
                                                     <>
                                                         {!r.checkedIn ? (
