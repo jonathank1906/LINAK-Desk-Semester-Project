@@ -2,7 +2,7 @@ import paho.mqtt.client as mqtt
 import json
 import logging
 from django.conf import settings
-from core.models import Pico, SensorReading, Desk  # Added Desk import
+from core.models import Pico, SensorReading, Desk
 
 logger = logging.getLogger(__name__)
 _mqtt_service_instance = None
@@ -16,24 +16,35 @@ class MQTTService:
         self.client = mqtt.Client()
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
+        self.client.on_disconnect = self.on_disconnect  # ✅ Add disconnect handler
         self.connected = False
         
     def on_connect(self, client, userdata, flags, rc):
         """Callback when connected to MQTT broker"""
         if rc == 0:
-            logger.info("Connected to MQTT broker")
+            logger.info("✅ Connected to MQTT broker")
             self.connected = True
             # Subscribe to all pico topics and desk confirmations
             client.subscribe("/#")  # Subscribe to all topics
             client.subscribe("/desk/+/confirm")  # Explicitly subscribe to desk confirmations
             logger.info("Subscribed to all topics and /desk/+/confirm")
         else:
-            logger.error(f"Failed to connect to MQTT broker: {rc}")
+            logger.error(f"❌ Failed to connect to MQTT broker: {rc}")
+            self.connected = False
+    
+    def on_disconnect(self, client, userdata, rc):
+        """Callback when disconnected from MQTT broker"""
+        self.connected = False
+        logger.warning(f"⚠️ Disconnected from MQTT broker (rc: {rc})")
+        
+    def is_connected(self):
+        """Check if MQTT client is connected"""
+        return self.connected
             
     def on_message(self, client, userdata, msg):
         """Callback when message received from MQTT"""
         try:
-            print(f"MQTT DEBUG: Received topic={msg.topic}, payload={msg.payload.decode()}")  # Debug print
+            print(f"MQTT DEBUG: Received topic={msg.topic}, payload={msg.payload.decode()}")
             topic = msg.topic
             payload = msg.payload.decode()
             
@@ -49,7 +60,7 @@ class MQTTService:
                         self.handle_desk_confirm(desk_id)
                 except Exception as e:
                     logger.error(f"Error handling desk confirmation: {e}")
-                return  # Don't process further
+                return
 
             # --- Existing device topic handling ---
             parts = topic.split('/')
@@ -74,11 +85,11 @@ class MQTTService:
             if desk.current_status == "pending_verification":
                 desk.current_status = "occupied"
                 desk.save()
-                logger.info(f"Desk {desk_id} confirmed via MQTT and marked as occupied.")
+                logger.info(f"✅ Desk {desk_id} confirmed via MQTT and marked as occupied.")
             else:
-                logger.warning(f"Desk {desk_id} confirm ignored: not pending_verification")
+                logger.warning(f"⚠️ Desk {desk_id} confirm ignored: not pending_verification")
         except Desk.DoesNotExist:
-            logger.error(f"Desk {desk_id} not found for confirmation")
+            logger.error(f"❌ Desk {desk_id} not found for confirmation")
         except Exception as e:
             logger.error(f"Error in handle_desk_confirm: {e}")
 
@@ -131,23 +142,25 @@ class MQTTService:
         try:
             self.client.connect(self.broker, self.port, 60)
             self.client.loop_start()  # Start background thread
-            logger.info(f"Connecting to MQTT broker at {self.broker}:{self.port}")
+            logger.info(f"🔌 Connecting to MQTT broker at {self.broker}:{self.port}")
         except Exception as e:
-            logger.error(f"Failed to connect to MQTT broker: {e}")
+            logger.error(f"❌ Failed to connect to MQTT broker: {e}")
+            self.connected = False
             
     def disconnect(self):
         """Disconnect from MQTT broker"""
         self.client.loop_stop()
         self.client.disconnect()
+        self.connected = False
         logger.info("Disconnected from MQTT broker")
         
     def publish(self, topic, message, retain=False):
         """Publish message to MQTT topic"""
         if self.connected:
             self.client.publish(topic, message, retain=retain)
-            logger.info(f"Published to {topic}: {message}")
+            logger.info(f"📤 Published to {topic}: {message}")
         else:
-            logger.warning("Cannot publish - not connected to MQTT broker")
+            logger.warning("⚠️ Cannot publish - not connected to MQTT broker")
             
     def control_led(self, device_id, on):
         """Send LED control command to Pico"""
