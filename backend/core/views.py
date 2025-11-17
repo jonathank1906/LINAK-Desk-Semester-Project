@@ -942,3 +942,37 @@ def desks_in_use_count(request):
         'desks_in_use': in_use_count,
         'timestamp': timezone.now()
     })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def active_users_by_department(request):
+    """
+    Returns the count of active users grouped by department.
+    Active users are those with ongoing desk sessions.
+    """
+    from .models import UserAccount
+    from django.utils import timezone
+    from django.db.models import Count
+    
+    # Get active users grouped by department
+    department_data = UserAccount.objects.filter(
+        usage_logs__ended_at__isnull=True
+    ).values('department').annotate(
+        count=Count('id', distinct=True)
+    ).order_by('department')
+    
+    # Convert to format expected by frontend chart
+    departments = []
+    counts = []
+    
+    for item in department_data:
+        dept_name = item['department'] or 'Unassigned'
+        departments.append(dept_name)
+        counts.append(item['count'])
+    
+    return Response({
+        'departments': departments,
+        'counts': counts,
+        'timestamp': timezone.now()
+    })

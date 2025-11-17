@@ -180,3 +180,13 @@ export const getDashboardDesksInUse = async () => {
         throw error;
     }
 };
+
+export const getDashboardActiveUsersByDepartment = async () => {
+    try {
+        const response = await axios.get(`${BASE_URL}dashboard/active-users-by-department/`, { withCredentials: true });
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching active users by department:", error);
+        throw error;
+    }
+};

@@ -8,7 +8,7 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { NavUser } from "@/components/nav-user";
 import { useAuth } from "@/contexts/useAuth";
 import { useState, useEffect } from "react";
-import { getDashboardActiveUsers, getDashboardAvailableDesks, getDashboardDesksInUse } from "@/endpoints/api";
+import { getDashboardActiveUsers, getDashboardAvailableDesks, getDashboardDesksInUse, getDashboardActiveUsersByDepartment } from "@/endpoints/api";
 import UserManagement from "./UserManagement";
 import AnalyticsPage from "./AnalyticsPage"
 
@@ -54,6 +54,7 @@ export default function AdminDashboard() {
   const [activeUsers, setActiveUsers] = useState(0);
   const [availableDesks, setAvailableDesks] = useState(0);
   const [desksInUse, setDesksInUse] = useState(0);
+  const [departmentData, setDepartmentData] = useState({ departments: [], counts: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { user } = useAuth();
@@ -66,15 +67,20 @@ export default function AdminDashboard() {
         setError(null);
         
         // Fetch all dashboard metrics in parallel
-        const [activeUsersData, availableDesksData, desksInUseData] = await Promise.all([
+        const [activeUsersData, availableDesksData, desksInUseData, departmentData] = await Promise.all([
           getDashboardActiveUsers(),
           getDashboardAvailableDesks(),
-          getDashboardDesksInUse()
+          getDashboardDesksInUse(),
+          getDashboardActiveUsersByDepartment()
         ]);
         
         setActiveUsers(activeUsersData.active_users);
         setAvailableDesks(availableDesksData.available_desks);
         setDesksInUse(desksInUseData.desks_in_use);
+        setDepartmentData({
+          departments: departmentData.departments,
+          counts: departmentData.counts
+        });
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
         setError('Failed to load dashboard data');
@@ -100,13 +106,13 @@ export default function AdminDashboard() {
   ],
 };
 
-
+  // Dynamic chart data based on API response
   const activeUsersByDeptData = {
-    labels: ["Engineering", "Design", "Marketing", "HR", "Finance"],
+    labels: departmentData.departments.length > 0 ? departmentData.departments : ["No Data"],
     datasets: [
       {
         label: "Active Users",
-        data: [10, 5, 8, 3, 4],
+        data: departmentData.counts.length > 0 ? departmentData.counts : [0],
         backgroundColor: "#6366f1",
       },
     ],
