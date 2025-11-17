@@ -50,31 +50,3 @@ Seed initial data:
 ```sh
 py manage.py seed_data
 ```
-
-### Running the project
-Starting the frontend (in one terminal).
-```sh
-cd frontend
-npm run dev
-```
-
-Starting the backend (in another terminal).
-```sh
-env\Scripts\activate  
-cd backend
-py manage.py runserver
-```
-
-Running the simulator (in another terminal).
-```sh
-env\Scripts\activate
-cd wifi2ble-box-simulator
-py simulator/main.py --port 8001
-```
-
-Running the MQTT listener for the Pico (in another terminal).
-```sh
-env\Scripts\activate
-cd backend
-py manage.py mqtt_listener
-```
