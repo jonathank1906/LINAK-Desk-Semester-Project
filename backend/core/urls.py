@@ -16,7 +16,8 @@ from .views import (
     get_pico_sensor_data, list_all_users, user_detail_or_update,
     list_available_hot_desks, start_hot_desk, confirm_hot_desk, end_hot_desk,
     list_user_reservations, create_reservation, cancel_pending_verification,
-    check_in_reservation, check_out_reservation, hotdesk_status, available_desks_for_date, release_desk
+    check_in_reservation, check_out_reservation, hotdesk_status, available_desks_for_date, release_desk,
+    active_users_count
 )
 
 urlpatterns = [
@@ -54,4 +55,7 @@ urlpatterns = [
     path('reservations/<int:reservation_id>/check_out/', check_out_reservation, name='reservation_check_out'),
 
     path('desks/<int:desk_id>/release/', release_desk, name='release_desk'),
+    
+    # DASHBOARD API endpoints
+    path('dashboard/active-users/', active_users_count, name='dashboard_active_users'),
 ]

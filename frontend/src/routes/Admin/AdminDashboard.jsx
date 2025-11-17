@@ -7,7 +7,8 @@ import {
 import { ModeToggle } from "@/components/mode-toggle";
 import { NavUser } from "@/components/nav-user";
 import { useAuth } from "@/contexts/useAuth";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getDashboardActiveUsers } from "@/endpoints/api";
 import UserManagement from "./UserManagement";
 import AnalyticsPage from "./AnalyticsPage"
 
@@ -50,7 +51,29 @@ ChartJS.register(
 
 export default function AdminDashboard() {
   const [selectedSection, setSelectedSection] = useState("dashboard");
+  const [activeUsers, setActiveUsers] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const { user } = useAuth();
+
+  // Fetch active users data when component mounts
+  useEffect(() => {
+    const fetchActiveUsers = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await getDashboardActiveUsers();
+        setActiveUsers(data.active_users);
+      } catch (error) {
+        console.error('Error fetching active users:', error);
+        setError('Failed to load active users data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchActiveUsers();
+  }, []);
 
  const hourlyUtilizationData = {
   labels: ["6AM","7AM","8AM", "9AM", "10AM", "11AM", "12PM", "1PM", "2PM", "3PM", "4PM", "5PM", "6PM"],
@@ -112,7 +135,11 @@ export default function AdminDashboard() {
           <div className="flex flex-1 flex-col gap-6 p-4 pt-0">
             {/* TOP METRICS */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-              <Card title="Total Active Users" icon={<IconUsers size={36} />} value="123" />
+              <Card 
+                title="Total Active Users" 
+                icon={<IconUsers size={36} />} 
+                value={loading ? "..." : error ? "Error" : activeUsers.toString()} 
+              />
               <Card title="Available Desks" icon={<IconDesk size={36} />} value="18" />
               <Card title="Desks In Use Online" icon={<IconDesk size={36} />} value="42" />
               <SystemStatusCard status="operational" />

@@ -150,3 +150,13 @@ export const authenticated_user = async () => {
     const response = await axios.get(AUTHENTICATED_URL, { withCredentials: true });
     return response.data;
 };
+
+export const getDashboardActiveUsers = async () => {
+    try {
+        const response = await axios.get(`${BASE_URL}dashboard/active-users/`, { withCredentials: true });
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching active users:", error);
+        throw error;
+    }
+};

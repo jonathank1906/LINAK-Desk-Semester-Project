@@ -880,3 +880,24 @@ def release_desk(request, desk_id):
         
     except Desk.DoesNotExist:
         return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def active_users_count(request):
+    """
+    Returns the count of currently active users.
+    Active users are defined as users who currently have an ongoing desk session.
+    """
+    from .models import UserAccount
+    from django.utils import timezone
+    
+    # Count users with ongoing desk sessions (where ended_at is null)
+    active_count = UserAccount.objects.filter(
+        usage_logs__ended_at__isnull=True
+    ).distinct().count()
+    
+    return Response({
+        'active_users': active_count,
+        'timestamp': timezone.now()
+    })
