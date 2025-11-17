@@ -17,7 +17,7 @@ from .views import (
     list_available_hot_desks, start_hot_desk, confirm_hot_desk, end_hot_desk,
     list_user_reservations, create_reservation, cancel_pending_verification,
     check_in_reservation, check_out_reservation, hotdesk_status, available_desks_for_date, release_desk,
-    active_users_count
+    active_users_count, available_desks_count, desks_in_use_count
 )
 
 urlpatterns = [
@@ -58,4 +58,6 @@ urlpatterns = [
     
     # DASHBOARD API endpoints
     path('dashboard/active-users/', active_users_count, name='dashboard_active_users'),
+    path('dashboard/available-desks/', available_desks_count, name='dashboard_available_desks'),
+    path('dashboard/desks-in-use/', desks_in_use_count, name='dashboard_desks_in_use'),
 ]

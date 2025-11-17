@@ -8,7 +8,7 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { NavUser } from "@/components/nav-user";
 import { useAuth } from "@/contexts/useAuth";
 import { useState, useEffect } from "react";
-import { getDashboardActiveUsers } from "@/endpoints/api";
+import { getDashboardActiveUsers, getDashboardAvailableDesks, getDashboardDesksInUse } from "@/endpoints/api";
 import UserManagement from "./UserManagement";
 import AnalyticsPage from "./AnalyticsPage"
 
@@ -52,27 +52,38 @@ ChartJS.register(
 export default function AdminDashboard() {
   const [selectedSection, setSelectedSection] = useState("dashboard");
   const [activeUsers, setActiveUsers] = useState(0);
+  const [availableDesks, setAvailableDesks] = useState(0);
+  const [desksInUse, setDesksInUse] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { user } = useAuth();
 
-  // Fetch active users data when component mounts
+  // Fetch dashboard data when component mounts
   useEffect(() => {
-    const fetchActiveUsers = async () => {
+    const fetchDashboardData = async () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await getDashboardActiveUsers();
-        setActiveUsers(data.active_users);
+        
+        // Fetch all dashboard metrics in parallel
+        const [activeUsersData, availableDesksData, desksInUseData] = await Promise.all([
+          getDashboardActiveUsers(),
+          getDashboardAvailableDesks(),
+          getDashboardDesksInUse()
+        ]);
+        
+        setActiveUsers(activeUsersData.active_users);
+        setAvailableDesks(availableDesksData.available_desks);
+        setDesksInUse(desksInUseData.desks_in_use);
       } catch (error) {
-        console.error('Error fetching active users:', error);
-        setError('Failed to load active users data');
+        console.error('Error fetching dashboard data:', error);
+        setError('Failed to load dashboard data');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchActiveUsers();
+    fetchDashboardData();
   }, []);
 
  const hourlyUtilizationData = {
@@ -140,8 +151,16 @@ export default function AdminDashboard() {
                 icon={<IconUsers size={36} />} 
                 value={loading ? "..." : error ? "Error" : activeUsers.toString()} 
               />
-              <Card title="Available Desks" icon={<IconDesk size={36} />} value="18" />
-              <Card title="Desks In Use Online" icon={<IconDesk size={36} />} value="42" />
+              <Card 
+                title="Available Desks" 
+                icon={<IconDesk size={36} />} 
+                value={loading ? "..." : error ? "Error" : availableDesks.toString()} 
+              />
+              <Card 
+                title="Desks In Use Online" 
+                icon={<IconDesk size={36} />} 
+                value={loading ? "..." : error ? "Error" : desksInUse.toString()} 
+              />
               <SystemStatusCard status="operational" />
             </div>
 

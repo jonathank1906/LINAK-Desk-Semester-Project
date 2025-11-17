@@ -901,3 +901,44 @@ def active_users_count(request):
         'active_users': active_count,
         'timestamp': timezone.now()
     })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def available_desks_count(request):
+    """
+    Returns the count of available desks.
+    Available desks are those with status 'available' and no current user.
+    """
+    from .models import Desk
+    from django.utils import timezone
+    
+    available_count = Desk.objects.filter(
+        current_status='available',
+        current_user__isnull=True
+    ).count()
+    
+    return Response({
+        'available_desks': available_count,
+        'timestamp': timezone.now()
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def desks_in_use_count(request):
+    """
+    Returns the count of desks currently in use.
+    In-use desks are those with a current user assigned.
+    """
+    from .models import Desk
+    from django.utils import timezone
+    
+    in_use_count = Desk.objects.filter(
+        current_user__isnull=False
+    ).count()
+    
+    return Response({
+        'desks_in_use': in_use_count,
+        'timestamp': timezone.now()
+    })

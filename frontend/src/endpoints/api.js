@@ -160,3 +160,23 @@ export const getDashboardActiveUsers = async () => {
         throw error;
     }
 };
+
+export const getDashboardAvailableDesks = async () => {
+    try {
+        const response = await axios.get(`${BASE_URL}dashboard/available-desks/`, { withCredentials: true });
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching available desks:", error);
+        throw error;
+    }
+};
+
+export const getDashboardDesksInUse = async () => {
+    try {
+        const response = await axios.get(`${BASE_URL}dashboard/desks-in-use/`, { withCredentials: true });
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching desks in use:", error);
+        throw error;
+    }
+};
