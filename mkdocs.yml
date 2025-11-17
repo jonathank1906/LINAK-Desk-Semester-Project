@@ -8,7 +8,17 @@ nav:
   - Home: index.md
   - Setup Guide: setup.md
   - Running The Project: run.md
-  - API Reference: api.md
+  - API Reference:
+    - Simulator API:
+        - Overview: api/simulator/index.md
+        - Endpoints: api/simulator/endpoints.md
+        - Examples: api/simulator/examples.md
+
+    - Backend API:
+        - Overview: api/backend/index.md
+        - Authentication: api/backend/auth.md
+        - Desks: api/backend/desks.md
+        - Reservations: api/backend/reservations.md
   - Other: other.md
 
 extra_css:
