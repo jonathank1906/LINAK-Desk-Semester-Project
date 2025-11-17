@@ -39,10 +39,14 @@ export default function EmployeeDashboard() {
     const [sessionStartTime, setSessionStartTime] = useState(null);
     const [elapsedTime, setElapsedTime] = useState("00:00:00");
 
-    // NEW: Live sitting/standing time state
+    // Base values from API (updated every 30 seconds)
+    const [baseSittingSeconds, setBaseSittingSeconds] = useState(0);
+    const [baseStandingSeconds, setBaseStandingSeconds] = useState(0);
+    const [lastFetchTime, setLastFetchTime] = useState(null);
+    
+    // Live display values (updated every second)
     const [liveSittingSeconds, setLiveSittingSeconds] = useState(0);
     const [liveStandingSeconds, setLiveStandingSeconds] = useState(0);
-    const [lastHeightChange, setLastHeightChange] = useState(null);
     const [currentHeight, setCurrentHeight] = useState(null);
 
     const [upcomingReservations, setUpcomingReservations] = useState([
@@ -129,37 +133,46 @@ export default function EmployeeDashboard() {
                         config
                     );
                     setUsageStats(usageRes.data);
-                    
+
                     if (usageRes.data.active_session && usageRes.data.started_at) {
                         setSessionStartTime(new Date(usageRes.data.started_at));
                         
-                        // Update base values for live calculation
-                        setLiveSittingSeconds(usageRes.data.sitting_time_seconds || 0);
-                        setLiveStandingSeconds(usageRes.data.standing_time_seconds || 0);
-                        setLastHeightChange(new Date(usageRes.data.started_at));
+                        // Store base values from API
+                        setBaseSittingSeconds(usageRes.data.sitting_time || 0);
+                        setBaseStandingSeconds(usageRes.data.standing_time || 0);
+                        setLastFetchTime(new Date());
                     } else {
                         setSessionStartTime(null);
+                        setBaseSittingSeconds(0);
+                        setBaseStandingSeconds(0);
                         setLiveSittingSeconds(0);
                         setLiveStandingSeconds(0);
+                        setLastFetchTime(null);
                     }
                 } catch {
                     setUsageStats(null);
                     setSessionStartTime(null);
+                    setBaseSittingSeconds(0);
+                    setBaseStandingSeconds(0);
                     setLiveSittingSeconds(0);
                     setLiveStandingSeconds(0);
+                    setLastFetchTime(null);
                 }
             } catch (err) {
                 setDeskStatus(null);
                 setUsageStats(null);
                 setSessionStartTime(null);
+                setBaseSittingSeconds(0);
+                setBaseStandingSeconds(0);
                 setLiveSittingSeconds(0);
                 setLiveStandingSeconds(0);
+                setLastFetchTime(null);
             }
         };
 
         fetchDeskStatus();
 
-        const interval = setInterval(fetchDeskStatus, 30000);
+        const interval = setInterval(fetchDeskStatus, 30000); // 30 seconds
         return () => clearInterval(interval);
     }, [user, selectedDeskId]);
 
@@ -190,30 +203,27 @@ export default function EmployeeDashboard() {
         return () => clearInterval(timerInterval);
     }, [sessionStartTime]);
 
-    // NEW: Live timer for sitting/standing time (updates every second)
+    // Live timer for sitting/standing time (updates every second)
     useEffect(() => {
-        if (!usageStats?.active_session || !lastHeightChange) {
+        if (!usageStats?.active_session || !lastFetchTime) {
+            setLiveSittingSeconds(0);
+            setLiveStandingSeconds(0);
             return;
         }
 
         const updateLiveTimes = () => {
             const now = new Date();
-            const elapsedSinceLastChange = Math.floor((now - lastHeightChange) / 1000);
-            
-            // Add elapsed time to appropriate counter based on current height
+            const elapsedSinceFetch = Math.floor((now - lastFetchTime) / 1000);
+
             if (currentHeight !== null) {
                 if (currentHeight < 95) {
-                    // Currently sitting
-                    setLiveSittingSeconds(
-                        (usageStats.sitting_time_seconds || 0) + elapsedSinceLastChange
-                    );
-                    setLiveStandingSeconds(usageStats.standing_time_seconds || 0);
+                    // Currently sitting - add elapsed time to sitting
+                    setLiveSittingSeconds(baseSittingSeconds + elapsedSinceFetch);
+                    setLiveStandingSeconds(baseStandingSeconds);
                 } else {
-                    // Currently standing
-                    setLiveSittingSeconds(usageStats.sitting_time_seconds || 0);
-                    setLiveStandingSeconds(
-                        (usageStats.standing_time_seconds || 0) + elapsedSinceLastChange
-                    );
+                    // Currently standing - add elapsed time to standing
+                    setLiveSittingSeconds(baseSittingSeconds);
+                    setLiveStandingSeconds(baseStandingSeconds + elapsedSinceFetch);
                 }
             }
         };
@@ -222,7 +232,7 @@ export default function EmployeeDashboard() {
         const liveInterval = setInterval(updateLiveTimes, 1000);
 
         return () => clearInterval(liveInterval);
-    }, [usageStats, lastHeightChange, currentHeight]);
+    }, [baseSittingSeconds, baseStandingSeconds, lastFetchTime, currentHeight, usageStats]);
 
     function handleEditReservation(id) {
         // TODO: open edit modal / navigate to edit form
@@ -278,7 +288,7 @@ export default function EmployeeDashboard() {
                                             ? deskStatus?.name ?? `Desk #${selectedDeskId}`
                                             : "No desk selected"}
                                     </div>
-                                    
+
                                     {selectedDeskId && sessionStartTime ? (
                                         <div className="text-xs text-muted-foreground mt-1">
                                             <span className="font-mono font-semibold text-primary">
@@ -287,14 +297,14 @@ export default function EmployeeDashboard() {
                                             {" "}elapsed
                                         </div>
                                     ) : null}
-                                    
+
                                     {selectedDeskId && usageStats?.active_session ? (
                                         <div className="text-xs text-muted-foreground mt-1">
-                                            <span className="font-semibold text-green-600">
+                                            <span className="font-semibold">
                                                 {sittingMinutes}m sitting
                                             </span>
                                             {" | "}
-                                            <span className="font-semibold text-blue-600">
+                                            <span className="font-semibold">
                                                 {standingMinutes}m standing
                                             </span>
                                         </div>
@@ -330,6 +340,9 @@ export default function EmployeeDashboard() {
                                                         setElapsedTime("00:00:00");
                                                         setLiveSittingSeconds(0);
                                                         setLiveStandingSeconds(0);
+                                                        setBaseSittingSeconds(0);
+                                                        setBaseStandingSeconds(0);
+                                                        setLastFetchTime(null);
                                                     } catch (err) {
                                                         console.error("Error releasing desk:", err);
                                                     }
