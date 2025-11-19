@@ -17,6 +17,7 @@
 #include "globals.h"
 #include "ws2812.h"
 #include "Buzzer.h"
+#include "led_mode.h"
 
 // FIX: Declare extern only once at the top, not inside handler blocks
 #ifdef __cplusplus
@@ -107,6 +108,7 @@ static MQTT_CLIENT_DATA_T g_state;
 extern PIO ws2812_pio;
 extern uint ws2812_sm;
 extern uint ws2812_offset;
+extern LedMode current_led_mode;
 
 static float read_onboard_temperature(const char unit)
 {
@@ -305,8 +307,8 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
             oled_display_text("DESK #1", "Please press", "button to", "confirm");
             set_pending_verification(true);
 
-            // ⭐ NEW: Blue pulsing LED
-            pattern_pulse_blue(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
+            
+            current_led_mode = LED_MODE_GREYS;
         }
         else if (strstr(state->data, "show_in_use"))
         {

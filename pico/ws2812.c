@@ -100,14 +100,3 @@ void pattern_pulse_blue(PIO pio, uint sm, uint num_pixels, uint8_t brightness) {
         put_pixel(pio, sm, color);
     }
 }
-
-void pattern_pulse_yellow(PIO pio, uint sm, uint num_pixels, uint8_t brightness) {
-    static bool pulse_state = false;
-    uint8_t b = pulse_state ? brightness : brightness / 3;
-    pulse_state = !pulse_state;
-    
-    uint32_t color = urgb_u32(b, b, 0); // Yellow = Red + Green
-    for (int i = 0; i < num_pixels; i++) {
-        put_pixel(pio, sm, color);
-    }
-}

@@ -7,14 +7,18 @@
 #include "Buzzer.h"
 #include "globals.h"
 #include "mqtt_client.h"
+#include "led_mode.h"
+
+static uint led_anim_t = 0;
+LedMode current_led_mode = LED_MODE_NONE;
 
 extern "C"
 {
     void oled_init();
     void oled_display_text(char *line1, char *line2, char *line3, char *line4);
     void mqtt_init(void);
-    void mqtt_poll(void);                      // Non-blocking MQTT polling
-    void publish_desk_confirm(void *state);    // From mqtt_client.c
+    void mqtt_poll(void);                   // Non-blocking MQTT polling
+    void publish_desk_confirm(void *state); // From mqtt_client.c
     void publish_pico_ready(void *state);
     void set_pending_verification(bool state); // To be called from mqtt_client.c
 
@@ -25,6 +29,7 @@ extern "C"
 PIO ws2812_pio;
 uint ws2812_sm;
 uint ws2812_offset;
+
 
 // Allow mqtt_client.c to set pending_verification
 extern "C" void set_pending_verification(bool state)
@@ -63,10 +68,6 @@ void MyApp()
     buzzer_init();
     printf("DEBUG: Buzzer initialized\n");
 
-    // Set initial color to solid green
-    pattern_solid_green(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
-    printf("DEBUG: LED strip set to green\n");
-
     // Initialize MQTT (non-blocking now)
     printf("DEBUG: Starting MQTT/WiFi...\n");
     mqtt_init();
@@ -87,6 +88,7 @@ void MyApp()
     printf("DEBUG: Initializing Button...\n");
     Button button1(10, GPIO_IRQ_EDGE_RISE);
     printf("DEBUG: LED and Button initialized\n");
+    oled_display_text("SYSTEM", "READY", "", "");
 
     // Main loop - handle MQTT, button events, and LED strip
     printf("=== Entering main loop ===\n");
@@ -121,6 +123,33 @@ void MyApp()
             {
                 printf("DEBUG: Button pressed, but no pending verification\n");
             }
+        }
+
+        switch (current_led_mode)
+        {
+            case LED_MODE_GREYS:
+                pattern_greys(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t++);
+                break;
+            case LED_MODE_SNAKES:
+                pattern_snakes(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t++);
+                break;
+            case LED_MODE_PULSE_BLUE:
+                pattern_pulse_blue(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
+                break;
+            case LED_MODE_SOLID_BLUE:
+                pattern_solid_blue(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
+                break;
+            case LED_MODE_SOLID_GREEN:
+                pattern_solid_green(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
+                break;
+            case LED_MODE_SOLID_RED:
+                pattern_solid_red(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
+                break;
+            case LED_MODE_PULSE_YELLOW:
+                pattern_pulse_yellow(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
+                break;
+            default:
+                break;
         }
         sleep_ms(10);
     }
