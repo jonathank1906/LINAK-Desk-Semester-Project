@@ -310,7 +310,7 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
             set_pending_verification(true);
 
             current_buzzer_mode = BUZZER_MODE_MOVING;
-            current_led_mode = LED_MODE_GREYS;
+            current_led_mode = LED_MODE_GREYS_BLUE;
         }
         else if (strstr(state->data, "show_in_use"))
         {

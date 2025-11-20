@@ -129,10 +129,28 @@ void MyApp()
         switch (current_led_mode)
         {
         case LED_MODE_GREYS:
-            pattern_greys(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t++);
+            pattern_greys(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t);
+            led_anim_t = (led_anim_t + 1) % 360;
+            break;
+        case LED_MODE_GREYS_RED:
+            pattern_greys_red(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t);
+            led_anim_t = (led_anim_t + 1) % 360;
+            break;
+        case LED_MODE_GREYS_BLUE:
+            pattern_greys_blue(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t);
+            led_anim_t = (led_anim_t + 1) % 360;
+            break;
+        case LED_MODE_GREYS_GREEN:
+            pattern_greys_green(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t);
+            led_anim_t = (led_anim_t + 1) % 360;
+            break;
+        case LED_MODE_GREYS_PURPLE:
+            pattern_greys_purple(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t);
+            led_anim_t = (led_anim_t + 1) % 360;
             break;
         case LED_MODE_SNAKES:
-            pattern_snakes(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t++);
+            pattern_snakes(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t);
+            led_anim_t = (led_anim_t + 1) % 360;
             break;
         case LED_MODE_PULSE_BLUE:
             pattern_pulse_blue(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
@@ -156,18 +174,18 @@ void MyApp()
         {
         case BUZZER_MODE_MOVING:
             moving_buzzer_pattern();
-           // current_buzzer_mode = BUZZER_MODE_NONE;
+            current_buzzer_mode = BUZZER_MODE_NONE;
             break;
         case BUZZER_MODE_CONFIRM:
-           // confirm_buzzer_pattern();
+            // confirm_buzzer_pattern();
             current_buzzer_mode = BUZZER_MODE_NONE;
             break;
         case BUZZER_MODE_ERROR:
-           // error_buzzer_pattern();
+            // error_buzzer_pattern();
             current_buzzer_mode = BUZZER_MODE_NONE;
             break;
         case BUZZER_MODE_STARTUP:
-          //  startup_buzzer_pattern();
+            //  startup_buzzer_pattern();
             current_buzzer_mode = BUZZER_MODE_NONE;
             break;
         default:

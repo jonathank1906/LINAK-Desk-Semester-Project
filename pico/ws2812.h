@@ -22,6 +22,13 @@ void pattern_solid_blue(PIO pio, uint sm, uint num_pixels, uint8_t brightness);
 void pattern_pulse_blue(PIO pio, uint sm, uint num_pixels, uint8_t brightness);
 void pattern_pulse_yellow(PIO pio, uint sm, uint num_pixels, uint8_t brightness);
 
+void pattern_pulse_color(PIO pio, uint sm, uint len, uint t, uint8_t r_ratio, uint8_t g_ratio, uint8_t b_ratio);
+void pattern_greys_red(PIO pio, uint sm, uint len, uint t);
+void pattern_greys_blue(PIO pio, uint sm, uint len, uint t);
+void pattern_greys_green(PIO pio, uint sm, uint len, uint t);
+void pattern_greys_purple(PIO pio, uint sm, uint len, uint t);
+
+
 // Utility functions - declared as static inline
 static inline void put_pixel(PIO pio, uint sm, uint32_t pixel_grb);
 static inline uint32_t urgb_u32(uint8_t r, uint8_t g, uint8_t b);

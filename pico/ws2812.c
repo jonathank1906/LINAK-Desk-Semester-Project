@@ -63,7 +63,7 @@ void pattern_sparkle(PIO pio, uint sm, uint len, uint t) {
         put_pixel(pio, sm, rand() % 16 ? 0 : 0xffffffff);
 }
 
-void pattern_greys(PIO pio, uint sm, uint len, uint t) {
+void pattern_pulse_color(PIO pio, uint sm, uint len, uint t, uint8_t r_ratio, uint8_t g_ratio, uint8_t b_ratio) {
     uint min = 10;
     uint max = 100;
     uint range = max - min;
@@ -77,9 +77,35 @@ void pattern_greys(PIO pio, uint sm, uint len, uint t) {
         brightness = max - (phase - range);
     }
     
+    // Apply color ratios (0-255 scale)
+    uint8_t r = (brightness * r_ratio) / 255;
+    uint8_t g = (brightness * g_ratio) / 255;
+    uint8_t b = (brightness * b_ratio) / 255;
+    
     for (uint i = 0; i < len; ++i) {
-        put_pixel(pio, sm, urgb_u32(brightness, brightness, 0));
+        put_pixel(pio, sm, urgb_u32(r, g, b));
     }
+}
+
+// Convenience wrappers
+void pattern_greys(PIO pio, uint sm, uint len, uint t) {
+    pattern_pulse_color(pio, sm, len, t, 255, 255, 0); // Yellow
+}
+
+void pattern_greys_red(PIO pio, uint sm, uint len, uint t) {
+    pattern_pulse_color(pio, sm, len, t, 255, 0, 0); // Red
+}
+
+void pattern_greys_blue(PIO pio, uint sm, uint len, uint t) {
+    pattern_pulse_color(pio, sm, len, t, 0, 0, 255); // Blue
+}
+
+void pattern_greys_green(PIO pio, uint sm, uint len, uint t) {
+    pattern_pulse_color(pio, sm, len, t, 0, 255, 0); // Green
+}
+
+void pattern_greys_purple(PIO pio, uint sm, uint len, uint t) {
+    pattern_pulse_color(pio, sm, len, t, 255, 0, 255); // Purple
 }
 
 void pattern_solid_blue(PIO pio, uint sm, uint num_pixels, uint8_t brightness) {
