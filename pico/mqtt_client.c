@@ -18,6 +18,7 @@
 #include "ws2812.h"
 #include "Buzzer.h"
 #include "led_mode.h"
+#include "buzzer_mode.h"
 
 // FIX: Declare extern only once at the top, not inside handler blocks
 #ifdef __cplusplus
@@ -109,6 +110,7 @@ extern PIO ws2812_pio;
 extern uint ws2812_sm;
 extern uint ws2812_offset;
 extern LedMode current_led_mode;
+extern BuzzerMode current_buzzer_mode;
 
 static float read_onboard_temperature(const char unit)
 {
@@ -307,7 +309,7 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
             oled_display_text("DESK #1", "Please press", "button to", "confirm");
             set_pending_verification(true);
 
-            
+            current_buzzer_mode = BUZZER_MODE_MOVING;
             current_led_mode = LED_MODE_GREYS;
         }
         else if (strstr(state->data, "show_in_use"))
@@ -373,10 +375,10 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
                 if (is_moving)
                 {
                     // Yellow pulsing while moving
-                    pattern_pulse_yellow(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
+                    //pattern_pulse_yellow(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
 
                     // ⭐ Beep twice
-                    moving_buzzer_pattern();
+                  //  moving_buzzer_pattern();
                 }
                 else
                 {

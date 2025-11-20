@@ -8,9 +8,11 @@
 #include "globals.h"
 #include "mqtt_client.h"
 #include "led_mode.h"
+#include "buzzer_mode.h"
 
 static uint led_anim_t = 0;
 LedMode current_led_mode = LED_MODE_NONE;
+BuzzerMode current_buzzer_mode = BUZZER_MODE_NONE;
 
 extern "C"
 {
@@ -29,7 +31,6 @@ extern "C"
 PIO ws2812_pio;
 uint ws2812_sm;
 uint ws2812_offset;
-
 
 // Allow mqtt_client.c to set pending_verification
 extern "C" void set_pending_verification(bool state)
@@ -127,29 +128,50 @@ void MyApp()
 
         switch (current_led_mode)
         {
-            case LED_MODE_GREYS:
-                pattern_greys(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t++);
-                break;
-            case LED_MODE_SNAKES:
-                pattern_snakes(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t++);
-                break;
-            case LED_MODE_PULSE_BLUE:
-                pattern_pulse_blue(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
-                break;
-            case LED_MODE_SOLID_BLUE:
-                pattern_solid_blue(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
-                break;
-            case LED_MODE_SOLID_GREEN:
-                pattern_solid_green(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
-                break;
-            case LED_MODE_SOLID_RED:
-                pattern_solid_red(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
-                break;
-            case LED_MODE_PULSE_YELLOW:
-                pattern_pulse_yellow(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
-                break;
-            default:
-                break;
+        case LED_MODE_GREYS:
+            pattern_greys(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t++);
+            break;
+        case LED_MODE_SNAKES:
+            pattern_snakes(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t++);
+            break;
+        case LED_MODE_PULSE_BLUE:
+            pattern_pulse_blue(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
+            break;
+        case LED_MODE_SOLID_BLUE:
+            pattern_solid_blue(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
+            break;
+        case LED_MODE_SOLID_GREEN:
+            pattern_solid_green(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
+            break;
+        case LED_MODE_SOLID_RED:
+            pattern_solid_red(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
+            break;
+        case LED_MODE_PULSE_YELLOW:
+            // pattern_pulse_yellow(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
+            break;
+        default:
+            break;
+        }
+        switch (current_buzzer_mode)
+        {
+        case BUZZER_MODE_MOVING:
+            moving_buzzer_pattern();
+           // current_buzzer_mode = BUZZER_MODE_NONE;
+            break;
+        case BUZZER_MODE_CONFIRM:
+           // confirm_buzzer_pattern();
+            current_buzzer_mode = BUZZER_MODE_NONE;
+            break;
+        case BUZZER_MODE_ERROR:
+           // error_buzzer_pattern();
+            current_buzzer_mode = BUZZER_MODE_NONE;
+            break;
+        case BUZZER_MODE_STARTUP:
+          //  startup_buzzer_pattern();
+            current_buzzer_mode = BUZZER_MODE_NONE;
+            break;
+        default:
+            break;
         }
         sleep_ms(10);
     }
