@@ -45,8 +45,8 @@ extern "C" void set_pending_verification(bool state)
     }
     else
     {
-        oled_display_text("DESK #1", "Verification", "Cleared", "");
-        printf("DEBUG: OLED updated for verification cleared\n");
+        oled_display_text("DESK #1", "Available", "", "");
+        printf("DEBUG: OLED updated for desk available/released\n");
     }
 }
 

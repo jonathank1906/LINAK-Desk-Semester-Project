@@ -270,6 +270,7 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
     printf("DEBUG: MQTT message received on topic: %s\n", state->topic);
     printf("DEBUG: MQTT payload: %s\n", state->data);
     printf("DEBUG: basic_topic = '%s'\n", basic_topic);
+    
     if (strcmp(basic_topic, "/led") == 0)
     {
         if (lwip_stricmp(state->data, "On") == 0 || strcmp(state->data, "1") == 0)
@@ -299,36 +300,47 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
     else if (strcmp(state->topic, "/desk/1/display") == 0)
     {
         printf("DEBUG: Handling /desk/1/display topic\n");
+        printf("DEBUG: Full message: %s\n", state->data);  // ⭐ Better debug
 
-        // ⭐ NEW: Parse JSON to extract action and parameters
-        // We'll use simple string parsing since full JSON lib might be overkill
+        // ⭐ IMPORTANT: Check show_available FIRST (before show_confirm_button)
+        // Because when user releases, we want green LED immediately
+        if (strstr(state->data, "show_available"))
+        {
+            printf("DEBUG: ✅ Action is show_available\n");
+            oled_display_text("DESK #1", "Available", "", "");
+            set_pending_verification(false);
 
-        if (strstr(state->data, "show_confirm_button"))
+            // ⭐ Set GREEN LED mode
+            current_led_mode = LED_MODE_SOLID_GREEN;
+            current_buzzer_mode = BUZZER_MODE_NONE;
+            
+            printf("DEBUG: Set LED to GREEN mode\n");
+        }
+        else if (strstr(state->data, "show_confirm_button"))
         {
             printf("DEBUG: Action is show_confirm_button\n");
             oled_display_text("DESK #1", "Please press", "button to", "confirm");
             set_pending_verification(true);
 
-            
+            // ⭐ Blue pulsing for confirmation
             current_led_mode = LED_MODE_GREYS_BLUE;
+            current_buzzer_mode = BUZZER_MODE_NONE;
+            
+            printf("DEBUG: Set LED to BLUE PULSING mode\n");
         }
         else if (strstr(state->data, "show_in_use"))
         {
             printf("DEBUG: Action is show_in_use\n");
 
-            // ⭐ NEW: Extract user name and height from JSON
-            // Simple parsing: look for "user": "John Doe" and "height": 110
             char user_name[20] = "User";
             char height_str[10] = "";
 
-            // Extract user (simple string search)
             char *user_start = strstr(state->data, "\"user\":");
             if (user_start)
             {
                 sscanf(user_start, "\"user\":\"%19[^\"]\"", user_name);
             }
 
-            // Extract height
             char *height_start = strstr(state->data, "\"height\":");
             if (height_start)
             {
@@ -337,25 +349,17 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
                 snprintf(height_str, sizeof(height_str), "%dcm", height);
             }
 
-            // Display with height
             oled_display_text("DESK #1", user_name, height_str, "In Use");
             set_pending_verification(false);
 
-            // ⭐ NEW: Solid blue LED (in use)
-            pattern_solid_blue(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
-        }
-        else if (strstr(state->data, "show_available"))
-        {
-            printf("DEBUG: Action is show_available\n");
-            oled_display_text("DESK #1", "Available", "", "");
-            set_pending_verification(false);
-
-            // ⭐ NEW: Green LED (available)
-            pattern_solid_green(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
+            // ⭐ Solid blue LED (in use)
+            current_led_mode = LED_MODE_GREYS_BLUE;
+            current_buzzer_mode = BUZZER_MODE_NONE;
+            
+            printf("DEBUG: Set LED to BLUE SOLID mode (in use)\n");
         }
         else if (strstr(state->data, "update_height"))
         {
-            // ⭐ NEW ACTION: Update height display while desk is in use
             printf("DEBUG: Action is update_height\n");
 
             int height;
@@ -366,36 +370,42 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
 
                 char line3[20];
                 snprintf(line3, sizeof(line3), "Height: %dcm", height);
-
-                // Keep user name on line 2, update line 3 with new height
                 oled_display_text("DESK #1", "In Use", line3, "");
 
-                // ⭐ Check if moving
-                bool is_moving = strstr(state->data, "\"is_moving\": true") != NULL;
+                // ⭐ Check if moving (NOTE: Space after colon matters!)
+                bool is_moving = (strstr(state->data, "\"is_moving\": true") != NULL || 
+                                 strstr(state->data, "\"is_moving\":true") != NULL);
+                
+                printf("DEBUG: is_moving = %s\n", is_moving ? "true" : "false");
+                
                 if (is_moving)
                 {
-                    current_led_mode = LED_MODE_GREYS;
+                    current_led_mode = LED_MODE_GREYS;  // Yellow pulsing while moving
                     current_buzzer_mode = BUZZER_MODE_MOVING;
+                    printf("DEBUG: Set LED to YELLOW PULSING (moving)\n");
                 }
                 else
                 {
-                    current_led_mode = LED_MODE_GREYS_BLUE;
+                    current_led_mode = LED_MODE_GREYS_BLUE;  // Blue solid when stopped
                     current_buzzer_mode = BUZZER_MODE_NONE;
+                    printf("DEBUG: Set LED to BLUE SOLID (stopped)\n");
                 }
             }
         }
-        else if (strstr(state->data, "error"))
+        else if (strstr(state->data, "show_error") || strstr(state->data, "error"))
         {
-            // ⭐ NEW ACTION: Show error
-            printf("DEBUG: Action is error\n");
+            printf("DEBUG: Action is show_error\n");
             oled_display_text("DESK #1", "ERROR", "Check desk", "");
 
-            // Red LED for error
-            pattern_solid_red(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
+            // ⭐ Red LED for error
+            current_led_mode = LED_MODE_SOLID_RED;
+            current_buzzer_mode = BUZZER_MODE_NONE;
+            
+            printf("DEBUG: Set LED to RED mode\n");
         }
         else
         {
-            printf("DEBUG: Unknown action in payload\n");
+            printf("DEBUG: ⚠️ Unknown action in payload: %s\n", state->data);
         }
     }
 }

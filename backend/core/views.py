@@ -614,19 +614,44 @@ from core.services.MQTTService import get_mqtt_service
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def start_hot_desk(request, desk_id):
+    print(f"\n🏢 START_HOT_DESK CALLED - Desk ID: {desk_id}")
+    print(f"   User: {request.user.username}")
+    
     try:
         desk = Desk.objects.get(id=desk_id)
+        
+        print(f"   Current desk status: {desk.current_status}")
+        print(f"   Current desk user: {desk.current_user}")
+        
+        # ⭐ FIX 1: Prevent duplicate occupancy
+        if desk.current_user == request.user:
+            if desk.current_status == "occupied":
+                print(f"⚠️ User {request.user.username} already occupies desk {desk_id}")
+                return Response(
+                    {"error": "You are already using this desk"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            elif desk.current_status == "pending_verification":
+                print(f"⚠️ Desk {desk_id} already pending verification for {request.user.username}")
+                return Response(
+                    {"error": "Desk is already pending your confirmation"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        # Check if desk is available
         if desk.current_status not in ["available", "Normal"]:
+            print(f"❌ Desk {desk_id} not available (status: {desk.current_status})")
             return Response(
-                {"error": "Desk not available"}, status=status.HTTP_400_BAD_REQUEST
+                {"error": "Desk not available"}, 
+                status=status.HTTP_400_BAD_REQUEST
             )
 
-        # 🔧 FIX: Better error handling for WiFi2BLE sync
+        # Sync desk height from WiFi2BLE simulator
         from core.services.WiFi2BLEService import WiFi2BLEService
         wifi2ble = WiFi2BLEService()
         try:
             live_state = wifi2ble.get_desk_state(desk.wifi2ble_id)
-            if live_state:  # ✅ Check if live_state is not None
+            if live_state:
                 current_height = live_state.get("position_mm", 750) / 10
                 desk.current_height = current_height
                 print(f"📊 Synced desk height from simulator: {current_height}cm")
@@ -634,36 +659,38 @@ def start_hot_desk(request, desk_id):
                 print(f"⚠️ WiFi2BLE returned None, using database height: {desk.current_height}cm")
         except Exception as e:
             print(f"⚠️ Could not sync desk height: {e}")
-            # Fallback to database value if simulator unreachable
 
         # Set desk to pending verification
         desk.current_user = request.user
         desk.current_status = "pending_verification"
         desk.save()
+        print(f"✅ Desk {desk_id} set to pending_verification for {request.user.username}")
 
         # Check if desk has a Pico (requires physical confirmation)
         has_pico = Pico.objects.filter(desk_id=desk.id).exists()
-        print(f"Desk {desk.id} has_pico: {has_pico}")
+        print(f"🔍 Desk {desk.id} has_pico: {has_pico}")
 
         # Create usage log
-        DeskUsageLog.objects.create(
+        usage_log = DeskUsageLog.objects.create(
             desk=desk,
             user=request.user,
             started_at=timezone.now(),
             last_height_change=timezone.now(),
             source="hotdesk",
         )
+        print(f"✅ Created usage log ID: {usage_log.id}")
 
         if has_pico:
             # Notify Pico via MQTT to show "Press button to confirm"
             mqtt_service = get_mqtt_service()
             
-            # ✅ Wait for MQTT connection with timeout
+            # Wait for MQTT connection with timeout
             import time
             max_wait = 3  # seconds
             wait_interval = 0.1  # check every 100ms
             elapsed = 0
             
+            print(f"⏳ Waiting for MQTT connection...")
             while not mqtt_service.connected and elapsed < max_wait:
                 time.sleep(wait_interval)
                 elapsed += wait_interval
@@ -677,20 +704,28 @@ def start_hot_desk(request, desk_id):
                     "user": request.user.get_full_name() or request.user.username,
                 }
                 mqtt_service.publish(topic, json.dumps(message))
-                print(f"✅ Published MQTT message to {topic} (connected after {elapsed:.1f}s)")
+                print(f"✅ Published show_confirm_button to {topic} (connected after {elapsed:.1f}s)")
             else:
                 print(f"⚠️ MQTT not connected after {max_wait}s, message not sent")
-                # Still allow the request to succeed - Pico will sync when it connects
         else:
             # If no Pico, auto-confirm the hot desk
             desk.current_status = "occupied"
             desk.save()
+            print(f"✅ Auto-confirmed desk {desk_id} (no Pico)")
 
+        print(f"🏢 START_HOT_DESK: Returning success\n")
         return Response(
             {"success": True, "desk": desk.name, "requires_confirmation": has_pico}
         )
+        
     except Desk.DoesNotExist:
+        print(f"❌ Desk {desk_id} not found")
         return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"❌ Unexpected error in start_hot_desk: {e}")
+        import traceback
+        traceback.print_exc()
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(["POST"])
@@ -965,6 +1000,14 @@ def release_desk(request, desk_id):
         desk.current_user = None
         desk.current_status = "available"
         desk.save()
+
+        # ✅ NEW: Notify Pico that desk is now available
+        mqtt_service = get_mqtt_service()
+        has_pico = Pico.objects.filter(desk_id=desk.id).exists()
+        
+        if has_pico:
+            mqtt_service.notify_desk_available(desk_id=desk.id)
+            print(f"✅ Notified Pico: Desk {desk.id} is now available")
 
         return Response({"success": True})
         
