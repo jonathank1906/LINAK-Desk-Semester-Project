@@ -139,7 +139,7 @@ void MyApp()
         {
         case LED_MODE_GREYS:
             pattern_greys(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t);
-            led_anim_t = (led_anim_t + 1) % 360;
+            led_anim_t = (led_anim_t + 8) % 360;
             break;
         case LED_MODE_GREYS_RED:
             pattern_greys_red(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t);
