@@ -183,7 +183,7 @@ void MyApp()
         {
         case BUZZER_MODE_MOVING:
             moving_buzzer_pattern();
-            current_buzzer_mode = BUZZER_MODE_NONE;
+            //current_buzzer_mode = BUZZER_MODE_NONE;
             break;
         case BUZZER_MODE_CONFIRM:
             // confirm_buzzer_pattern();
