@@ -302,6 +302,8 @@ def desk_usage(request, desk_id):
                 "message": "No active session"
             })
 
+        log.refresh_from_db()
+
         # Calculate elapsed time
         now = timezone.now()
         started_at = log.started_at
@@ -403,23 +405,25 @@ def control_desk_height(request, desk_id):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Get active usage log
+        # Get active usage log - ✅ ADD ORDERING HERE
         log = DeskUsageLog.objects.filter(
             user=request.user,
             desk=desk,
             ended_at__isnull=True
-        ).first()
+        ).order_by("-started_at").first()  # ✅ ADDED ordering
         
         if log:
+            log.refresh_from_db()
             now = timezone.now()
-            last_update_time = getattr(log, 'last_height_change', log.started_at)
+            last_update_time = log.last_height_change or log.started_at
             elapsed_seconds = (now - last_update_time).total_seconds()
             
             current_height = desk.current_height
             
             print(f"\n=== CONTROL DESK HEIGHT DEBUG ===")
+            print(f"Log ID: {log.id}")  # ✅ ADD THIS to see which log
             print(f"Current time: {now}")
-            print(f"Last height change BEFORE: {log.last_height_change}")  # ← Add this
+            print(f"Last height change BEFORE: {log.last_height_change}")
             print(f"Elapsed seconds: {elapsed_seconds}")
             print(f"Current height (before move): {current_height}")
             print(f"Target height: {target_height}")
@@ -433,17 +437,17 @@ def control_desk_height(request, desk_id):
                 print(f"Adding {int(elapsed_seconds)}s to STANDING")
             
             log.position_changes += 1
-            log.last_height_change = now  # ← Update timestamp
+            log.last_height_change = now
             
             print(f"AFTER - Sitting: {log.sitting_time}s, Standing: {log.standing_time}s")
-            print(f"Last height change AFTER: {log.last_height_change}")  # ← Add this
+            print(f"Last height change AFTER: {log.last_height_change}")
             print(f"=================================\n")
             
-            log.save()  # ← Save to database
+            log.save()
             
             # VERIFY IT SAVED
-            log.refresh_from_db()  # ← Add this
-            print(f"✅ VERIFIED - Last height change in DB: {log.last_height_change}")  # ← Add this
+            log.refresh_from_db()
+            print(f"✅ VERIFIED - Last height change in DB: {log.last_height_change}")
         
         # Send command to WiFi2BLE simulator
         from core.services.WiFi2BLEService import WiFi2BLEService
