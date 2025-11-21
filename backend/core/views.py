@@ -459,8 +459,20 @@ def control_desk_height(request, desk_id):
             desk.current_status = 'moving'
             desk.current_height = target_height
             desk.save()
-            
+
             print(f"✅ Desk height updated in database to: {desk.current_height}")
+
+            mqtt_service = get_mqtt_service()
+            has_pico = Pico.objects.filter(desk_id=desk.id).exists()
+            
+            if has_pico:
+                user_name = request.user.get_full_name() or request.user.username
+                mqtt_service.notify_desk_moving(
+                    desk_id=desk.id,
+                    target_height=target_height,
+                    is_moving=True,  # ⭐ Pico will pulse yellow + beep
+                    user_name=user_name
+                )
             
             return Response({
                 "success": True,
@@ -471,6 +483,60 @@ def control_desk_height(request, desk_id):
     except Desk.DoesNotExist:
         return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)
 
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def poll_desk_movement(request, desk_id):
+    """
+    Frontend polls this while desk is moving.
+    Backend checks WiFi2BLE and notifies Pico of current state.
+    """
+    try:
+        desk = Desk.objects.get(id=desk_id)
+        
+        # Get live state from WiFi2BLE simulator
+        wifi2ble = WiFi2BLEService()
+        live_state = wifi2ble.get_desk_state(desk.wifi2ble_id)
+        
+        if not live_state:
+            return Response(
+                {"error": "Could not get desk state"}, 
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        
+        # Extract movement data
+        current_height = live_state.get("position_mm", 750) / 10
+        speed = live_state.get("speed_mms", 0)
+        is_moving = abs(speed) > 0
+        
+        # Update database
+        desk.current_height = current_height
+        if not is_moving:
+            desk.current_status = 'occupied'
+        desk.save()
+        
+        # ✅ Notify Pico with current movement status
+        mqtt_service = get_mqtt_service()
+        has_pico = Pico.objects.filter(desk_id=desk.id).exists()
+        
+        if has_pico and desk.current_user:
+            user_name = desk.current_user.get_full_name() or desk.current_user.username
+            mqtt_service.notify_desk_moving(
+                desk_id=desk.id,
+                target_height=int(current_height),
+                is_moving=is_moving,  # ⭐ False = stop buzzer, blue LED
+                user_name=user_name
+            )
+        
+        return Response({
+            "height": current_height,
+            "is_moving": is_moving,
+            "speed": speed,
+            "status": desk.current_status
+        })
+        
+    except Desk.DoesNotExist:
+        return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)
 
 # -------------------------------------------------------------
 @api_view(["POST"])

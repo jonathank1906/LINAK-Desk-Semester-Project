@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/useAuth";
 import axios from "axios";
 import { toast } from "sonner";
@@ -25,6 +25,10 @@ export default function MyDesk({ selectedDeskId }) {
   const [usageStats, setUsageStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isControlling, setIsControlling] = useState(false);
+  const [isMoving, setIsMoving] = useState(false);
+  
+  // Use ref to store polling interval
+  const pollingIntervalRef = useRef(null);
 
   // If no desk is selected, show message and hide all controls
   if (!selectedDeskId) {
@@ -75,6 +79,66 @@ export default function MyDesk({ selectedDeskId }) {
     return () => clearInterval(interval);
   }, [user, selectedDeskId]);
 
+  // ✅ NEW: Start polling when desk movement begins
+  const startMovementPolling = () => {
+    // Clear any existing polling interval
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+
+    setIsMoving(true);
+
+    pollingIntervalRef.current = setInterval(async () => {
+      try {
+        const deskId = selectedDeskId;
+        const config = {
+          headers: { Authorization: `Bearer ${user.token}` },
+          withCredentials: true,
+        };
+
+        const response = await axios.get(
+          `http://localhost:8000/api/desks/${deskId}/poll-movement/`,
+          config
+        );
+
+        const data = response.data;
+
+        // Update UI with current height
+        setDeskStatus(prev => ({
+          ...prev,
+          current_height: data.height,
+          is_moving: data.is_moving,
+          status: data.status
+        }));
+
+        // ✅ Stop polling when desk stops moving
+        if (!data.is_moving) {
+          console.log('✅ Desk stopped moving');
+          stopMovementPolling();
+        }
+      } catch (error) {
+        console.error('Movement polling error:', error);
+        stopMovementPolling();
+      }
+    }, 500); // Poll every 500ms
+  };
+
+  // ✅ NEW: Stop polling
+  const stopMovementPolling = () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+    setIsMoving(false);
+  };
+
+  // ✅ Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      stopMovementPolling();
+    };
+  }, []);
+
   const controlDeskHeight = async (targetHeight) => {
     setIsControlling(true);
     try {
@@ -84,6 +148,7 @@ export default function MyDesk({ selectedDeskId }) {
         withCredentials: true,
       };
 
+      // ✅ Send height control command
       const response = await axios.post(
         `http://localhost:8000/api/desks/${deskId}/control/`,
         { height: targetHeight },
@@ -92,17 +157,28 @@ export default function MyDesk({ selectedDeskId }) {
 
       console.log('Control response:', response.data);
 
+      // ✅ Start polling to track movement
+      if (response.data.status === 'moving') {
+        startMovementPolling();
+      }
+
+      // Update initial status
       const statusRes = await axios.get(
         `http://localhost:8000/api/desks/${deskId}/status/`,
         config
       );
       setDeskStatus(statusRes.data);
 
+      toast.success(`Moving desk to ${targetHeight}cm`, {
+        position: "top-center"
+      });
+
     } catch (err) {
       console.error("Error controlling desk:", err);
       toast.error("Failed to control desk", {
         position: "top-center"
       });
+      stopMovementPolling();
     } finally {
       setIsControlling(false);
     }
@@ -128,13 +204,18 @@ export default function MyDesk({ selectedDeskId }) {
         withCredentials: true,
       };
 
+      // ✅ Stop polling immediately
+      stopMovementPolling();
+
       await axios.post(
         `http://localhost:8000/api/desks/${deskId}/control/`,
         { height: deskStatus?.current_height || 85 },
         config
       );
 
-      alert('Emergency stop activated!');
+      toast.error('Emergency stop activated!', {
+        position: "top-center"
+      });
     } catch (err) {
       console.error("Error stopping desk:", err);
     }
@@ -164,8 +245,11 @@ export default function MyDesk({ selectedDeskId }) {
                 {deskStatus?.name || `Desk #${selectedDeskId}`}
               </CardTitle>
               <Pill>
-                <PillIndicator pulse variant={deskStatus?.is_moving ? 'warning' : 'success'} />
-                {deskStatus?.is_moving ? 'Moving' : 'Connected'}
+                <PillIndicator 
+                  pulse 
+                  variant={isMoving ? 'warning' : 'success'} 
+                />
+                {isMoving ? 'Moving' : 'Connected'}
               </Pill>
             </div>
           )}
@@ -196,7 +280,7 @@ export default function MyDesk({ selectedDeskId }) {
               </div>
               <div className="text-center">
                 <div className="text-lg font-semibold text-gray-700">
-                  {deskStatus?.status || "Idle"}
+                  {isMoving ? "Moving" : (deskStatus?.status || "Idle")}
                 </div>
                 <div className="text-sm text-gray-500">Status</div>
               </div>
@@ -217,8 +301,9 @@ export default function MyDesk({ selectedDeskId }) {
         <div className="space-y-4">
           <Drawer>
             <DrawerTrigger asChild>
-              <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
-                Manual Height Controls
+              <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isMoving}>
+                {isMoving ? 'Desk Moving...' : 'Manual Height Controls'}
               </button>
             </DrawerTrigger>
             <DrawerContent>
@@ -253,7 +338,9 @@ export default function MyDesk({ selectedDeskId }) {
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
-                          className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            isMoving ? 'bg-yellow-500 animate-pulse' : 'bg-blue-500'
+                          }`}
                           style={{ width: `${heightPercentage}%` }}
                         ></div>
                       </div>
@@ -263,27 +350,36 @@ export default function MyDesk({ selectedDeskId }) {
                     <div className="grid grid-cols-2 gap-3">
                       <button
                         onClick={moveUp}
-                        disabled={isControlling || currentHeight >= maxHeight}
+                        disabled={isControlling || isMoving || currentHeight >= maxHeight}
                         className="bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                       >
-                        {isControlling ? '...' : '↑ Up'}
+                        {isControlling || isMoving ? '...' : '↑ Up'}
                       </button>
                       <button
                         onClick={moveDown}
-                        disabled={isControlling || currentHeight <= minHeight}
+                        disabled={isControlling || isMoving || currentHeight <= minHeight}
                         className="bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                       >
-                        {isControlling ? '...' : '↓ Down'}
+                        {isControlling || isMoving ? '...' : '↓ Down'}
                       </button>
                     </div>
 
                     {/* Emergency Stop */}
                     <button
                       onClick={emergencyStop}
-                      className="w-full bg-red-500 text-white p-3 rounded-lg hover:bg-red-600 transition-colors font-semibold"
+                      disabled={!isMoving}
+                      className="w-full bg-red-500 text-white p-3 rounded-lg hover:bg-red-600 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
                       🛑 EMERGENCY STOP
                     </button>
+
+                    {isMoving && (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
+                        <p className="text-sm text-yellow-800 font-medium">
+                          ⚠️ Desk is moving... Tracking height in real-time
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -292,8 +388,11 @@ export default function MyDesk({ selectedDeskId }) {
 
           <Drawer>
             <DrawerTrigger asChild>
-              <button className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors">
-                Quick Presets
+              <button 
+                className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isMoving}
+              >
+                {isMoving ? 'Desk Moving...' : 'Quick Presets'}
               </button>
             </DrawerTrigger>
             <DrawerContent>
@@ -311,38 +410,38 @@ export default function MyDesk({ selectedDeskId }) {
                   <div className="grid grid-cols-1 gap-3">
                     <button
                       onClick={() => controlDeskHeight(72)}
-                      disabled={isControlling}
+                      disabled={isControlling || isMoving}
                       className="flex justify-between items-center p-4 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <div>
                         <div className="font-medium text-green-800">Sitting Position</div>
                         <div className="text-sm text-green-600">72cm</div>
                       </div>
-                      <div className="text-green-600">{isControlling ? '...' : 'Go →'}</div>
+                      <div className="text-green-600">{isControlling || isMoving ? '...' : 'Go →'}</div>
                     </button>
 
                     <button
                       onClick={() => controlDeskHeight(110)}
-                      disabled={isControlling}
+                      disabled={isControlling || isMoving}
                       className="flex justify-between items-center p-4 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <div>
                         <div className="font-medium text-blue-800">Standing Position</div>
                         <div className="text-sm text-blue-600">110cm</div>
                       </div>
-                      <div className="text-blue-600">{isControlling ? '...' : 'Go →'}</div>
+                      <div className="text-blue-600">{isControlling || isMoving ? '...' : 'Go →'}</div>
                     </button>
 
                     <button
                       onClick={() => controlDeskHeight(95)}
-                      disabled={isControlling}
+                      disabled={isControlling || isMoving}
                       className="flex justify-between items-center p-4 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <div>
                         <div className="font-medium text-purple-800">Meeting Height</div>
                         <div className="text-sm text-purple-600">95cm</div>
                       </div>
-                      <div className="text-purple-600">{isControlling ? '...' : 'Go →'}</div>
+                      <div className="text-purple-600">{isControlling || isMoving ? '...' : 'Go →'}</div>
                     </button>
                   </div>
                 )}
@@ -380,7 +479,9 @@ export default function MyDesk({ selectedDeskId }) {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Status:</span>
-                    <span className="font-medium">{deskStatus?.status || "Idle"}</span>
+                    <span className={`font-medium ${isMoving ? 'text-yellow-600' : ''}`}>
+                      {isMoving ? "Moving" : (deskStatus?.status || "Idle")}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Speed:</span>

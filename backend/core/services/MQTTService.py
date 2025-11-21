@@ -168,6 +168,54 @@ class MQTTService:
         message = "On" if on else "Off"
         self.publish(topic, message)
 
+    def notify_desk_moving(self, desk_id, target_height, is_moving, user_name=""):
+        """
+        Notify Pico that desk is moving or stopped.
+        Backend calls this with semantic state, Pico decides LED/buzzer behavior.
+        """
+        topic = f"/desk/{desk_id}/display"
+        message = {
+            "action": "update_height",
+            "desk_id": desk_id,
+            "height": target_height,
+            "is_moving": is_moving,  # Pico will set yellow LED + buzzer if True
+            "user": user_name
+        }
+        self.publish(topic, json.dumps(message))
+        logger.info(f"📤 Desk {desk_id}: height={target_height}cm, moving={is_moving}")
+    
+    def notify_desk_available(self, desk_id):
+        """Notify Pico that desk is available (green LED)"""
+        topic = f"/desk/{desk_id}/display"
+        message = {
+            "action": "show_available",
+            "desk_id": desk_id
+        }
+        self.publish(topic, json.dumps(message))
+        logger.info(f"📤 Desk {desk_id}: Available")
+    
+    def notify_desk_in_use(self, desk_id, user_name):
+        """Notify Pico that desk is occupied (blue LED)"""
+        topic = f"/desk/{desk_id}/display"
+        message = {
+            "action": "show_in_use",
+            "desk_id": desk_id,
+            "user": user_name
+        }
+        self.publish(topic, json.dumps(message))
+        logger.info(f"📤 Desk {desk_id}: In use by {user_name}")
+    
+    def notify_desk_error(self, desk_id, error_message):
+        """Notify Pico of an error state (red LED)"""
+        topic = f"/desk/{desk_id}/display"
+        message = {
+            "action": "show_error",
+            "desk_id": desk_id,
+            "error": error_message
+        }
+        self.publish(topic, json.dumps(message))
+        logger.info(f"📤 Desk {desk_id}: Error - {error_message}")
+
 def get_mqtt_service():
     global _mqtt_service_instance
     if _mqtt_service_instance is None:

@@ -374,6 +374,8 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
                 bool is_moving = strstr(state->data, "\"is_moving\":true") != NULL;
                 if (is_moving)
                 {
+                    printf("DEBUG: Desk is moving, updating LED pattern\n");
+                    current_led_mode = LED_MODE_GREYS;
                     // Yellow pulsing while moving
                     //pattern_pulse_yellow(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
 
