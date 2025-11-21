@@ -13,6 +13,7 @@
 static uint led_anim_t = 0;
 LedMode current_led_mode = LED_MODE_NONE;
 BuzzerMode current_buzzer_mode = BUZZER_MODE_NONE;
+static volatile bool flash_led_flag = false;
 
 extern "C"
 {
@@ -86,7 +87,8 @@ void MyApp()
     publish_pico_ready(get_mqtt_state());
 
     // Initialize LED and Button after WiFi is stable
-    printf("DEBUG: Initializing Button...\n");
+    printf("DEBUG: Initializing LED and Button...\n");
+    Led RedLED(7);
     Button button1(10, GPIO_IRQ_EDGE_RISE);
     printf("DEBUG: LED and Button initialized\n");
     oled_display_text("SYSTEM", "READY", "", "");
@@ -109,7 +111,10 @@ void MyApp()
         if (button1.hasEvent())
         {
             printf("DEBUG: Button event detected\n");
-            bool ledState = button1.toggleState();
+            // Set flag to flash LED
+            flash_led_flag = true;
+
+            RedLED.off();
 
             // Hotdesk verification: If pending, publish confirmation
             if (pending_verification)
@@ -124,6 +129,10 @@ void MyApp()
             {
                 printf("DEBUG: Button pressed, but no pending verification\n");
             }
+        }
+        else
+        {
+            RedLED.on();
         }
 
         switch (current_led_mode)
