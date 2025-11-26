@@ -6,8 +6,10 @@ theme:
 
 nav:
   - Home: index.md
-  - Setup Guide: setup.md
-  - Running The Project: run.md
+  - Setup & Dev Guide:
+    - Frontend and Backend: setup/frontend and backend.md 
+    - Pico: setup/pico.md
+  - Running the Project: run.md
   - API Reference:
     - Simulator API:
         - Overview: api/simulator/index.md
