@@ -17,12 +17,30 @@ export default function Reservations({ setSelectedDeskId }) {
   const [userReservations, setUserReservations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState("hotdesk"); // "hotdesk" or "reserve"
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("17:00");
+
 
   // Pending verification modal state
   const [verificationModalOpen, setVerificationModalOpen] = useState(false);
   const [pendingDeskId, setPendingDeskId] = useState(null);
   const [polling, setPolling] = useState(false);
   const nav = useNavigate();
+  
+function generateTimeOptions() {
+  const options = [];
+  for (let h = 6; h <= 22; h++) {
+    const hour = h.toString().padStart(2, "0");
+    options.push(`${hour}:00`);
+    options.push(`${hour}:30`);
+  }
+  return options.map((time) => (
+    <option key={time} value={time}>
+      {time}
+    </option>
+  ));
+}
+
 
   useEffect(() => {
     if (mode === "hotdesk") {
@@ -147,6 +165,9 @@ export default function Reservations({ setSelectedDeskId }) {
   const makeReservation = async (deskId) => {
     try {
       const formattedDate = selectedDate.toISOString().split("T")[0];
+    // Combine selected date with time picker values
+    const formattedStart = new Date(`${formattedDate}T${startTime}:00`);
+    const formattedEnd = new Date(`${formattedDate}T${endTime}:00`);
       const config = {
         headers: { Authorization: `Bearer ${user?.token}` },
         withCredentials: true,
@@ -155,11 +176,18 @@ export default function Reservations({ setSelectedDeskId }) {
       await axios.post(
         `http://localhost:8000/api/reservations/create/`,
         {
-          desk_id: deskId,
-          date: formattedDate,
+         desk: deskId, //fix fetch
+        start_time: formattedStart.toISOString(),
+        end_time: formattedEnd.toISOString(),
         },
         config
       );
+
+      if (formattedStart >= formattedEnd) {
+      toast.error("Start time must be before end time");
+      return;
+    }
+
 
       toast.success("Reservation created!", {
         description: `Desk reserved for ${formattedDate}`,
@@ -311,20 +339,45 @@ export default function Reservations({ setSelectedDeskId }) {
         ) : (
           <>
             <Card className="lg:col-span-1">
-              <CardHeader>
-                <CardTitle>Select Date</CardTitle>
-                <CardDescription>Choose a day to reserve a desk</CardDescription>
-              </CardHeader>
-              <CardContent className="flex justify-center">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={setSelectedDate}
-                  disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                  className="rounded-md border"
-                />
-              </CardContent>
-            </Card>
+  <CardHeader>
+    <CardTitle>Select Date</CardTitle>
+    <CardDescription>Choose a day to reserve a desk</CardDescription>
+  </CardHeader>
+  <CardContent className="flex flex-col items-center gap-4">
+    <Calendar
+      mode="single"
+      selected={selectedDate}
+      onSelect={setSelectedDate}
+      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+      className="rounded-md border"
+    />
+
+    {/* Start Time Picker */}
+    <div className="flex flex-col items-start w-full">
+      <label className="text-sm font-medium mb-1">Start Time</label>
+      <select
+        className="w-full border rounded px-2 py-1"
+        value={startTime}
+        onChange={(e) => setStartTime(e.target.value)}
+      >
+        {generateTimeOptions()}
+      </select>
+    </div>
+
+    {/* End Time Picker */}
+    <div className="flex flex-col items-start w-full">
+      <label className="text-sm font-medium mb-1">End Time</label>
+      <select
+        className="w-full border rounded px-2 py-1"
+        value={endTime}
+        onChange={(e) => setEndTime(e.target.value)}
+      >
+        {generateTimeOptions()}
+      </select>
+    </div>
+  </CardContent>
+</Card>
+
 
             <Card className="lg:col-span-2">
               <CardHeader>
