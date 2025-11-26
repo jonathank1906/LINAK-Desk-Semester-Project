@@ -212,12 +212,16 @@ function generateTimeOptions() {
       };
 
       await axios.post(
-        `http://localhost:8000/api/reservations/${reservationId}/check_out/`,
+        `http://localhost:8000/api/reservations/${reservationId}/cancel/`,
         {},
         config
       );
 
       toast.success("Reservation cancelled!");
+
+        setUserReservations((prev) =>
+      prev.filter((res) => res.id !== reservationId)
+    );
       fetchUserReservations();
       fetchAvailableDesks();
       // Clear selected desk if this was the active one
@@ -420,7 +424,9 @@ function generateTimeOptions() {
                   <p className="text-center text-muted-foreground">No reservations for this date.</p>
                 ) : (
                   <div className="space-y-3">
-                    {userReservations.map((reservation) => (
+                    {userReservations
+                      .filter((r) => r.status === "confirmed" || r.status === "active")
+                      .map((reservation) => (
                       <div
                         key={reservation.id}
                         className="flex items-center justify-between p-4 border rounded-lg"

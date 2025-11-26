@@ -26,6 +26,7 @@ import {
     DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import PendingVerificationModal from "@/components/pending-verification-modal";
+import { toast } from "sonner";
 
 export default function EmployeeDashboard() {
     const [selectedSection, setSelectedSection] = useState("dashboard");
@@ -242,14 +243,69 @@ export default function EmployeeDashboard() {
         setUpcomingReservations((prev) => prev.filter((r) => r.id !== id));
     }
 
-    function handleCheckInReservation(id) {
-        setPendingDeskId(selectedDeskId);
-        setVerificationModalOpen(true);
+    async function handleCheckInReservation(reservationId) {
+  try {
+    const config = {
+      headers: { Authorization: `Bearer ${user?.token}` },
+      withCredentials: true,
+    };
 
-        setUpcomingReservations((prev) =>
-            prev.map((r) => (r.id === id ? { ...r, checkedIn: true } : r))
-        );
-    }
+    await axios.post(
+      `http://localhost:8000/api/reservations/${reservationId}/check_in/`,
+      {},
+      config
+    );
+
+    toast.success("Checked in successfully");
+
+    // Refetch session info
+    setPendingDeskId(selectedDeskId);
+    setVerificationModalOpen(true);
+
+    setUpcomingReservations((prev) =>
+      prev.map((r) =>
+        r.id === reservationId ? { ...r, checkedIn: true } : r
+      )
+    );
+  } catch (err) {
+    toast.error("Failed to check in", {
+      description: err.response?.data?.error || err.message,
+    });
+  }
+}
+
+async function handleCheckOutReservation(reservationId) {
+  try {
+    const config = {
+      headers: { Authorization: `Bearer ${user?.token}` },
+      withCredentials: true,
+    };
+
+    await axios.post(
+      `http://localhost:8000/api/reservations/${reservationId}/check_out/`,
+      {},
+      config
+    );
+
+    toast.success("Checked out successfully");
+
+    setSelectedDeskId(null);
+    setSessionStartTime(null);
+    setElapsedTime("00:00:00");
+    setLiveSittingSeconds(0);
+    setLiveStandingSeconds(0);
+    setBaseSittingSeconds(0);
+    setBaseStandingSeconds(0);
+    setLastFetchTime(null);
+
+    // Optionally refetch reservations or usage logs
+  } catch (err) {
+    toast.error("Failed to check out", {
+      description: err.response?.data?.error || err.message,
+    });
+  }
+}
+
 
     function handleReleaseReservation(id) {
         setUpcomingReservations((prev) => prev.filter((r) => r.id !== id));
@@ -299,15 +355,19 @@ export default function EmployeeDashboard() {
                                     ) : null}
 
                                     {selectedDeskId && usageStats?.active_session ? (
-                                        <div className="text-xs text-muted-foreground mt-1">
-                                            <span className="font-semibold">
-                                                {sittingMinutes}m sitting
-                                            </span>
-                                            {" | "}
-                                            <span className="font-semibold">
-                                                {standingMinutes}m standing
-                                            </span>
+                                    <div className="flex flex-col items-start gap-2 mt-2">
+                                        <div className="text-xs text-muted-foreground">
+                                        <span className="font-semibold">{sittingMinutes}m sitting</span> |{" "}
+                                        <span className="font-semibold">{standingMinutes}m standing</span>
                                         </div>
+
+                                        <button
+                                        onClick={() => handleCheckOutReservation(usageStats?.reservation_id)}
+                                        className="px-3 py-1 rounded-md bg-destructive text-white text-sm hover:opacity-90"
+                                        >
+                                        Check Out
+                                        </button>
+                                    </div>
                                     ) : null}
                                 </div>
 

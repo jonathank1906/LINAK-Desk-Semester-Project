@@ -943,6 +943,31 @@ def check_out_reservation(request, reservation_id):
         return Response(
             {"error": "Reservation not found"}, status=status.HTTP_404_NOT_FOUND
         )
+    
+    
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def cancel_reservation(request, reservation_id):
+    try:
+        reservation = Reservation.objects.get(id=reservation_id, user=request.user)
+
+        if reservation.status in ["cancelled", "completed"]:
+            return Response(
+                {"error": "Reservation already finished or cancelled"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Mark as cancelled
+        reservation.status = "cancelled"
+        reservation.cancelled_at = timezone.now()
+        reservation.cancelled_by = request.user
+        reservation.save()
+
+        return Response({"success": True, "message": "Reservation cancelled successfully"})
+
+    except Reservation.DoesNotExist:
+        return Response({"error": "Reservation not found"}, status=status.HTTP_404_NOT_FOUND)
+
 
 
 @api_view(["GET"])
