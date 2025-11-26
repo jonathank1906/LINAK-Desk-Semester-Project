@@ -19,6 +19,10 @@ export default function Reservations({ setSelectedDeskId }) {
   const [mode, setMode] = useState("hotdesk"); // "hotdesk" or "reserve"
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("17:00");
+  const [editingReservation, setEditingReservation] = useState(null);
+  const [editStartTime, setEditStartTime] = useState("09:00");
+  const [editEndTime, setEditEndTime] = useState("17:00");
+
 
 
   // Pending verification modal state
@@ -177,8 +181,8 @@ function generateTimeOptions() {
         `http://localhost:8000/api/reservations/create/`,
         {
          desk: deskId, //fix fetch
-        start_time: formattedStart.toISOString(),
-        end_time: formattedEnd.toISOString(),
+        start_time: formattedStart.toLocaleString("sv-SE"),
+       end_time: formattedEnd.toLocaleString("sv-SE"),
         },
         config
       );
@@ -203,6 +207,45 @@ function generateTimeOptions() {
       });
     }
   };
+
+      const handleEditReservation = async () => {
+      if (!editingReservation) return;
+
+      const formattedDate = selectedDate.toISOString().split("T")[0];
+      const newStart = new Date(`${formattedDate}T${editStartTime}:00`);
+      const newEnd = new Date(`${formattedDate}T${editEndTime}:00`);
+
+      if (newStart >= newEnd) {
+        toast.error("Start time must be before end time");
+        return;
+      }
+
+      try {
+        const config = {
+          headers: { Authorization: `Bearer ${user?.token}` },
+          withCredentials: true,
+        };
+
+        await axios.patch(
+          `http://localhost:8000/api/reservations/${editingReservation.id}/edit/`,
+          {
+            start_time: newStart.toLocaleString("sv-SE"),
+            end_time: newEnd.toLocaleString("sv-SE"),
+          },
+          config
+        );
+
+        toast.success("Reservation updated!");
+        setEditingReservation(null);
+        fetchUserReservations();
+
+      } catch (err) {
+        toast.error("Failed to update reservation", {
+          description: err.response?.data?.error || err.message,
+        });
+      }
+    };
+
 
   const cancelReservation = async (reservationId) => {
     try {
@@ -343,45 +386,44 @@ function generateTimeOptions() {
         ) : (
           <>
             <Card className="lg:col-span-1">
-  <CardHeader>
-    <CardTitle>Select Date</CardTitle>
-    <CardDescription>Choose a day to reserve a desk</CardDescription>
-  </CardHeader>
-  <CardContent className="flex flex-col items-center gap-4">
-    <Calendar
-      mode="single"
-      selected={selectedDate}
-      onSelect={setSelectedDate}
-      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-      className="rounded-md border"
-    />
+              <CardHeader>
+                <CardTitle>Select Date</CardTitle>
+                <CardDescription>Choose a day to reserve a desk</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center gap-4">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                  className="rounded-md border"
+                />
 
-    {/* Start Time Picker */}
-    <div className="flex flex-col items-start w-full">
-      <label className="text-sm font-medium mb-1">Start Time</label>
-      <select
-        className="w-full border rounded px-2 py-1"
-        value={startTime}
-        onChange={(e) => setStartTime(e.target.value)}
-      >
-        {generateTimeOptions()}
-      </select>
-    </div>
+                {/* Start Time Picker */}
+                <div className="flex flex-col items-start w-full">
+                  <label className="text-sm font-medium mb-1">Start Time</label>
+                  <select
+                    className="w-full border rounded px-2 py-1"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                  >
+                    {generateTimeOptions()}
+                  </select>
+                </div>
 
-    {/* End Time Picker */}
-    <div className="flex flex-col items-start w-full">
-      <label className="text-sm font-medium mb-1">End Time</label>
-      <select
-        className="w-full border rounded px-2 py-1"
-        value={endTime}
-        onChange={(e) => setEndTime(e.target.value)}
-      >
-        {generateTimeOptions()}
-      </select>
-    </div>
-  </CardContent>
-</Card>
-
+                {/* End Time Picker */}
+                <div className="flex flex-col items-start w-full">
+                  <label className="text-sm font-medium mb-1">End Time</label>
+                  <select
+                    className="w-full border rounded px-2 py-1"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                  >
+                    {generateTimeOptions()}
+                  </select>
+                </div>
+              </CardContent>
+            </Card>
 
             <Card className="lg:col-span-2">
               <CardHeader>
@@ -437,9 +479,20 @@ function generateTimeOptions() {
                             Reserved from {reservation.start_time?.slice(11, 16) || "N/A"} to {reservation.end_time?.slice(11, 16) || "N/A"}
                           </p>
                         </div>
-                        <Button variant="destructive" onClick={() => cancelReservation(reservation.id)}>
-                          Cancel
-                        </Button>
+                        <div className="space-x-2">
+                          <Button variant="outline" onClick={() => {
+                            setEditingReservation(reservation);
+                            setEditStartTime(reservation.start_time?.slice(11, 16));
+                            setEditEndTime(reservation.end_time?.slice(11, 16));
+                          }}>
+                            Edit
+                          </Button>
+
+                          <Button variant="destructive" onClick={() => cancelReservation(reservation.id)}>
+                            Cancel
+                          </Button>
+                        </div>
+
                       </div>
                     ))}
                   </div>
@@ -454,6 +507,46 @@ function generateTimeOptions() {
         deskId={pendingDeskId}
         onClose={() => setVerificationModalOpen(false)}
       />
+      {editingReservation && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded shadow-lg w-full max-w-md space-y-4">
+              <h3 className="text-lg font-bold">Edit Reservation</h3>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Start Time</label>
+                <select
+                  className="w-full border rounded px-2 py-1"
+                  value={editStartTime}
+                  onChange={(e) => setEditStartTime(e.target.value)}
+                >
+                  {generateTimeOptions()}
+                </select>
+
+                <label className="block text-sm font-medium">End Time</label>
+                <select
+                  className="w-full border rounded px-2 py-1"
+                  value={editEndTime}
+                  onChange={(e) => setEditEndTime(e.target.value)}
+                >
+                  {generateTimeOptions()}
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => setEditingReservation(null)}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={() => handleEditReservation()}>
+                  Save
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
     </div>
   );
 }

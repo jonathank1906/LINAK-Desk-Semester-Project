@@ -12,7 +12,7 @@ from .views import (
     control_desk_height,
     desk_usage,
     desk_detail,
-    control_pico_led, cancel_reservation,       
+    control_pico_led, cancel_reservation, edit_reservation,      
     get_pico_sensor_data, list_all_users, user_detail_or_update,
     list_available_hot_desks, start_hot_desk, confirm_hot_desk, end_hot_desk,
     list_user_reservations, create_reservation, cancel_pending_verification,
@@ -55,6 +55,7 @@ urlpatterns = [
     path('reservations/<int:reservation_id>/check_out/', check_out_reservation, name='reservation_check_out'),
     path("reservations/<int:reservation_id>/cancel/", cancel_reservation),
     path('desks/<int:desk_id>/release/', release_desk, name='release_desk'),
+    path('reservations/<int:reservation_id>/edit/', edit_reservation, name='edit_reservation'),
 
     path("desks/<int:desk_id>/poll-movement/", poll_desk_movement, name="poll-desk-movement"),
 ]

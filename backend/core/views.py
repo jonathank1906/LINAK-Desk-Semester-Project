@@ -968,6 +968,28 @@ def cancel_reservation(request, reservation_id):
     except Reservation.DoesNotExist:
         return Response({"error": "Reservation not found"}, status=status.HTTP_404_NOT_FOUND)
 
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def edit_reservation(request, reservation_id):
+    try:
+        reservation = Reservation.objects.get(id=reservation_id, user=request.user)
+
+        if reservation.status != "confirmed":
+            return Response({"error": "Only confirmed reservations can be edited."}, status=400)
+
+        new_start = request.data.get("start_time")
+        new_end = request.data.get("end_time")
+
+        if new_start and new_end:
+            reservation.start_time = new_start
+            reservation.end_time = new_end
+            reservation.save()
+            return Response({"success": True})
+
+        return Response({"error": "Missing start or end time."}, status=400)
+
+    except Reservation.DoesNotExist:
+        return Response({"error": "Reservation not found."}, status=404)
 
 
 @api_view(["GET"])
