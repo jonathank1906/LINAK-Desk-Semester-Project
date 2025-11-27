@@ -1092,13 +1092,11 @@ def submit_desk_report(request, desk_id):
     except Desk.DoesNotExist:
         return Response({"error": "Desk not found"}, status=404)
 
-
-
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_all_reports(request):
-    # later we restrict to admin only, but for now allow
     reports = DeskReport.objects.order_by("-created_at")
+    print("REPORTS:", reports)
     data = [{
         "id": r.id,
         "desk": r.desk.name,

@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/useAuth";
 import { useState, useEffect } from "react";
 import UserManagement from "./UserManagement";
 import AnalyticsPage from "./AnalyticsPage"
+import axios from "axios"; 
 
 
 import {
@@ -56,16 +57,22 @@ export default function AdminDashboard() {
 useEffect(() => {
   async function fetchReports() {
     try {
-      const config = { headers: { Authorization: `Bearer ${user.token}` }};
+      const config = {
+        headers: { Authorization: `Bearer ${user.token}` },
+        withCredentials: true, // 🔥 Include cookies
+      };
       const res = await axios.get("http://localhost:8000/api/reports/", config);
       setReports(res.data);
-    } catch {}
+    } catch (err) {
+      console.error("📛 Failed to fetch reports:", err?.response || err);
+    }
   }
 
   fetchReports();
-  const interval = setInterval(fetchReports, 5000); // 🔥 LIVE every 5 sec
+  const interval = setInterval(fetchReports, 5000);
   return () => clearInterval(interval);
 }, [user]);
+
 
  const hourlyUtilizationData = {
   labels: ["6AM","7AM","8AM", "9AM", "10AM", "11AM", "12PM", "1PM", "2PM", "3PM", "4PM", "5PM", "6PM"],
