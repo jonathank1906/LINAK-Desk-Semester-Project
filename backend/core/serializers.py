@@ -91,12 +91,15 @@ class DeskSerializer(serializers.ModelSerializer):
 
 
 class ReservationSerializer(serializers.ModelSerializer):
+    desk_name = serializers.CharField(source="desk.name", read_only=True)
+    
     class Meta:
         model = Reservation
         fields = [
             "id",
             "user",
             "desk",
+            "desk_name",
             "start_time",
             "end_time",
             "status",

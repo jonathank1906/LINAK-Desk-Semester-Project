@@ -122,7 +122,7 @@ useEffect(() => {
                 .map(r => ({
                     id: r.id,
                     date: new Date(r.start_time).toLocaleDateString(),
-                    desk_name: `Desk ${r.desk_id}`,
+                    desk_name: r.desk_name || `Desk ${r.desk_id}`,
                     start_time: r.start_time.slice(11,16),
                     end_time: r.end_time.slice(11,16),
                     checkedIn: r.status === "active"

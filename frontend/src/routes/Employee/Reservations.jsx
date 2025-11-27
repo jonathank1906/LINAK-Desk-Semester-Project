@@ -103,9 +103,9 @@ function generateTimeOptions() {
       };
 
       const response = await axios.get(
-        `http://localhost:8000/api/desks/available/?date=${formattedDate}`,
-        config
-      );
+      `http://localhost:8000/api/desks/available/?date=${formattedDate}&start_time=${startTime}&end_time=${endTime}`,
+      config
+    );
 
       setAvailableDesks(response.data);
     } catch (err) {
@@ -478,7 +478,9 @@ function generateTimeOptions() {
                         className="flex items-center justify-between p-4 border rounded-lg"
                       >
                         <div>
-                          <h3 className="font-semibold">Desk {reservation.desk_id}</h3>
+                          <h3 className="font-semibold">
+                            {reservation.desk_name ? reservation.desk_name : `Desk ${reservation.desk_id}`}
+                          </h3>
                           <p className="text-sm text-muted-foreground">
                             Reserved from {reservation.start_time?.slice(11, 16) || "N/A"} to {reservation.end_time?.slice(11, 16) || "N/A"}
                           </p>

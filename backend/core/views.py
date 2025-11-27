@@ -852,14 +852,30 @@ def hotdesk_status(request):
 
 # ---------------- RESERVATION ENDPOINTS ----------------
 
-
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def list_user_reservations(request):
-    reservations = Reservation.objects.filter(user=request.user).order_by("-start_time")
+    user = request.user
+    date_str = request.GET.get("date")
+
+    reservations = Reservation.objects.filter(user=user)
+
+    if date_str:
+        try:
+            date = timezone.datetime.strptime(date_str, "%Y-%m-%d").date()
+            start_dt = timezone.make_aware(timezone.datetime.combine(date, timezone.datetime.min.time()))
+            end_dt = timezone.make_aware(timezone.datetime.combine(date, timezone.datetime.max.time()))
+
+            reservations = reservations.filter(
+                start_time__lt=end_dt,
+                end_time__gt=start_dt
+            )
+        except ValueError:
+            return Response({"error": "Invalid date format"}, status=400)
+
+    reservations = reservations.order_by("-start_time")
     serializer = ReservationSerializer(reservations, many=True)
     return Response(serializer.data)
-
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -998,16 +1014,35 @@ def edit_reservation(request, reservation_id):
 @permission_classes([IsAuthenticated])
 def available_desks_for_date(request):
     date_str = request.GET.get("date")
-    if not date_str:
-        return Response({"error": "Date parameter required"}, status=400)
-    date = timezone.datetime.strptime(date_str, "%Y-%m-%d").date()
-    # Get desks not reserved for this date
+    start_time = request.GET.get("start_time")
+    end_time = request.GET.get("end_time")
+
+    if not date_str or not start_time or not end_time:
+        return Response({"error": "Date, start_time, and end_time required"}, status=400)
+
+    # Build datetime ranges
+    try:
+        date = timezone.datetime.strptime(date_str, "%Y-%m-%d").date()
+        start_dt = timezone.make_aware(
+            timezone.datetime.strptime(f"{date_str} {start_time}", "%Y-%m-%d %H:%M")
+        )
+        end_dt = timezone.make_aware(
+            timezone.datetime.strptime(f"{date_str} {end_time}", "%Y-%m-%d %H:%M")
+        )
+    except ValueError:
+        return Response({"error": "Invalid date or time format"}, status=400)
+
+    # Find conflicting reservations
     reserved_desks = Reservation.objects.filter(
-        start_time__date=date, status__in=["confirmed", "active"]
+        status__in=["confirmed", "active"],
+        start_time__lt=end_dt,
+        end_time__gt=start_dt
     ).values_list("desk_id", flat=True)
+
     desks = Desk.objects.exclude(id__in=reserved_desks)
     serializer = DeskSerializer(desks, many=True)
     return Response(serializer.data)
+
 
 
 @api_view(["POST"])
