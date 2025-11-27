@@ -228,31 +228,40 @@
 <h2 id="2-mqtt-setup">2. MQTT Setup</h2>
 <h3 id="install-mosquitto-mqtt-broker">Install Mosquitto MQTT Broker</h3>
 <p><a href="https://mosquitto.org">Download Link</a></p>
-<ul>
+<ol>
 <li>Disable firewall port 1883.</li>
-<li>Config settings:</li>
-</ul>
+<li>Configure settings in <code>mosquitto.conf</code>. Simply add these two lines at the top and save.</li>
+</ol>
 <pre><code class="language-shell">listener 1883 0.0.0.0
 allow_anonymous true
 </code></pre>
 <h3 id="code-configuration">Code Configuration</h3>
-<p>Copy that MAC address (E4:5F:01:E6:63:A3) and update your seed data:
+<p>At this point, build and flash the code onto the pico (see section 3 below). Open the serial monitor and copy the Pico's MAC and IP address to update it into the database and other places in the code.</p>
+<p>Copy that MAC address XX:XX:XX:XX:XX:XX and update your seed data:
 Open <code>backend/core/management/commands/seed_data.py</code>
 Configure:</p>
 <pre><code class="language-shell">&quot;mac_address&quot;: &quot;&quot;,
 &quot;ip_address&quot;: &quot;&quot;,
+</code></pre>
+<p>Run</p>
+<pre><code class="language-sh">env/Scripts/activate
+cd backend
+py manage.py seed_data
 </code></pre>
 <p>To find the broker server ip (computer ip):
 On windows in a command prompt:</p>
 <pre><code>ipconfig
 </code></pre>
 <p>Configure the broker server ip, network SSID and password in <code>CMakeLists.txt</code>:</p>
-<pre><code class="language-shell">set(MQTT_SERVER &quot;&quot;)
+<pre><code class="language-txt">set(MQTT_SERVER &quot;&quot;)
 set(WIFI_SSID &quot;&quot;)
 set(WIFI_PASSWORD &quot;&quot;)
 </code></pre>
 <p>The file <code>backend/backend/settings.py</code> configure the broker server ip:</p>
 <pre><code class="language-python">MQTT_BROKER = ''
+</code></pre>
+<p>In <code>backend/core/services/MQTTService.py</code>:</p>
+<pre><code class="language-python">self.broker = getattr(settings, 'MQTT_BROKER', '')
 </code></pre>
 <h2 id="3-build-and-uploading-code">3. Build and Uploading Code</h2>
 <h3 id="with-debug-probe">With Debug Probe</h3>
