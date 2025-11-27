@@ -1,5 +1,29 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
+from django.contrib.auth.models import User
+
+class DeskReport(models.Model):
+    desk = models.ForeignKey("Desk", on_delete=models.CASCADE, related_name="reports")
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Report for Desk {self.desk_id} by {self.user} ({self.created_at.date()})"
+
+
+class DeskLog(models.Model):
+    desk = models.ForeignKey("Desk", on_delete=models.CASCADE, related_name="logs")
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+
+    action = models.CharField(max_length=100)  # e.g. reservation_created, height_changed, checked_in
+
+    height = models.IntegerField(null=True, blank=True)   # only for height changes
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"[{self.timestamp}] Desk {self.desk_id} - {self.action}"
 
 
 class UserAccountManager(BaseUserManager):

@@ -105,6 +105,51 @@ export default function EmployeeDashboard() {
         fetchOccupiedDesk();
     }, [user]);
 
+    // 🔥 Live polling reservations every 10s
+useEffect(() => {
+    if (!user) return;
+
+    const fetchReservations = async () => {
+        try {
+            const config = {
+                headers: { Authorization: `Bearer ${user.token}` },
+                withCredentials: true,
+            };
+            const res = await axios.get("http://localhost:8000/api/reservations/", config);
+
+            const upcoming = res.data
+                .filter(r => r.status === "confirmed")
+                .map(r => ({
+                    id: r.id,
+                    date: new Date(r.start_time).toLocaleDateString(),
+                    desk_name: `Desk ${r.desk_id}`,
+                    start_time: r.start_time.slice(11,16),
+                    end_time: r.end_time.slice(11,16),
+                    checkedIn: r.status === "active"
+                }));
+
+            setUpcomingReservations(upcoming);
+        } catch (err) {}
+    };
+
+    fetchReservations();
+    const interval = setInterval(fetchReservations, 10000);
+
+    return () => clearInterval(interval);
+}, [user]);
+
+useEffect(() => {
+    const sync = () => {
+        // Force immediate refresh instead of waiting 10s
+        const fetchNow = document.querySelector("#force-res-fetch")?.click();
+    };
+
+    window.addEventListener("reservation-updated", sync);
+    return () => window.removeEventListener("reservation-updated", sync);
+}, []);
+
+
+
     // Fetch desk status and usage from API (every 30 seconds)
     useEffect(() => {
         if (!user || !selectedDeskId) {
@@ -244,10 +289,10 @@ export default function EmployeeDashboard() {
     }
 
     async function handleCheckInReservation(reservationId) {
-  try {
-    const config = {
-      headers: { Authorization: `Bearer ${user?.token}` },
-      withCredentials: true,
+    try {
+        const config = {
+        headers: { Authorization: `Bearer ${user?.token}` },
+        withCredentials: true,
     };
 
     await axios.post(
@@ -424,6 +469,7 @@ async function handleCheckOutReservation(reservationId) {
                                 <div>
                                     <CardTitle>Upcoming Reservations</CardTitle>
                                 </div>
+                                <button id="force-res-fetch" hidden></button>
                             </CardHeader>
 
                             <CardContent className="grid gap-3">

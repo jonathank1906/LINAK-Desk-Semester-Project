@@ -199,6 +199,7 @@ function generateTimeOptions() {
 
       fetchAvailableDesks();
       fetchUserReservations();
+      window.dispatchEvent(new Event("reservation-updated"));
       // Do NOT setSelectedDeskId here; only after confirmation
     } catch (err) {
       console.error("Error making reservation:", err);
@@ -238,6 +239,8 @@ function generateTimeOptions() {
         toast.success("Reservation updated!");
         setEditingReservation(null);
         fetchUserReservations();
+        fetchAvailableDesks()
+        window.dispatchEvent(new Event("reservation-updated"));
 
       } catch (err) {
         toast.error("Failed to update reservation", {
@@ -267,6 +270,7 @@ function generateTimeOptions() {
     );
       fetchUserReservations();
       fetchAvailableDesks();
+      window.dispatchEvent(new Event("reservation-updated")); 
       // Clear selected desk if this was the active one
       if (setSelectedDeskId) setSelectedDeskId(null);
     } catch (err) {
