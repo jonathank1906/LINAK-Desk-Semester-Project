@@ -40,13 +40,20 @@ allow_anonymous true
 
 ### Code Configuration
 
-Copy that MAC address (E4:5F:01:E6:63:A3) and update your seed data:
+Copy that MAC address XX:XX:XX:XX:XX:XX and update your seed data:
 Open `backend/core/management/commands/seed_data.py`
 Configure:
 ```shell
 "mac_address": "",
 "ip_address": "",
 ```
+Run
+```sh
+env/Scripts/activate
+cd backend
+py manage.py seed_data
+```
+
 
 To find the broker server ip (computer ip):
 On windows in a command prompt:
@@ -55,7 +62,7 @@ ipconfig
 ```
 
 Configure the broker server ip, network SSID and password in `CMakeLists.txt`:
-```shell
+```txt
 set(MQTT_SERVER "")
 set(WIFI_SSID "")
 set(WIFI_PASSWORD "")
@@ -64,6 +71,11 @@ set(WIFI_PASSWORD "")
 The file `backend/backend/settings.py` configure the broker server ip:
 ```python
 MQTT_BROKER = ''
+```
+
+In `backend/core/services/MQTTService.py`:
+```python
+self.broker = getattr(settings, 'MQTT_BROKER', '')
 ```
 
 ## 3. Build and Uploading Code

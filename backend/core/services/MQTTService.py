@@ -11,7 +11,7 @@ class MQTTService:
     """Service to handle MQTT communication with Pico devices"""
     
     def __init__(self):
-        self.broker = getattr(settings, 'MQTT_BROKER', '192.168.43.86')
+        self.broker = getattr(settings, 'MQTT_BROKER', '')
         self.port = getattr(settings, 'MQTT_PORT', 1883)
         self.client = mqtt.Client()
         self.client.on_connect = self.on_connect

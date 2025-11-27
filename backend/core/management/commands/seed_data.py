@@ -216,8 +216,8 @@ class Command(BaseCommand):
         pico_data = [
             {
                 "id": 1,
-                "mac_address": "picoe663",
-                "ip_address": "192.168.43.195",
+                "mac_address": "00:00:00:00:00:00",  # Placeholder
+                "ip_address": "0.0.0.0", # Placeholder
                 "status": "nothing",
                 "last_seen": timezone.datetime(2025, 3, 4, 0, 18, 27, tzinfo=timezone.get_current_timezone()),
                 "has_temperature_sensor": True,

@@ -25,9 +25,9 @@ endif()
 # ====================================================================================
 set(PICO_BOARD pico_w CACHE STRING "Board type")
 
-set(MQTT_SERVER "192.168.43.86")
-set(WIFI_SSID "Hotspot")
-set(WIFI_PASSWORD "JtqkdkM!906")
+set(MQTT_SERVER "")
+set(WIFI_SSID "")
+set(WIFI_PASSWORD "")
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
