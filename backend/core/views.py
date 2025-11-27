@@ -23,8 +23,9 @@ from .serializers import (
     DeskSerializer,
     ReservationSerializer,
     AdminUserListSerializer,
+    DeskLogSerializer
 )
-from .models import Desk, DeskUsageLog
+from .models import Desk, DeskUsageLog, DeskLog
 from .services.WiFi2BLEService import WiFi2BLEService
 from core.services.MQTTService import get_mqtt_service
 from core.models import Pico, SensorReading, Reservation
@@ -1108,3 +1109,10 @@ def get_all_reports(request):
     } for r in reports]
 
     return Response(data)
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_all_logs(request):
+    logs = DeskLog.objects.select_related("desk", "user").order_by("-timestamp")
+    serializer = DeskLogSerializer(logs, many=True)
+    return Response(serializer.data)

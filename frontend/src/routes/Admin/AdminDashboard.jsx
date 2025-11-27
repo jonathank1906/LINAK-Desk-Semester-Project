@@ -11,6 +11,7 @@ import { useState, useEffect } from "react";
 import UserManagement from "./UserManagement";
 import AnalyticsPage from "./AnalyticsPage"
 import axios from "axios"; 
+import LogsViewer from "./LogsViewer";
 
 
 import {
@@ -128,6 +129,8 @@ useEffect(() => {
         return <UserManagement />;
       case "analytics":
         return <AnalyticsPage />;
+      case "logs":
+        return <LogsViewer />;
       case "dashboard":
       default:
         return (

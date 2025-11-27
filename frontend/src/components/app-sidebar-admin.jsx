@@ -14,6 +14,7 @@ import {
   IconReport,
   IconSearch,
   IconSettings,
+  IconLogs,
   IconUsers,
   IconLayoutDashboardFilled,
 } from "@tabler/icons-react"
@@ -60,6 +61,13 @@ export function AppSidebar({
       icon: IconUsers,
       onClick: () => onSectionSelect?.("users"),
       active: activeSection === "users",
+    },
+    {
+      title: "Logs",
+      url: "#",
+      icon: IconLogs,
+      onClick: () => onSectionSelect?.("logs"),
+      active: activeSection === "logs",
     },
   ];
 

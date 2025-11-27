@@ -17,7 +17,7 @@ from .views import (
     list_available_hot_desks, start_hot_desk, confirm_hot_desk, end_hot_desk,
     list_user_reservations, create_reservation, cancel_pending_verification,
     check_in_reservation, check_out_reservation, hotdesk_status, available_desks_for_date, release_desk,
-    poll_desk_movement, submit_desk_report, get_all_reports
+    poll_desk_movement, submit_desk_report, get_all_reports, get_all_logs
 )
 
 urlpatterns = [
@@ -50,7 +50,7 @@ urlpatterns = [
     #Logs
     path("desks/<int:desk_id>/report/", submit_desk_report),
     path("reports/", get_all_reports),
-
+    path("logs/", get_all_logs),
 
     # RESERVATIONS
     path('reservations/', list_user_reservations, name='reservations_list'),
