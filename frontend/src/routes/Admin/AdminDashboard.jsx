@@ -7,7 +7,7 @@ import {
 import { ModeToggle } from "@/components/mode-toggle";
 import { NavUser } from "@/components/nav-user";
 import { useAuth } from "@/contexts/useAuth";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import UserManagement from "./UserManagement";
 import AnalyticsPage from "./AnalyticsPage"
 
@@ -51,6 +51,21 @@ ChartJS.register(
 export default function AdminDashboard() {
   const [selectedSection, setSelectedSection] = useState("dashboard");
   const { user } = useAuth();
+  const [reports, setReports] = useState([]);
+
+useEffect(() => {
+  async function fetchReports() {
+    try {
+      const config = { headers: { Authorization: `Bearer ${user.token}` }};
+      const res = await axios.get("http://localhost:8000/api/reports/", config);
+      setReports(res.data);
+    } catch {}
+  }
+
+  fetchReports();
+  const interval = setInterval(fetchReports, 5000); // 🔥 LIVE every 5 sec
+  return () => clearInterval(interval);
+}, [user]);
 
  const hourlyUtilizationData = {
   labels: ["6AM","7AM","8AM", "9AM", "10AM", "11AM", "12PM", "1PM", "2PM", "3PM", "4PM", "5PM", "6PM"],
@@ -148,22 +163,20 @@ export default function AdminDashboard() {
               </ChartCard>
                   
                <div className="bg-muted/50 rounded-xl p-4 hover:scale-105 transition-transform">
-                <h3 className="text-lg font-semibold mb-2">Complains and Report</h3>
-                <div className="flex items-center gap-2 mb-2">
-                  <IconAlertCircle size={60} className="text-red-500" />
-                  <span className="text-xl font-bold">{complains.length}</span>
-                </div>
+                <div className="bg-muted/50 rounded-xl p-4 hover:scale-105 transition-transform">
+                <h3 className="text-lg font-semibold mb-2">Desk Reports</h3>
                 <ul className="text-sm space-y-2">
-                  {complains.map((b, i) => (
-                    <li key={i} className="flex items-center gap-2">
-                      <span className="text-teal-400">●</span> {b.user} - {b.note}
+                  {reports.length === 0 && <p>No reports</p>}
+                  {reports.map((r,i)=>(
+                    <li key={i} className="flex justify-between">
+                      <span>({r.created_at}) {r.user} → <b>{r.message}</b></span>
                     </li>
                   ))}
                 </ul>
               </div>
-
+              </div>
               
-              
+  
             </div>
           </div>
         );

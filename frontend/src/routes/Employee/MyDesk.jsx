@@ -26,6 +26,8 @@ export default function MyDesk({ selectedDeskId }) {
   const [loading, setLoading] = useState(true);
   const [isControlling, setIsControlling] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
+  const [reportModal, setReportModal] = useState(false);
+const [reportMessage, setReportMessage] = useState("");
   
   // Use ref to store polling interval
   const pollingIntervalRef = useRef(null);
@@ -122,6 +124,21 @@ export default function MyDesk({ selectedDeskId }) {
       }
     }, 500); // Poll every 500ms
   };
+
+
+  const submitReport = async () => {
+  try {
+    const config = { headers: { Authorization: `Bearer ${user.token}` }};
+    await axios.post(`http://localhost:8000/api/desks/${selectedDeskId}/report/`, 
+    { message: reportMessage }, config);
+
+    toast.success("Report submitted");
+    setReportMessage("");
+    setReportModal(false);
+  } catch (err) {
+    toast.error("Failed", { description: err.response?.data });
+  }
+};
 
   // ✅ NEW: Stop polling
   const stopMovementPolling = () => {
@@ -499,6 +516,37 @@ export default function MyDesk({ selectedDeskId }) {
               )}
             </CardContent>
           </Card>
+            <button 
+          onClick={() => setReportModal(true)}
+          className="w-full bg-red-600 text-white py-4 rounded-lg hover:bg-red-700"
+        >
+          Report Issue ⚠️
+        </button>
+        {reportModal && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
+            <div className="bg-white p-6 rounded-lg w-[350px] space-y-3">
+              <h3 className="text-lg font-semibold">Report a Problem</h3>
+
+              <textarea 
+                value={reportMessage}
+                onChange={(e) => setReportMessage(e.target.value)}
+                className="w-full border rounded p-2"
+                rows="4"
+                placeholder="Describe the problem here..."
+              />
+
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setReportModal(false)} className="px-3 py-1 bg-gray-200 rounded">
+                  Cancel
+                </button>
+                <button onClick={submitReport} className="px-3 py-1 bg-red-600 text-white rounded">
+                  Submit
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         </div>
       </div>
     </div>

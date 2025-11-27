@@ -5,6 +5,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework import status
+from core.models import DeskReport, DeskLog, Desk
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.token_blacklist.models import (
     BlacklistedToken,
@@ -1060,3 +1061,52 @@ def release_desk(request, desk_id):
         
     except Desk.DoesNotExist:
         return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)
+    
+    # ---- LOGS ----
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def submit_desk_report(request, desk_id):
+    try:
+        message = request.data.get("message")
+
+        if not message:
+            return Response({"error": "Message is required"}, status=400)
+
+        desk = Desk.objects.get(id=desk_id)
+
+        report = DeskReport.objects.create(
+            desk=desk,
+            user=request.user,
+            message=message
+        )
+
+        # 🔥 Add a log entry as well
+        DeskLog.objects.create(
+            desk=desk,
+            user=request.user,
+            action="desk_report_submitted"
+        )
+
+        return Response({"success": True, "message": "Report submitted"})
+    except Desk.DoesNotExist:
+        return Response({"error": "Desk not found"}, status=404)
+
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_all_reports(request):
+    # later we restrict to admin only, but for now allow
+    reports = DeskReport.objects.order_by("-created_at")
+    data = [{
+        "id": r.id,
+        "desk": r.desk.name,
+        "desk_id": r.desk.id,
+        "user": r.user.email if r.user else "Unknown",
+        "message": r.message,
+        "resolved": r.resolved,
+        "created_at": r.created_at.strftime("%Y-%m-%d %H:%M"),
+    } for r in reports]
+
+    return Response(data)

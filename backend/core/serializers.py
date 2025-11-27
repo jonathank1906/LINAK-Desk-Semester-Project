@@ -4,6 +4,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from djoser.serializers import UserCreateSerializer
 from .models import Desk, Reservation, DeskUsageLog, UserDeskPreference
 from django.utils import timezone
+from .models import DeskReport, DeskLog
 
 User = get_user_model()
 
@@ -138,7 +139,6 @@ class DeskUsageLogSerializer(serializers.ModelSerializer):
             "notes",
         ]
 
-
 class UserDeskPreferenceSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserDeskPreference
@@ -155,3 +155,20 @@ class UserDeskPreferenceSerializer(serializers.ModelSerializer):
             "preferred_interval",
             "enable_reminders",
         ]
+
+class DeskReportSerializer(serializers.ModelSerializer):
+    user_name = serializers.CharField(source="user.username", read_only=True)
+    desk_name = serializers.CharField(source="desk.name", read_only=True)
+
+    class Meta:
+        model = DeskReport
+        fields = "__all__"
+
+
+class DeskLogSerializer(serializers.ModelSerializer):
+    user_name = serializers.CharField(source="user.username", read_only=True)
+    desk_name = serializers.CharField(source="desk.name", read_only=True)
+
+    class Meta:
+        model = DeskLog
+        fields = "__all__"
