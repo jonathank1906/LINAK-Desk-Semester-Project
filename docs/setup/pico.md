@@ -10,7 +10,7 @@
 
 
 # Setup Project
-## Pico SDK Install
+## 1. Pico SDK Install
 1. Create a new VS Code profile dedicated to Raspberry Pi Pico development.
 2. Install the Raspberry Pi Pico SDK extensions in that profile.
 
@@ -26,11 +26,50 @@ Add this to `pico/.vscode/settings.json`:
 },
 ```
 
+## 2. MQTT Setup
 
+### Install Mosquitto MQTT Broker
+[Download Link](https://mosquitto.org)
 
-## Build and Uploading Code
+- Disable firewall port 1883.
+- Config settings:
+```shell
+listener 1883 0.0.0.0
+allow_anonymous true
+```
+
+### Code Configuration
+
+Copy that MAC address (E4:5F:01:E6:63:A3) and update your seed data:
+Open `backend/core/management/commands/seed_data.py`
+Configure:
+```shell
+"mac_address": "",
+"ip_address": "",
+```
+
+To find the broker server ip (computer ip):
+On windows in a command prompt:
+```
+ipconfig
+```
+
+Configure the broker server ip, network SSID and password in `CMakeLists.txt`:
+```shell
+set(MQTT_SERVER "")
+set(WIFI_SSID "")
+set(WIFI_PASSWORD "")
+```
+
+The file `backend/backend/settings.py` configure the broker server ip:
+```python
+MQTT_BROKER = ''
+```
+
+## 3. Build and Uploading Code
 ### With Debug Probe
-1. First build the project from the cmake extension.
+1. First build the project from the cmake extension. 
+    - A successful build will show the message: `[Build] Build finished with exit code 0`
     <div align="center">
         <img src="../../assets/Build.jpg" width="200">
     </div>
@@ -40,20 +79,19 @@ Add this to `pico/.vscode/settings.json`:
     </div>
 
 ### Without Debug Probe
-1. First build the project from the cmake extension.
-2. Locate the `pico/build/main.uf2`. 
-3. Hold the bootsel button while plugging in the Pico. 
-4. Copy and paste this file into the Pico in the file explorer.
+1. First build the project from the cmake extension. 
+    - A successful build will show the message: `[Build] Build finished with exit code 0`
+    <div align="center">
+        <img src="../../assets/Build.jpg" width="200">
+    </div>
+2. Locate the `pico/build/main.uf2` file. 
+3. Hold the BOOTSEL button while plugging the USB into the Pico. 
+4. Copy and paste the `main.uf2` file into the Pico drive that appears in file explorer.
 
-
-
-## MQTT Configuration
-Configure network SSID and password. Use 
-
-A successful build will show the message:
-```shell
-[Build] Build finished with exit code 0
-```
 
 ## Troubleshooting
-Delete the build folder and try again.
+1. Delete the entire build folder.
+2. Reconfigure with:
+```shell
+cmake --no-warn-unused-cli -S . -B build -G Ninja
+```

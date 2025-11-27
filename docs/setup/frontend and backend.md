@@ -48,5 +48,7 @@ py manage.py migrate
 ```
 Seed initial data:
 ```sh
+env/Scripts/activate
+cd backend
 py manage.py seed_data
 ```
