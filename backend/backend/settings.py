@@ -204,7 +204,7 @@ DJOSER = {
 }
 
 # MQTT Configuration
-MQTT_BROKER = '192.168.43.86'  # Same as your Pico's MQTT_SERVER from CMakeLists.txt
+MQTT_BROKER = '192.168.68.101'  # Same as your Pico's MQTT_SERVER from CMakeLists.txt
 MQTT_PORT = 1883
 
 
