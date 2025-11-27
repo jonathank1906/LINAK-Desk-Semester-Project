@@ -175,15 +175,15 @@
             
             <li class="nav-item" data-bs-level="1"><a href="#setup-project" class="nav-link">Setup Project</a>
               <ul class="nav flex-column">
-            <li class="nav-item" data-bs-level="2"><a href="#pico-sdk-install" class="nav-link">Pico SDK Install</a>
+            <li class="nav-item" data-bs-level="2"><a href="#1-pico-sdk-install" class="nav-link">1. Pico SDK Install</a>
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#build-and-uploading-code" class="nav-link">Build and Uploading Code</a>
+            <li class="nav-item" data-bs-level="2"><a href="#2-mqtt-setup" class="nav-link">2. MQTT Setup</a>
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#mqtt-configuration" class="nav-link">MQTT Configuration</a>
+            <li class="nav-item" data-bs-level="2"><a href="#3-build-and-uploading-code" class="nav-link">3. Build and Uploading Code</a>
               <ul class="nav flex-column">
               </ul>
             </li>
@@ -212,7 +212,7 @@
 </div>
 
 <h1 id="setup-project">Setup Project</h1>
-<h2 id="pico-sdk-install">Pico SDK Install</h2>
+<h2 id="1-pico-sdk-install">1. Pico SDK Install</h2>
 <ol>
 <li>Create a new VS Code profile dedicated to Raspberry Pi Pico development.</li>
 <li>Install the Raspberry Pi Pico SDK extensions in that profile.</li>
@@ -225,13 +225,45 @@
     &quot;CMAKE_MAKE_PROGRAM&quot;: &quot;C:/Users/jonat/.pico-sdk/ninja/v1.12.1/ninja.exe&quot;
 },
 </code></pre>
-<h2 id="build-and-uploading-code">Build and Uploading Code</h2>
+<h2 id="2-mqtt-setup">2. MQTT Setup</h2>
+<h3 id="install-mosquitto-mqtt-broker">Install Mosquitto MQTT Broker</h3>
+<p><a href="https://mosquitto.org">Download Link</a></p>
+<ul>
+<li>Disable firewall port 1883.</li>
+<li>Config settings:</li>
+</ul>
+<pre><code class="language-shell">listener 1883 0.0.0.0
+allow_anonymous true
+</code></pre>
+<h3 id="code-configuration">Code Configuration</h3>
+<p>Copy that MAC address (E4:5F:01:E6:63:A3) and update your seed data:
+Open <code>backend/core/management/commands/seed_data.py</code>
+Configure:</p>
+<pre><code class="language-shell">&quot;mac_address&quot;: &quot;&quot;,
+&quot;ip_address&quot;: &quot;&quot;,
+</code></pre>
+<p>To find the broker server ip (computer ip):
+On windows in a command prompt:</p>
+<pre><code>ipconfig
+</code></pre>
+<p>Configure the broker server ip, network SSID and password in <code>CMakeLists.txt</code>:</p>
+<pre><code class="language-shell">set(MQTT_SERVER &quot;&quot;)
+set(WIFI_SSID &quot;&quot;)
+set(WIFI_PASSWORD &quot;&quot;)
+</code></pre>
+<p>The file <code>backend/backend/settings.py</code> configure the broker server ip:</p>
+<pre><code class="language-python">MQTT_BROKER = ''
+</code></pre>
+<h2 id="3-build-and-uploading-code">3. Build and Uploading Code</h2>
 <h3 id="with-debug-probe">With Debug Probe</h3>
 <ol>
-<li>First build the project from the cmake extension.
-    <div align="center">
-        <img src="../../assets/Build.jpg" width="200">
-    </div></li>
+<li>First build the project from the cmake extension. <ul>
+<li>A successful build will show the message: <code>[Build] Build finished with exit code 0</code>
+<div align="center">
+    <img src="../../assets/Build.jpg" width="200">
+</div></li>
+</ul>
+</li>
 <li>Click the flash button
     <div align="center">
         <img src="../../assets/Flash.jpg" width="200">
@@ -239,18 +271,24 @@
 </ol>
 <h3 id="without-debug-probe">Without Debug Probe</h3>
 <ol>
-<li>First build the project from the cmake extension.</li>
-<li>Locate the <code>pico/build/main.uf2</code>. </li>
-<li>Hold the bootsel button while plugging in the Pico. </li>
-<li>Copy and paste this file into the Pico in the file explorer.</li>
+<li>First build the project from the cmake extension. <ul>
+<li>A successful build will show the message: <code>[Build] Build finished with exit code 0</code>
+<div align="center">
+    <img src="../../assets/Build.jpg" width="200">
+</div></li>
+</ul>
+</li>
+<li>Locate the <code>pico/build/main.uf2</code> file. </li>
+<li>Hold the BOOTSEL button while plugging the USB into the Pico. </li>
+<li>Copy and paste the <code>main.uf2</code> file into the Pico drive that appears in file explorer.</li>
 </ol>
-<h2 id="mqtt-configuration">MQTT Configuration</h2>
-<p>Configure network SSID and password. Use </p>
-<p>A successful build will show the message:</p>
-<pre><code class="language-shell">[Build] Build finished with exit code 0
-</code></pre>
 <h2 id="troubleshooting">Troubleshooting</h2>
-<p>Delete the build folder and try again.</p></div>
+<ol>
+<li>Delete the entire build folder.</li>
+<li>Reconfigure with:</li>
+</ol>
+<pre><code class="language-shell">cmake --no-warn-unused-cli -S . -B build -G Ninja
+</code></pre></div>
             </div>
         </div>
 
