@@ -31,14 +31,15 @@ Add this to `pico/.vscode/settings.json`:
 ### Install Mosquitto MQTT Broker
 [Download Link](https://mosquitto.org)
 
-- Disable firewall port 1883.
-- Config settings:
+1. Disable firewall port 1883.
+2. Configure settings in `mosquitto.conf`. Simply add these two lines at the top and save.
 ```shell
 listener 1883 0.0.0.0
 allow_anonymous true
 ```
 
 ### Code Configuration
+At this point, build and flash the code onto the pico (see section 3 below). Open the serial monitor and copy the Pico's MAC and IP address to update it into the database and other places in the code.
 
 Copy that MAC address XX:XX:XX:XX:XX:XX and update your seed data:
 Open `backend/core/management/commands/seed_data.py`
