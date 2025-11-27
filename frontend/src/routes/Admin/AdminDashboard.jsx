@@ -12,6 +12,7 @@ import UserManagement from "./UserManagement";
 import AnalyticsPage from "./AnalyticsPage"
 import axios from "axios"; 
 import LogsViewer from "./LogsViewer";
+import ReportModal from "@/components/ReportModal";
 
 
 import {
@@ -54,6 +55,8 @@ export default function AdminDashboard() {
   const [selectedSection, setSelectedSection] = useState("dashboard");
   const { user } = useAuth();
   const [reports, setReports] = useState([]);
+  const [showReportModal, setShowReportModal] = useState(false);
+
 
 useEffect(() => {
   async function fetchReports() {
@@ -172,21 +175,46 @@ useEffect(() => {
                 <Bar data={todayBookingTimelineData} />
               </ChartCard>
                   
-               <div className="bg-muted/50 rounded-xl p-4 hover:scale-105 transition-transform">
-                <div className="bg-muted/50 rounded-xl p-4 hover:scale-105 transition-transform">
-                <h3 className="text-lg font-semibold mb-2">Desk Reports</h3>
-                <ul className="text-sm space-y-2">
-                  {reports.length === 0 && <p>No reports</p>}
-                  {reports.map((r,i)=>(
-                    <li key={i} className="flex justify-between">
-                      <span>({r.created_at}) {r.user} → <b>{r.message}</b></span>
-                    </li>
-                  ))}
+              <div className="bg-muted/50 rounded-xl p-4 hover:scale-105 transition-transform">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-lg font-semibold">Desk Reports</h3>
+                  <button
+                    onClick={() => setShowReportModal(true)}
+                    className="text-white bg-blue-400 text-xs px-3 py-1 rounded shadow hover:bg-blue-700 transition-colors duration-200 cursor-pointer"
+                  >
+                    View All
+                  </button>
+                </div>
+                <ul className="text-sm divide-y divide-gray-300 dark:divide-gray-700"> 
+                  {reports.slice(0, 5).length === 0 ? (
+                    <p className="text-gray-500 italic pt-2">No new reports</p>
+                  ) : (
+                    reports.slice(0, 5).map((r, i) => (
+                      <li key={i} className="py-2 first:pt-0 last:pb-0"> {/* Use padding for vertical separation */}
+                        <div className="flex flex-col">
+                          {/* Header with User and Timestamp */}
+                          <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex justify-between items-center">
+                            <span>{r.user}</span>
+                            <span className="text-gray-500 dark:text-gray-400 font-normal">
+                              {r.created_at}
+                            </span>
+                          </div>
+                          {/* Report Message/Content */}
+                          <p className="mt-1 text-sm text-gray-900 dark:text-white line-clamp-2">
+                            {r.message}
+                          </p>
+                        </div>
+                      </li>
+                    ))
+                  )}
                 </ul>
+
               </div>
-              </div>
-              
-  
+
+              {showReportModal && (
+                <ReportModal user={user} onClose={() => setShowReportModal(false)} />
+              )}
+
             </div>
           </div>
         );

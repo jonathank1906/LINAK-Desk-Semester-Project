@@ -1116,3 +1116,15 @@ def get_all_logs(request):
     logs = DeskLog.objects.select_related("desk", "user").order_by("-timestamp")
     serializer = DeskLogSerializer(logs, many=True)
     return Response(serializer.data)
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def delete_report(request, report_id):
+    try:
+        report = DeskReport.objects.get(id=report_id)
+        report.delete()
+        return Response({"success": True})
+    except DeskReport.DoesNotExist:
+        return Response({"error": "Report not found"}, status=404)
+
+
