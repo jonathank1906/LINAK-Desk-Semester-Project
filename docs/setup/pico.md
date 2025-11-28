@@ -31,56 +31,56 @@ Add this to `pico/.vscode/settings.json`:
 ### Install Mosquitto MQTT Broker
 [Download Link](https://mosquitto.org)
 
-1. Disable firewall port 1883.
-2. Configure settings in `mosquitto.conf`. Simply add these two lines at the top and save.
+- Create a new inbound firewall rule. Allow port 1883.
+- Simply add these two lines at the top of `mosquitto.conf` and save.
 ```shell
 listener 1883 0.0.0.0
 allow_anonymous true
 ```
 
 ### Code Configuration
-At this point, build and flash the code onto the pico (see section 3 below). Open the serial monitor and copy the Pico's MAC and IP address to update it into the database and other places in the code.
-
-Copy that MAC address XX:XX:XX:XX:XX:XX and update your seed data:
-Open `backend/core/management/commands/seed_data.py`
-Configure:
-```shell
-"mac_address": "",
-"ip_address": "",
+- At this point, build and flash the code onto the pico (see section 3 below). Open the serial monitor and copy the Pico's MAC and IP address to update it into the database and the `.env` file.
+- To find the `MQTT_BROKER` (computer ip) on windows in a command prompt:
 ```
-Run
+ipconfig
+```
+
+1.Copy the env template:
+```shell
+cp .env.example .env
+```
+
+2.Edit `.env` at project root with your own values:
+```
+MQTT_BROKER=0.0.0.0
+MQTT_PORT=1883
+PICO_MAC_ADDRESS=00:00:00:00:00:00
+PICO_IP_ADDRESS=0.0.0.0
+```
+3.Copy the wifi config template :
+```shell
+cp pico/wifi_config.h.example pico/wifi_config.h
+```
+
+4.Configure the broker server ip, network SSID and password in `wifi_config.h` in the pico folder with your own values:
+```
+#define WIFI_SSID "your_network_name"
+#define WIFI_PASSWORD "your_network_password"
+#define MQTT_SERVER "0.0.0.0"
+```
+
+Finally seed the data to update the MAC and IP in the database:
 ```sh
 env/Scripts/activate
 cd backend
 py manage.py seed_data
 ```
 
-
-To find the broker server ip (computer ip):
-On windows in a command prompt:
-```
-ipconfig
-```
-
-Configure the broker server ip, network SSID and password in `CMakeLists.txt`:
-```txt
-set(MQTT_SERVER "")
-set(WIFI_SSID "")
-set(WIFI_PASSWORD "")
-```
-
-The file `backend/backend/settings.py` configure the broker server ip:
-```python
-MQTT_BROKER = ''
-```
-
-In `backend/core/services/MQTTService.py`:
-```python
-self.broker = getattr(settings, 'MQTT_BROKER', '')
-```
-
 ## 3. Build and Uploading Code
-### With Debug Probe
+### With Debug Probe (Recommended)
+- Benefit monitor serial monitor with com port. Easier and faster to flash new code.
+- The 
+<!-- -->
 1. First build the project from the cmake extension. 
     - A successful build will show the message: `[Build] Build finished with exit code 0`
     <div align="center">
@@ -92,6 +92,8 @@ self.broker = getattr(settings, 'MQTT_BROKER', '')
     </div>
 
 ### Without Debug Probe
+- Doesnt allow the serial monitor without additional configuration (Stdio support: Console over USB (disables other USB use))
+<!-- -->
 1. First build the project from the cmake extension. 
     - A successful build will show the message: `[Build] Build finished with exit code 0`
     <div align="center">
@@ -101,25 +103,6 @@ self.broker = getattr(settings, 'MQTT_BROKER', '')
 3. Hold the BOOTSEL button while plugging the USB into the Pico. 
 4. Copy and paste the `main.uf2` file into the Pico drive that appears in file explorer.
 
-# Code Configuration
-1. Copy the template:
-```shell
-cp .env.example .env
-```
-
-2. Edit `.env` at project root with your values:
-```env
-MQTT_BROKER= # Your computer's IP
-WIFI_SSID=YourNetwork
-WIFI_PASSWORD=YourPassword
-PICO_MAC_ADDRESS=00:00:00:00:00:00  # From serial monitor
-PICO_IP_ADDRESS=  # From serial monitor
-```
-
-3.
-```shell
-cp pico/wifi_config.h.example pico/wifi_config.h
-```
 
 
 ## Troubleshooting
