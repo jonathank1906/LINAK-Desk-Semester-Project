@@ -2,6 +2,7 @@ from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.apps import apps
+from decouple import config
 
 class Command(BaseCommand):
     help = "Seed initial database data"
@@ -216,8 +217,8 @@ class Command(BaseCommand):
         pico_data = [
             {
                 "id": 1,
-                "mac_address": "00:00:00:00:00:00",  # Placeholder
-                "ip_address": "0.0.0.0", # Placeholder
+                "mac_address": config('PICO_MAC_ADDRESS', default='00:00:00:00:00:00'),
+                "ip_address": config('PICO_IP_ADDRESS', default='0.0.0.0'),
                 "status": "nothing",
                 "last_seen": timezone.datetime(2025, 3, 4, 0, 18, 27, tzinfo=timezone.get_current_timezone()),
                 "has_temperature_sensor": True,

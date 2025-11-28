@@ -19,6 +19,7 @@
 #include "Buzzer.h"
 #include "led_mode.h"
 #include "buzzer_mode.h"
+#include "wifi_config.h"
 
 // FIX: Declare extern only once at the top, not inside handler blocks
 #ifdef __cplusplus

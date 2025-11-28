@@ -101,6 +101,26 @@ self.broker = getattr(settings, 'MQTT_BROKER', '')
 3. Hold the BOOTSEL button while plugging the USB into the Pico. 
 4. Copy and paste the `main.uf2` file into the Pico drive that appears in file explorer.
 
+# Code Configuration
+1. Copy the template:
+```shell
+cp .env.example .env
+```
+
+2. Edit `.env` at project root with your values:
+```env
+MQTT_BROKER= # Your computer's IP
+WIFI_SSID=YourNetwork
+WIFI_PASSWORD=YourPassword
+PICO_MAC_ADDRESS=00:00:00:00:00:00  # From serial monitor
+PICO_IP_ADDRESS=  # From serial monitor
+```
+
+3.
+```shell
+cp pico/wifi_config.h.example pico/wifi_config.h
+```
+
 
 ## Troubleshooting
 1. Delete the entire build folder.
