@@ -174,7 +174,15 @@
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#steps" class="nav-link">Steps</a>
+            <li class="nav-item" data-bs-level="2"><a href="#frontend-setup" class="nav-link">Frontend Setup</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#database-setup" class="nav-link">Database Setup</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#backend-setup" class="nav-link">Backend Setup</a>
               <ul class="nav flex-column">
               </ul>
             </li>
@@ -192,13 +200,13 @@
 <li>Node.js &amp; npm</li>
 <li>PostgreSQL</li>
 </ul>
-<h2 id="steps">Steps</h2>
-<h3 id="frontend-setup">Frontend Setup</h3>
+<h2 id="frontend-setup">Frontend Setup</h2>
 <p>Install frontend dependencies:</p>
 <pre><code class="language-sh">cd frontend
 npm install
 </code></pre>
-<h3 id="create-the-postgresql-database">Create the PostgreSQL database</h3>
+<h2 id="database-setup">Database Setup</h2>
+<p>Create the PostgreSQL database</p>
 <pre><code class="language-sh">psql -U postgres
 </code></pre>
 <p>Then in the PostgreSQL prompt run:</p>
@@ -209,7 +217,7 @@ ALTER USER &quot;user&quot; CREATEDB CREATEROLE;
 ALTER USER &quot;user&quot; WITH SUPERUSER;
 </code></pre>
 <p>Type \q or exit to quit.</p>
-<h3 id="backend-setup">Backend Setup</h3>
+<h2 id="backend-setup">Backend Setup</h2>
 <p>In root directory, create a python virtual environment.</p>
 <pre><code class="language-sh">py -m venv env
 </code></pre>
