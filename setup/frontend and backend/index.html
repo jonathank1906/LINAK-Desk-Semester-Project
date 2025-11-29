@@ -192,10 +192,9 @@
 <li>Node.js &amp; npm</li>
 <li>PostgreSQL</li>
 </ul>
-<p>See the <a href="prerequisites.md">prerequisites</a> page for detailed instructions.</p>
 <h2 id="steps">Steps</h2>
 <h3 id="frontend-setup">Frontend Setup</h3>
-<p>Install dependencies in the frontend folder:</p>
+<p>Install frontend dependencies:</p>
 <pre><code class="language-sh">cd frontend
 npm install
 </code></pre>
@@ -211,7 +210,7 @@ ALTER USER &quot;user&quot; WITH SUPERUSER;
 </code></pre>
 <p>Type \q or exit to quit.</p>
 <h3 id="backend-setup">Backend Setup</h3>
-<p>In root directory, a create virtual environment.</p>
+<p>In root directory, create a python virtual environment.</p>
 <pre><code class="language-sh">py -m venv env
 </code></pre>
 <p>Install backend dependencies:</p>
@@ -219,7 +218,8 @@ ALTER USER &quot;user&quot; WITH SUPERUSER;
 pip install -r requirements.txt
 </code></pre>
 <p>Navigate to the backend folder and apply migrations:</p>
-<pre><code class="language-sh">cd backend
+<pre><code class="language-sh">env/Scripts/activate
+cd backend
 py manage.py makemigrations
 py manage.py migrate
 </code></pre>
