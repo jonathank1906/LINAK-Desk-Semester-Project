@@ -101,30 +101,46 @@ export default function EmployeeDashboard() {
     // Fetch user's occupied desk on login/page load
     useEffect(() => {
         if (!user) return;
-
+        // Try to reliably find the user's occupied desk by checking desks list
+        // and falling back to active reservations. This prevents the UI from
+        // losing the selected desk when backend doesn't show current_user on desk.
         const fetchOccupiedDesk = async () => {
             try {
                 const config = {
                     headers: { Authorization: `Bearer ${user.token}` },
                     withCredentials: true,
                 };
-                const res = await axios.get(
-                    "http://localhost:8000/api/desks/",
-                    config
+
+                // 1) Check desks endpoint for any desk with this user as current_user
+                const desksRes = await axios.get(`http://localhost:8000/api/desks/`, config);
+                let occupiedDesk = desksRes.data.find(
+                    (desk) => desk.current_user && String(desk.current_user.id) === String(user.id) && desk.current_status !== "available"
                 );
-                const occupiedDesk = res.data.find(
-                    (desk) =>
-                        desk.current_user &&
-                        desk.current_user.id === user.id &&
-                        desk.current_status !== "available"
-                );
+
+                // 2) If not found, check reservations for any active reservation by this user
+                if (!occupiedDesk) {
+                    try {
+                        const res = await axios.get(`http://localhost:8000/api/reservations/`, config);
+                        const active = (res.data || []).find(r => (r.status === 'active' || r.status === 'confirmed') && (r.user_id === user.id || r.user === user.id || r.user === user.username));
+                        if (active) {
+                            // Use desk id from reservation to show in dashboard
+                            const deskId = active.desk_id || active.desk;
+                            if (deskId) {
+                                occupiedDesk = { id: deskId };
+                            }
+                        }
+                    } catch (err) {
+                        console.warn('Failed to query reservations while finding occupied desk:', err);
+                    }
+                }
+
                 if (occupiedDesk) {
                     setSelectedDeskId(occupiedDesk.id);
                 } else {
                     setSelectedDeskId(null);
                     setSessionStartTime(null);
                 }
-            } catch (err) {  console.error("API error:", err);
+            } catch (err) { console.error("API error:", err);
                 setSelectedDeskId(null);
                 setSessionStartTime(null);
             }
@@ -334,11 +350,24 @@ useEffect(() => {
         withCredentials: true,
     };
 
-    await axios.post(
-      `http://localhost:8000/api/reservations/${reservationId}/check_in/`,
-      {},
-      config
-    );
+        // Prevent user from checking into another desk if they already have an active desk
+        try {
+            const desksRes = await axios.get(`http://localhost:8000/api/desks/`, config);
+            const existing = desksRes.data.find(d => d.current_user && String(d.current_user.id) === String(user.id) && d.current_status !== 'available');
+            if (existing) {
+                toast.error('You already have an active desk. Release it before checking into another.');
+                return;
+            }
+        } catch (err) {
+            // non-fatal, continue to attempt check-in
+            console.warn('Could not verify existing desks before check-in:', err);
+        }
+
+        await axios.post(
+          `http://localhost:8000/api/reservations/${reservationId}/check_in/`,
+          {},
+          config
+        );
 
     toast.success("Checked in successfully");
 
@@ -391,8 +420,18 @@ async function handleCheckOutReservation(reservationId) {
 }
 
 
-    function handleReleaseReservation(id) {
-        setUpcomingReservations((prev) => prev.filter((r) => r.id !== id));
+    async function handleReleaseReservation(id) {
+        try {
+            const config = {
+                headers: { Authorization: `Bearer ${user?.token}` },
+                withCredentials: true,
+            };
+            await axios.post(`http://localhost:8000/api/reservations/${id}/cancel/`, {}, config);
+            setUpcomingReservations((prev) => prev.filter((r) => r.id !== id));
+            toast.success('Reservation cancelled');
+        } catch (err) { console.error('API error cancelling reservation:', err);
+            toast.error('Failed to cancel reservation', { description: err.response?.data?.error || err.message });
+        }
     }
 
     function goToMyDesk() {
@@ -444,13 +483,7 @@ async function handleCheckOutReservation(reservationId) {
                                         <span className="font-semibold">{sittingMinutes}m sitting</span> |{" "}
                                         <span className="font-semibold">{standingMinutes}m standing</span>
                                         </div>
-
-                                        <button
-                                        onClick={() => handleCheckOutReservation(usageStats?.reservation_id)}
-                                        className="px-3 py-1 rounded-md bg-destructive text-white text-sm hover:opacity-90"
-                                        >
-                                        Check Out
-                                        </button>
+                                        {/* Check Out button removed - release flow handles reservation cancellation now */}
                                     </div>
                                     ) : null}
                                 </div>
@@ -474,11 +507,39 @@ async function handleCheckOutReservation(reservationId) {
                                                             headers: { Authorization: `Bearer ${user.token}` },
                                                             withCredentials: true,
                                                         };
+                                                        // Release the desk hardware/session
                                                         await axios.post(
                                                             `http://localhost:8000/api/desks/${selectedDeskId}/release/`,
                                                             {},
                                                             config
                                                         );
+
+                                                        // Then, attempt to find and cancel any reservation the user has for this desk
+                                                        try {
+                                                            const res = await axios.get(
+                                                                `http://localhost:8000/api/reservations/`,
+                                                                config
+                                                            );
+                                                            const userReservations = res.data || [];
+                                                            const matching = userReservations.find(r => (r.desk_id === selectedDeskId || r.desk === selectedDeskId) && (r.status === 'confirmed' || r.status === 'active'));
+                                                            if (matching) {
+                                                                // Cancel the reservation on the server
+                                                                await axios.post(
+                                                                    `http://localhost:8000/api/reservations/${matching.id}/cancel/`,
+                                                                    {},
+                                                                    config
+                                                                );
+                                                                // Update local upcomingReservations state if present
+                                                                setUpcomingReservations(prev => prev.filter(rr => rr.id !== matching.id));
+                                                            }
+                                                        } catch (err) {
+                                                            console.warn('Failed to auto-cancel reservation after release:', err);
+                                                        }
+
+                                                            // Notify other components that reservations changed
+                                                            window.dispatchEvent(new Event('reservation-updated'));
+
+                                                        // Clear local desk/session state
                                                         setSelectedDeskId(null);
                                                         setSessionStartTime(null);
                                                         setElapsedTime("00:00:00");

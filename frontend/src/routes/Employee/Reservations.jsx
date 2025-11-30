@@ -27,8 +27,47 @@ export default function Reservations({ setSelectedDeskId }) {
   const [userReservations, setUserReservations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState("hotdesk");
-  const [startTime, setStartTime] = useState("09:00");
-  const [endTime, setEndTime] = useState("17:00");
+
+  // Helper: round up to next interval (default 30 minutes)
+  function roundUpToNextInterval(date, intervalMins = 30) {
+    const d = new Date(date);
+    const mins = d.getMinutes();
+    const remainder = mins % intervalMins;
+    if (remainder === 0) return new Date(d);
+    const diff = intervalMins - remainder;
+    d.setMinutes(mins + diff, 0, 0);
+    return d;
+  }
+
+  function formatHHMM(d) {
+    const h = d.getHours().toString().padStart(2, "0");
+    const m = d.getMinutes().toString().padStart(2, "0");
+    return `${h}:${m}`;
+  }
+
+  // Returns default start/end times for a given date.
+  // If the date is today, start is next available 30-min slot (rounded up), end = start + 30min.
+  // Otherwise defaults to 09:00 - 17:00.
+  function getDefaultTimesForDate(date) {
+    if (!date) return { start: "09:00", end: "17:00" };
+    const now = new Date();
+    const target = new Date(date);
+    if (target.toDateString() === now.toDateString()) {
+      let start = roundUpToNextInterval(now, 30);
+      // clamp earliest start to 06:00
+      if (start.getHours() < 6) start = new Date(target.setHours(6, 0, 0, 0));
+      // clamp latest start to 22:00
+      if (start.getHours() > 22) start = new Date(target.setHours(22, 0, 0, 0));
+      const end = new Date(start.getTime() + 30 * 60 * 1000);
+      return { start: formatHHMM(start), end: formatHHMM(end) };
+    }
+    return { start: "09:00", end: "17:00" };
+  }
+
+  // Initialize start/end using helper so select's value always exists in options
+  const defaultTimes = getDefaultTimesForDate(new Date());
+  const [startTime, setStartTime] = useState(() => defaultTimes.start);
+  const [endTime, setEndTime] = useState(() => defaultTimes.end);
   const [editingReservation, setEditingReservation] = useState(null);
   const [editStartTime, setEditStartTime] = useState("09:00");
   const [editEndTime, setEditEndTime] = useState("17:00");
@@ -242,6 +281,30 @@ export default function Reservations({ setSelectedDeskId }) {
   const startHotDesk = async (deskId) => {
     try {
       const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
+
+      // Prevent user from starting a hotdesk if they already have an active desk or active reservation
+      try {
+        const desksRes = await axios.get(`http://localhost:8000/api/desks/`, config);
+        const existingDesk = (desksRes.data || []).find(d => d.current_user && String(d.current_user.id) === String(user?.id) && d.current_status !== 'available');
+        if (existingDesk) {
+          toast.error('You already have an active desk. Release it before starting another.');
+          return;
+        }
+      } catch (err) {
+        console.warn('Could not verify existing desks before starting hotdesk:', err);
+      }
+
+      try {
+        const res = await axios.get(`http://localhost:8000/api/reservations/`, config);
+        const hasActiveReservation = (res.data || []).some(r => (r.status === 'active' || r.status === 'confirmed') && (r.user_id === user?.id || r.user === user?.id));
+        if (hasActiveReservation) {
+          toast.error('You have an active reservation. Release or cancel it before starting a hotdesk.');
+          return;
+        }
+      } catch (err) {
+        console.warn('Could not verify reservations before starting hotdesk:', err);
+      }
+
       const response = await axios.post(`http://localhost:8000/api/desks/${deskId}/hotdesk/start/`, {}, config);
       const { requires_confirmation } = response.data;
 
@@ -382,9 +445,10 @@ export default function Reservations({ setSelectedDeskId }) {
                   mode="single"
                   selected={selectedDate}
                   onSelect={(date) => {
+                    const defaults = getDefaultTimesForDate(date);
                     setSelectedDate(date);
-                    setStartTime("09:00");
-                    setEndTime("17:00");
+                    setStartTime(defaults.start);
+                    setEndTime(defaults.end);
                   }}
                   disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                   className="rounded-md border"
