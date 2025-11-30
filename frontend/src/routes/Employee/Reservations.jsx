@@ -31,19 +31,43 @@ export default function Reservations({ setSelectedDeskId }) {
   const [polling, setPolling] = useState(false);
   const nav = useNavigate();
   
-function generateTimeOptions() {
+function generateTimeOptions(selectedDate, startFrom = "06:00", minInterval = 0) {
   const options = [];
-  for (let h = 6; h <= 22; h++) {
-    const hour = h.toString().padStart(2, "0");
-    options.push(`${hour}:00`);
-    options.push(`${hour}:30`);
+
+  if (!selectedDate || !(selectedDate instanceof Date)) {
+    return options;
   }
-  return options.map((time) => (
-    <option key={time} value={time}>
-      {time}
-    </option>
-  ));
+
+  const now = new Date();
+  const isToday = selectedDate.toDateString() === now.toDateString();
+
+  const [startHour, startMinute] = startFrom.split(":").map(Number);
+
+  for (let h = 6; h <= 22; h++) {
+    for (let m of [0, 30]) {
+      const time = new Date(selectedDate);
+      time.setHours(h, m, 0, 0);
+
+      // Skip time if before the 'startFrom' time
+      if (h < startHour || (h === startHour && m <= startMinute + minInterval - 1)) {
+        continue;
+      }
+
+      // Skip past times if today
+      if (isToday && time <= now) continue;
+
+      const label = `${h.toString().padStart(2, "0")}:${m === 0 ? "00" : "30"}`;
+      options.push(
+        <option key={label} value={label}>
+          {label}
+        </option>
+      );
+    }
+  }
+
+  return options;
 }
+
 
 
   useEffect(() => {
@@ -409,9 +433,23 @@ function generateTimeOptions() {
                   <select
                     className="w-full border rounded px-2 py-1"
                     value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
+                    onChange={(e) => {
+                      const newStart = e.target.value;
+                      setStartTime(newStart);
+
+                      const [h, m] = newStart.split(":").map(Number);
+                      const endDate = new Date();
+                      endDate.setHours(h);
+                      endDate.setMinutes(m + 30); // force at least 30 mins after
+
+                      const nextEnd = `${endDate.getHours().toString().padStart(2, "0")}:${endDate.getMinutes() < 30 ? "00" : "30"}`;
+
+                      if (endTime <= newStart) {
+                        setEndTime(nextEnd); // adjust if invalid
+                      }
+                    }}
                   >
-                    {generateTimeOptions()}
+                    {generateTimeOptions(selectedDate)}
                   </select>
                 </div>
 
@@ -423,7 +461,7 @@ function generateTimeOptions() {
                     value={endTime}
                     onChange={(e) => setEndTime(e.target.value)}
                   >
-                    {generateTimeOptions()}
+                    {generateTimeOptions(selectedDate, startTime, 30)}
                   </select>
                 </div>
               </CardContent>
@@ -523,9 +561,23 @@ function generateTimeOptions() {
                 <select
                   className="w-full border rounded px-2 py-1"
                   value={editStartTime}
-                  onChange={(e) => setEditStartTime(e.target.value)}
+                  onChange={(e) => {
+                  const newStart = e.target.value;
+                  setStartTime(newStart);
+
+                  const [h, m] = newStart.split(":").map(Number);
+                  const endDate = new Date();
+                  endDate.setHours(h);
+                  endDate.setMinutes(m + 30); // force at least 30 mins after
+
+                  const nextEnd = `${endDate.getHours().toString().padStart(2, "0")}:${endDate.getMinutes() < 30 ? "00" : "30"}`;
+
+                  if (endTime <= newStart) {
+                    setEndTime(nextEnd); // adjust if invalid
+                  }
+                }}
                 >
-                  {generateTimeOptions()}
+                   {generateTimeOptions(selectedDate, true)}
                 </select>
 
                 <label className="block text-sm font-medium">End Time</label>
@@ -534,7 +586,7 @@ function generateTimeOptions() {
                   value={editEndTime}
                   onChange={(e) => setEditEndTime(e.target.value)}
                 >
-                  {generateTimeOptions()}
+                  {generateTimeOptions(selectedDate, startTime, 30)}
                 </select>
               </div>
 
