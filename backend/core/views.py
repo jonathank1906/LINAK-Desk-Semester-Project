@@ -886,7 +886,7 @@ def hotdesk_status(request):
                 "desk_name": desk.name,
                 "reserved": True,
                 "reserved_by": reserved_by,
-                "reserved_time": start_time.strftime("%H:%M"),
+                "reserved_time": start_time.isoformat(),
                 "reserved_start_time": start_time.isoformat(),
                 "reserved_end_time": end_time.isoformat(),
                 "locked_for_checkin": is_locked,
@@ -955,13 +955,13 @@ def check_in_reservation(request, reservation_id):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Only allow check-in within 15 minutes before the start
-        allowed_window_start = reservation.start_time - timedelta(minutes=15)
-        allowed_window_end = reservation.start_time + timedelta(minutes=15)  # small grace period
+        # Allow check-in within 30 minutes before and 10 minutes after start time
+        allowed_window_start = reservation.start_time - timedelta(minutes=30)
+        allowed_window_end = reservation.start_time + timedelta(minutes=10)
 
         if not (allowed_window_start <= now <= allowed_window_end):
             return Response({
-                "error": f"You can only check in within 15 minutes before or after your reservation starts. Check-in allowed from {allowed_window_start.strftime('%H:%M')}."
+                "error": f"You can only check in 30 minutes before or up to 10 minutes after your reservation starts. Check-in available from {allowed_window_start.strftime('%H:%M')}."
             }, status=status.HTTP_403_FORBIDDEN)
 
         # Mark reservation as active

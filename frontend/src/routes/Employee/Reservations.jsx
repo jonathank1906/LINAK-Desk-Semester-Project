@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import PendingVerificationModal from "@/components/pending-verification-modal";
 import { useNavigate } from "react-router-dom";
+import { formatTimeFromISO } from "@/utils/date";
 
 // Helper to get YYYY-MM-DD in LOCAL time
 const formatLocalYYYYMMDD = (date) => {
@@ -306,9 +307,9 @@ export default function Reservations({ setSelectedDeskId }) {
                         {desk.reserved ? (
                           // FIXED: Converted to String for comparison (Warning Bug)
                           String(desk.reserved_by) === String(user?.id) ? (
-                            <p className="text-sm text-blue-700">You have reserved this desk at {desk.reserved_time}</p>
+                            <p className="text-sm text-blue-700">You have reserved this desk at {formatTimeFromISO(desk.reserved_time)}</p>
                           ) : (
-                            <p className="text-sm text-yellow-700">Warning: Reserved at {desk.reserved_time}</p>
+                            <p className="text-sm text-yellow-700">Warning: Reserved at {formatTimeFromISO(desk.reserved_time)}</p>
                           )
                         ) : (
                           <p className="text-sm text-green-700">Free all day</p>
@@ -427,14 +428,14 @@ export default function Reservations({ setSelectedDeskId }) {
                         <div>
                           <h3 className="font-semibold">{reservation.desk_name || `Desk ${reservation.desk_id}`}</h3>
                           <p className="text-sm text-muted-foreground">
-                            Reserved from {reservation.start_time?.slice(11, 16) || "N/A"} to {reservation.end_time?.slice(11, 16) || "N/A"}
+                            Reserved from {formatTimeFromISO(reservation.start_time) || "N/A"} to {formatTimeFromISO(reservation.end_time) || "N/A"}
                           </p>
                         </div>
                         <div className="space-x-2">
                           <Button variant="outline" onClick={() => {
                             setEditingReservation(reservation);
-                            setEditStartTime(reservation.start_time?.slice(11, 16));
-                            setEditEndTime(reservation.end_time?.slice(11, 16));
+                            setEditStartTime(formatTimeFromISO(reservation.start_time));
+                            setEditEndTime(formatTimeFromISO(reservation.end_time));
                           }}>Edit</Button>
 
                           <Button variant="destructive" onClick={() => cancelReservation(reservation.id)}>Cancel</Button>

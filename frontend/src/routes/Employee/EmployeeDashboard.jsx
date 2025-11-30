@@ -8,7 +8,7 @@ import MyDesk from "./MyDesk";
 import Reservations from "./Reservations";
 import PicoLab from "./PicoLab";
 import Metrics from "./Metrics";
-import { formatLocalYYYYMMDD, formatNiceDate } from "@/utils/date";
+import { formatLocalYYYYMMDD, formatNiceDate, formatTimeFromISO } from "@/utils/date";
 
 import axios from "axios";
 import {
@@ -57,43 +57,45 @@ export default function EmployeeDashboard() {
     const [verificationModalOpen, setVerificationModalOpen] = useState(false);
     const [pendingDeskId, setPendingDeskId] = useState(null);
 
-    // HELPER: Safely parse Django date strings (handles " " vs "T")
+    // HELPER: Safely parse Django ISO format date strings
+    // Django returns ISO 8601 format (UTC) like "2025-11-30T19:30:00Z" or "2025-11-30T19:30:00+00:00"
+    // JavaScript's Date constructor handles these correctly
     const parseDateSafe = (dateString) => {
-  if (!dateString || typeof dateString !== "string") return null;
+      if (!dateString || typeof dateString !== "string") return null;
 
-  // Handles both "YYYY-MM-DDTHH:MM:SS" and "YYYY-MM-DD HH:MM:SS"
-  const clean = dateString.replace("T", " ");
-  const [datePart, timePart] = clean.split(" ");
-  
-  if (!datePart || !timePart) return null;
-
-  const [year, month, day] = datePart.split("-").map(Number);
-  const [hour, minute, second] = timePart.split(":").map(Number);
-
-  if (
-    [year, month, day, hour, minute].some((val) => isNaN(val))
-  ) {
-    console.warn("Invalid reservation datetime string:", dateString);
-    return null;
-  }
-
-  return new Date(year, month - 1, day, hour, minute, second || 0);
-};
-
+      try {
+        // JavaScript Date constructor properly handles ISO 8601 strings
+        // It automatically converts from UTC to the browser's local timezone
+        const date = new Date(dateString);
+        
+        // Validate the date is valid
+        if (isNaN(date.getTime())) {
+          console.warn("Invalid reservation datetime string:", dateString);
+          return null;
+        }
+        
+        return date;
+      } catch (err) {
+        console.warn("Error parsing datetime string:", dateString, err);
+        return null;
+      }
+    };
 
 
-    const canCheckIn = (reservation) => {
-  if (!reservation?.start_time || reservation.status !== "confirmed") return false;
 
-  const start = parseDateSafe(reservation.start_time);
-  if (!start) return false; 
+   const canCheckIn = (reservation) => {
+  if (!reservation?.raw_start || reservation.raw_status !== "confirmed") return false;
+
+  const start = parseDateSafe(reservation.raw_start);
+  if (!start) return false;
 
   const nowMs = new Date().getTime();
   const startMs = start.getTime();
   const diffMins = (startMs - nowMs) / 1000 / 60;
 
-  return diffMins <= 15 && diffMins >= -15;
+  return diffMins <= 20 && diffMins >= -10;
 };
+
 
     // Fetch user's occupied desk on login/page load
     useEffect(() => {
@@ -142,37 +144,38 @@ useEffect(() => {
             };
             const res = await axios.get("http://localhost:8000/api/reservations/", config);
 
-            const upcoming = res.data
-  .filter(r => r.status === "confirmed" || r.status === "active")
-  .map(r => {
-    const parsedStartTime = parseDateSafe(r.start_time);
-    const parsedEndTime = parseDateSafe(r.end_time);
+           const upcoming = res.data
+            .filter(r => r.status === "confirmed" || r.status === "active")
+            .map(r => {
+                const parsedStartTime = parseDateSafe(r.start_time);
+                const parsedEndTime = parseDateSafe(r.end_time);
+                if (!parsedStartTime || !parsedEndTime) return null;
 
-    if (!parsedStartTime || !parsedEndTime) return null;
+                const now = new Date();
+                const startDiffMins = (parsedStartTime.getTime() - now.getTime()) / 1000 / 60;
 
-    const startHours = String(parsedStartTime.getHours()).padStart(2, '0');
-    const startMinutes = String(parsedStartTime.getMinutes()).padStart(2, '0');
-    const endHours = String(parsedEndTime.getHours()).padStart(2, '0');
-    const endMinutes = String(parsedEndTime.getMinutes()).padStart(2, '0');
+                return {
+                id: r.id,
+                date: formatNiceDate(parsedStartTime),
+                desk_name: r.desk_name || `Desk ${r.desk_id}`,
+                start_time: `${String(parsedStartTime.getHours()).padStart(2, '0')}:${String(parsedStartTime.getMinutes()).padStart(2, '0')}`,
+                end_time: `${String(parsedEndTime.getHours()).padStart(2, '0')}:${String(parsedEndTime.getMinutes()).padStart(2, '0')}`,
+                checkedIn: r.status === "active",
+                loadingCheckin: startDiffMins <= 15 && startDiffMins > 14.5,
 
-    return {
-      id: r.id,
-      date: formatNiceDate(parsedStartTime),
-      desk_name: r.desk_name || `Desk ${r.desk_id}`,
-      start_time: `${startHours}:${startMinutes}`,
-      end_time: `${endHours}:${endMinutes}`,
-      checkedIn: r.status === "active"
-    };
-  })
-  .filter(Boolean); // ✅ filter out null values safely
+                // Add raw fields back
+                raw_start: r.start_time,
+                raw_status: r.status
+                };
 
-
+            })
+            .filter(Boolean);
             setUpcomingReservations(upcoming);
         } catch (err) { console.error("API error:", err);}
     };
 
     fetchReservations();
-    const interval = setInterval(fetchReservations, 10000);
+    const interval = setInterval(fetchReservations, 4000);
 
     return () => clearInterval(interval);
 }, [user]);
@@ -531,19 +534,25 @@ async function handleCheckOutReservation(reservationId) {
                                             <div className="flex items-center gap-2">
                                                 {idx === 0 ? (
                                                     <>
-                                                        {!r.checkedIn && canCheckIn(r) ? (
-                                                        <button
-                                                            onClick={() => handleCheckInReservation(r.id)}
-                                                            className="px-3 py-1 rounded-md bg-primary text-white text-sm hover:opacity-90"
-                                                            aria-label="Check in"
-                                                        >
-                                                            Check in
-                                                        </button>
-                                                        ) : !r.checkedIn ? (
-                                                        <span className="text-xs text-muted-foreground">Check-in available 15 mins before</span>
+                                                        {!r.checkedIn ? (
+                                                        canCheckIn(r) ? (
+                                                            r.loadingCheckin ? (
+                                                            <span className="text-sm text-blue-500 animate-pulse">Loading check-in...</span>
+                                                            ) : (
+                                                            <button
+                                                                onClick={() => handleCheckInReservation(r.id)}
+                                                                className="px-3 py-1 rounded-md bg-primary text-white text-sm hover:opacity-90"
+                                                            >
+                                                                Check in
+                                                            </button>
+                                                            )
+                                                        ) : (
+                                                            <span className="text-xs text-muted-foreground">Check-in available 30 mins before</span>
+                                                        )
                                                         ) : (
                                                         <span className="px-2 py-1 text-xs rounded-md bg-green-100 text-green-800">Checked in</span>
                                                         )}
+
 
                                                         <button
                                                             onClick={() => handleReleaseReservation(r.id)}
