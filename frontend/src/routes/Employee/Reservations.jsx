@@ -38,27 +38,34 @@ export default function Reservations({ setSelectedDeskId }) {
   const nav = useNavigate();
   
   function generateTimeOptions(selectedDate, startFrom = "06:00", minInterval = 0) {
-    const options = [];
-    if (!selectedDate || !(selectedDate instanceof Date)) return options;
+  const options = [];
+  if (!selectedDate || !(selectedDate instanceof Date)) return options;
 
-    const now = new Date();
-    const isToday = selectedDate.toDateString() === now.toDateString();
-    const [startHour, startMinute] = startFrom.split(":").map(Number);
+  const now = new Date();
+  const isToday = selectedDate.toDateString() === now.toDateString();
 
-    for (let h = 6; h <= 22; h++) {
-      for (let m of [0, 30]) {
-        const time = new Date(selectedDate);
-        time.setHours(h, m, 0, 0);
+  const [startHour, startMinute] = startFrom.split(":").map(Number);
+  const minAllowed = new Date(selectedDate);
+  minAllowed.setHours(startHour);
+  minAllowed.setMinutes(startMinute + minInterval);
+  minAllowed.setSeconds(0);
+  minAllowed.setMilliseconds(0);
 
-        if (h < startHour || (h === startHour && m <= startMinute + minInterval - 1)) continue;
-        if (isToday && time <= now) continue; 
+  for (let h = 6; h <= 22; h++) {
+    for (let m of [0, 30]) {
+      const time = new Date(selectedDate);
+      time.setHours(h, m, 0, 0);
 
-        const label = `${h.toString().padStart(2, "0")}:${m === 0 ? "00" : "30"}`;
-        options.push(<option key={label} value={label}>{label}</option>);
-      }
+      if ((isToday && time <= now) || time < minAllowed) continue;
+
+      const label = `${h.toString().padStart(2, "0")}:${m === 0 ? "00" : "30"}`;
+      options.push(<option key={label} value={label}>{label}</option>);
     }
-    return options;
   }
+
+  return options;
+}
+
 
   useEffect(() => {
     if (mode === "hotdesk") {
@@ -72,7 +79,7 @@ export default function Reservations({ setSelectedDeskId }) {
       setUserReservations([]);
       setLoading(false);
     }
-  }, [selectedDate, mode]);
+  }, [selectedDate, startTime, endTime, mode]);
 
   useEffect(() => {
     let interval;
@@ -90,7 +97,9 @@ export default function Reservations({ setSelectedDeskId }) {
           if (res.data.current_status === "available") {
             if (setSelectedDeskId) setSelectedDeskId(null);
           }
-        } catch (err) { }
+        } catch (err) {
+           console.error("API error:", err);
+         }
       }, 2000);
     }
     return () => clearInterval(interval);
@@ -107,7 +116,7 @@ export default function Reservations({ setSelectedDeskId }) {
         config
       );
       setAvailableDesks(response.data);
-    } catch (err) {
+    } catch (err) {  console.error("API error:", err);
       toast.error("Failed to fetch available desks", { description: err.response?.data?.error || err.message });
       setAvailableDesks([]);
     } finally {
@@ -126,6 +135,7 @@ export default function Reservations({ setSelectedDeskId }) {
 
       setHotdeskStatus(response.data);
     } catch (err) {
+       console.error("API error:", err);
       toast.error("Failed to fetch hotdesk status");
       setHotdeskStatus([]);
     } finally {
@@ -140,6 +150,7 @@ export default function Reservations({ setSelectedDeskId }) {
       const response = await axios.get(`http://localhost:8000/api/reservations/?date=${formattedDate}`, config);
       setUserReservations(response.data);
     } catch (err) {
+       console.error("API error:", err);
       setUserReservations([]);
     }
   };
@@ -171,6 +182,7 @@ export default function Reservations({ setSelectedDeskId }) {
       fetchUserReservations();
       window.dispatchEvent(new Event("reservation-updated"));
     } catch (err) {
+       console.error("API error:", err);
       console.error("Error making reservation:", err);
       toast.error("Failed to create reservation", { description: err.response?.data?.error || err.message });
     }
@@ -205,7 +217,7 @@ export default function Reservations({ setSelectedDeskId }) {
       fetchAvailableDesks();
       window.dispatchEvent(new Event("reservation-updated"));
 
-    } catch (err) {
+    } catch (err) { console.error("API error:", err);
       toast.error("Failed to update reservation", { description: err.response?.data?.error || err.message });
     }
   };
@@ -221,7 +233,7 @@ export default function Reservations({ setSelectedDeskId }) {
       fetchAvailableDesks();
       window.dispatchEvent(new Event("reservation-updated")); 
       if (setSelectedDeskId) setSelectedDeskId(null);
-    } catch (err) {
+    } catch (err) { console.error("API error:", err);
       toast.error("Failed to cancel reservation");
     }
   };
@@ -303,10 +315,16 @@ export default function Reservations({ setSelectedDeskId }) {
                         )}
                       </div>
                       {desk.locked_for_checkin ? (
-                        <span className="text-xs text-red-500">Reserved — desk locked</span>
-                      ) : (
-                        <Button onClick={() => startHotDesk(desk.id)}>Use</Button>
-                      )}
+                        String(desk.reserved_by) === String(user?.id) ? (
+                          // If the current user is pending verification, show a waiting status
+                          <span className="text-xs text-blue-500 font-medium">Verification Pending...</span>
+                        ) : (
+                          // If someone else is locking it (via reservation or hot desk)
+                          <span className="text-xs text-red-500">Reserved — desk locked</span>
+                        )
+                      ) : (
+                        <Button onClick={() => startHotDesk(desk.id)}>Use</Button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -438,36 +456,29 @@ export default function Reservations({ setSelectedDeskId }) {
               <h3 className="text-lg font-bold">Edit Reservation</h3>
 
               <div className="space-y-2">
-                <label className="block text-sm font-medium">Start Time</label>
-                <select
-                  className="w-full border rounded px-2 py-1"
-                  value={editStartTime}
-                  onChange={(e) => {
-                    const newStart = e.target.value;
-                    // FIXED: Was updating main setStartTime, changed to setEditStartTime
-                    setEditStartTime(newStart); 
-                    
-                    // Optional: logic to auto-adjust end time in edit mode
-                    const [h, m] = newStart.split(":").map(Number);
-                    const endDate = new Date();
-                    endDate.setHours(h);
-                    endDate.setMinutes(m + 30);
-                    const nextEnd = `${endDate.getHours().toString().padStart(2, "0")}:${endDate.getMinutes() < 30 ? "00" : "30"}`;
-                    if (editEndTime <= newStart) setEditEndTime(nextEnd);
-                  }}
-                >
-                   {generateTimeOptions(selectedDate, "06:00", 0)}
-                </select>
+                <label className="block text-sm font-medium">Start Time</label>
+                <select
+                  className="w-full border rounded px-2 py-1"
+                  value={editStartTime}
+                  onChange={(e) => {
+                    const newStart = e.target.value;
+                    // **FIX**: Was updating main setStartTime, changed to setEditStartTime
+                    setEditStartTime(newStart); 
+                  }}
+                >
+                   {generateTimeOptions(selectedDate, "06:00", 0)}
+                </select>
 
-                <label className="block text-sm font-medium">End Time</label>
-                <select
-                  className="w-full border rounded px-2 py-1"
-                  value={editEndTime}
-                  onChange={(e) => setEditEndTime(e.target.value)}
-                >
-                  {generateTimeOptions(selectedDate, editStartTime, 30)}
-                </select>
-              </div>
+                <label className="block text-sm font-medium">End Time</label>
+                <select
+                  className="w-full border rounded px-2 py-1"
+                  value={editEndTime}
+                  onChange={(e) => setEditEndTime(e.target.value)}
+                >
+                  // **FIX**: Changed startTime to editStartTime for options generation
+                  {generateTimeOptions(selectedDate, editStartTime, 30)}
+                </select>
+              </div>
 
               <div className="flex justify-end gap-2">
                 <Button variant="ghost" onClick={() => setEditingReservation(null)}>Cancel</Button>

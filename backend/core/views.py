@@ -619,7 +619,9 @@ from core.services.MQTTService import get_mqtt_service
 def start_hot_desk(request, desk_id):
     print(f"\n🏢 START_HOT_DESK CALLED - Desk ID: {desk_id}")
     print(f"   User: {request.user.username}")
+
     
+
     try:
         desk = Desk.objects.get(id=desk_id)
         
@@ -640,6 +642,7 @@ def start_hot_desk(request, desk_id):
                     {"error": "Desk is already pending your confirmation"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+        
         
         # Check if desk is available
         if desk.current_status not in ["available", "Normal"]:
@@ -828,9 +831,41 @@ def hotdesk_status(request):
     now = timezone.now()
 
     for desk in desks:
+        # Check active usage/check-in session
+        if desk.current_user:
+            active_session = (
+                DeskUsageLog.objects.filter(
+                    desk=desk,
+                    ended_at__isnull=True
+                )
+                .order_by("-started_at")
+                .first()
+            )
+
+            reserved_time = (
+                active_session.started_at.strftime("%H:%M")
+                if active_session else now.strftime("%H:%M")
+            )
+
+            result.append({
+                "id": desk.id,
+                "desk_name": desk.name,
+                "reserved": True,
+                "reserved_by": desk.current_user.id,
+                "reserved_time": reserved_time,
+                "locked_for_checkin": desk.current_status in [
+                    "pending_verification",
+                    "occupied",
+                ],
+            })
+            continue
+
+        # Check next reservation for given date
         reservation = (
             Reservation.objects.filter(
-                desk=desk, start_time__date=date, status__in=["confirmed", "active"]
+                desk=desk,
+                start_time__date=date,
+                status__in=["confirmed", "active"],
             )
             .order_by("start_time")
             .first()
@@ -841,7 +876,6 @@ def hotdesk_status(request):
             end_time = reservation.end_time
             reserved_by = reservation.user.id
 
-            # Determine lock logic
             is_locked = (
                 now >= start_time - timedelta(minutes=15)
                 and now <= end_time
@@ -855,17 +889,18 @@ def hotdesk_status(request):
                 "reserved_time": start_time.strftime("%H:%M"),
                 "reserved_start_time": start_time.isoformat(),
                 "reserved_end_time": end_time.isoformat(),
-                "locked_for_checkin": is_locked
+                "locked_for_checkin": is_locked,
             })
         else:
             result.append({
                 "id": desk.id,
                 "desk_name": desk.name,
                 "reserved": False,
-                "locked_for_checkin": False
+                "locked_for_checkin": False,
             })
 
     return Response(result)
+
 
 
 # ---------------- RESERVATION ENDPOINTS ----------------

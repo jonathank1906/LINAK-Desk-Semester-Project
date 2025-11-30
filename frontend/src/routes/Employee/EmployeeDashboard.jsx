@@ -8,6 +8,8 @@ import MyDesk from "./MyDesk";
 import Reservations from "./Reservations";
 import PicoLab from "./PicoLab";
 import Metrics from "./Metrics";
+import { formatLocalYYYYMMDD, formatNiceDate } from "@/utils/date";
+
 import axios from "axios";
 import {
     Card,
@@ -50,22 +52,7 @@ export default function EmployeeDashboard() {
     const [liveStandingSeconds, setLiveStandingSeconds] = useState(0);
     const [currentHeight, setCurrentHeight] = useState(null);
 
-    const [upcomingReservations, setUpcomingReservations] = useState([
-        {
-            id: 1,
-            date: "Tuesday, November 9, 2021",
-            desk_name: "Desk XXXX",
-            start_time: "09:00",
-            end_time: "12:00",
-        },
-        {
-            id: 2,
-            date: "Thursday, November 11, 2021",
-            desk_name: "Desk YYYY",
-            start_time: "13:00",
-            end_time: "17:00",
-        },
-    ]);
+    const [upcomingReservations, setUpcomingReservations] = useState([]);
 
     const [verificationModalOpen, setVerificationModalOpen] = useState(false);
     const [pendingDeskId, setPendingDeskId] = useState(null);
@@ -78,21 +65,28 @@ export default function EmployeeDashboard() {
         return new Date(isoLike);
     };
 
-        const canCheckIn = (reservation) => {
+    const canCheckIn = (reservation) => {
         if (!reservation.start_time) return false;
         
-        const now = new Date();
+        // 1. Get the current time as a simple numeric timestamp (milliseconds since epoch).
+        // This is always universal and prevents time zone re-interpretation issues.
+        const nowMs = new Date().getTime(); 
+        
+        // 2. Parse the reservation start time string into a Date object.
+        // It's effectively treated as UTC/Server time.
         const start = parseDateSafe(reservation.start_time);
         
-        // Calculate difference in minutes
-        const diffMs = start - now;
+        // 3. Get the reservation start time in milliseconds since epoch.
+        const startMs = start.getTime(); 
+        
+        // Calculate the difference: (Start Time MS) - (Current Time MS)
+        // A positive result means the start time is in the future.
+        const diffMs = startMs - nowMs;
         const diffMins = diffMs / 1000 / 60;
         
-        // Allow check-in if within 15 minutes (positive diff) OR if time has passed (negative diff)
-        // But stop allowing if the reservation is over (handled by status usually)
-        return diffMins <= 15 && reservation.status === "confirmed";
+        // Check if the difference is 15 minutes or less (including negative/past time).
+        return diffMins <= 15 && diffMins >= -15 && reservation.status === "confirmed";
     };
-
 
     // Fetch user's occupied desk on login/page load
     useEffect(() => {
@@ -120,7 +114,7 @@ export default function EmployeeDashboard() {
                     setSelectedDeskId(null);
                     setSessionStartTime(null);
                 }
-            } catch (err) {
+            } catch (err) {  console.error("API error:", err);
                 setSelectedDeskId(null);
                 setSessionStartTime(null);
             }
@@ -143,17 +137,31 @@ useEffect(() => {
 
             const upcoming = res.data
                 .filter(r => r.status === "confirmed" || r.status === "active")
-                .map(r => ({
-                    id: r.id,
-                    date: parseDateSafe(r.start_time).toLocaleDateString(),
-                    desk_name: r.desk_name || `Desk ${r.desk_id}`,
-                    start_time: r.start_time.slice(11,16),
-                    end_time: r.end_time.slice(11,16),
-                    checkedIn: r.status === "active"
-                }));
+                .map(r => { 
+                    const parsedStartTime = parseDateSafe(r.start_time);
+                    const parsedEndTime = parseDateSafe(r.end_time);
+
+                    // --- FIX APPLIED HERE ---
+                    const startHours = String(parsedStartTime.getHours()).padStart(2, '0');
+                    const startMinutes = String(parsedStartTime.getMinutes()).padStart(2, '0');
+                    const endHours = String(parsedEndTime.getHours()).padStart(2, '0');
+                    const endMinutes = String(parsedEndTime.getMinutes()).padStart(2, '0');
+
+                    // ------------------------
+
+                    return {
+                        id: r.id,
+                        date: formatNiceDate(parsedStartTime),
+                        desk_name: r.desk_name || `Desk ${r.desk_id}`,
+                        
+                        start_time: `${startHours}:${startMinutes}`, // Use fixed format
+                        end_time: `${endHours}:${endMinutes}`,       // Use fixed format
+                        checkedIn: r.status === "active"
+                    };
+                });
 
             setUpcomingReservations(upcoming);
-        } catch (err) {}
+        } catch (err) { console.error("API error:", err);}
     };
 
     fetchReservations();
@@ -228,7 +236,7 @@ useEffect(() => {
                     setLiveStandingSeconds(0);
                     setLastFetchTime(null);
                 }
-            } catch (err) {
+            } catch (err) {  console.error("API error:", err);
                 setDeskStatus(null);
                 setUsageStats(null);
                 setSessionStartTime(null);
@@ -364,7 +372,7 @@ async function handleCheckOutReservation(reservationId) {
     setLastFetchTime(null);
 
     // Optionally refetch reservations or usage logs
-  } catch (err) {
+  } catch (err) {  console.error("API error:", err);
     toast.error("Failed to check out", {
       description: err.response?.data?.error || err.message,
     });
@@ -468,7 +476,7 @@ async function handleCheckOutReservation(reservationId) {
                                                         setBaseSittingSeconds(0);
                                                         setBaseStandingSeconds(0);
                                                         setLastFetchTime(null);
-                                                    } catch (err) {
+                                                    } catch (err) {  console.error("API error:", err);
                                                         console.error("Error releasing desk:", err);
                                                     }
                                                 }}
