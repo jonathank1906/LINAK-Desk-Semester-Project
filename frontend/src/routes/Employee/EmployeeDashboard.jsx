@@ -111,17 +111,27 @@ export default function EmployeeDashboard() {
                     withCredentials: true,
                 };
 
-                // 1) Check desks endpoint for any desk with this user as current_user
+                // 1) Check desks endpoint for any desk with this user as current_user or any desk currently occupied
+                // (hotdesk-started desks may not have current_user but will be "occupied" until released)
                 const desksRes = await axios.get(`http://localhost:8000/api/desks/`, config);
                 let occupiedDesk = desksRes.data.find(
-                    (desk) => desk.current_user && String(desk.current_user.id) === String(user.id) && desk.current_status !== "available"
+                    (desk) => {
+                        const isOwnedByUser = desk.current_user && String(desk.current_user.id) === String(user.id);
+                        const isOccupied = desk.current_status === "occupied" || desk.current_status === "in_use";
+                        return (isOwnedByUser || isOccupied) && desk.current_status !== "available";
+                    }
                 );
 
                 // 2) If not found, check reservations for any active reservation by this user
-                if (!occupiedDesk) {
+                    if (!occupiedDesk) {
                     try {
                         const res = await axios.get(`http://localhost:8000/api/reservations/`, config);
-                        const active = (res.data || []).find(r => (r.status === 'active' || r.status === 'confirmed') && (r.user_id === user.id || r.user === user.id || r.user === user.username));
+                        const active = (res.data || []).find(r => {
+                            if (!(r.status === 'active' || r.status === 'confirmed')) return false;
+                            // Normalize user field: try r.user_id, r.user (object or id), or r.owner
+                            const rUserId = r.user_id || (r.user && (typeof r.user === 'object' ? r.user.id : r.user)) || r.owner;
+                            return rUserId && String(rUserId) === String(user.id);
+                        });
                         if (active) {
                             // Use desk id from reservation to show in dashboard
                             const deskId = active.desk_id || active.desk;
@@ -135,7 +145,21 @@ export default function EmployeeDashboard() {
                 }
 
                 if (occupiedDesk) {
-                    setSelectedDeskId(occupiedDesk.id);
+                    // Verify the desk details are accessible before setting it in UI.
+                    try {
+                        const statusCheck = await axios.get(`http://localhost:8000/api/desks/${occupiedDesk.id}/`, config);
+                        // If accessible, set selected desk
+                        if (statusCheck && statusCheck.status === 200) {
+                            setSelectedDeskId(occupiedDesk.id);
+                        } else {
+                            console.warn('Desk details not accessible, skipping setting selectedDeskId for', occupiedDesk.id);
+                            setSelectedDeskId(null);
+                        }
+                    } catch (err) {
+                        // If the desk endpoint returns 403/404, don't show it as selected
+                        console.warn('Could not access desk details for', occupiedDesk.id, err);
+                        setSelectedDeskId(null);
+                    }
                 } else {
                     setSelectedDeskId(null);
                     setSessionStartTime(null);
@@ -339,6 +363,7 @@ useEffect(() => {
         return () => clearInterval(liveInterval);
     }, [baseSittingSeconds, baseStandingSeconds, lastFetchTime, currentHeight, usageStats]);
 
+    // Unused helper kept intentionally for future use (may be used by other flows/tests)
     function handleDeleteReservation(id) {
         setUpcomingReservations((prev) => prev.filter((r) => r.id !== id));
     }
@@ -534,6 +559,7 @@ async function handleCheckOutReservation(reservationId) {
                                                             }
                                                         } catch (err) {
                                                             console.warn('Failed to auto-cancel reservation after release:', err);
+                                                            toast.error('Released desk but failed to cancel reservation', { description: err?.response?.data?.error || err?.message });
                                                         }
 
                                                             // Notify other components that reservations changed
@@ -550,6 +576,10 @@ async function handleCheckOutReservation(reservationId) {
                                                         setLastFetchTime(null);
                                                     } catch (err) {  console.error("API error:", err);
                                                         console.error("Error releasing desk:", err);
+                                                        // If the release call returns 403, inform the user and do not clear UI state
+                                                        if (err?.response?.status === 403) {
+                                                            toast.error('Not authorized to release this desk (403)');
+                                                        }
                                                     }
                                                 }}
                                                 className="px-3 py-1 rounded-md bg-primary text-white text-sm hover:opacity-90"

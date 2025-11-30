@@ -27,6 +27,7 @@ export default function Reservations({ setSelectedDeskId }) {
   const [userReservations, setUserReservations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState("hotdesk");
+  const [userHasActive, setUserHasActive] = useState(false);
 
   // Helper: round up to next interval (default 30 minutes)
   function roundUpToNextInterval(date, intervalMins = 30) {
@@ -174,6 +175,8 @@ export default function Reservations({ setSelectedDeskId }) {
       const response = await axios.get(`http://localhost:8000/api/desks/hotdesk_status/?date=${today}`, config);
 
       setHotdeskStatus(response.data);
+      // refresh whether user currently has an active desk/reservation
+      refreshUserActive();
     } catch (err) {
        console.error("API error:", err);
       toast.error("Failed to fetch hotdesk status");
@@ -182,6 +185,39 @@ export default function Reservations({ setSelectedDeskId }) {
       setLoading(false);
     }
   };
+
+  // Check if the current user already has an active desk or active reservation
+  async function refreshUserActive() {
+    try {
+      const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
+      // check desks: user's own desk OR any occupied desk (for hotdesk-started desks)
+      const desksRes = await axios.get(`http://localhost:8000/api/desks/`, config);
+      const hasDesk = (desksRes.data || []).some(d => {
+        const isOwnedByUser = d.current_user && String(d.current_user.id) === String(user?.id) && d.current_status !== 'available';
+        const isOccupied = (d.current_status === 'occupied' || d.current_status === 'in_use') && d.current_status !== 'available';
+        return isOwnedByUser || isOccupied;
+      });
+      if (hasDesk) {
+        setUserHasActive(true);
+        return;
+      }
+      // check reservations
+      const res = await axios.get(`http://localhost:8000/api/reservations/`, config);
+      const hasRes = (res.data || []).some(r => (r.status === 'active' || r.status === 'confirmed') && ((r.user_id && String(r.user_id) === String(user?.id)) || (r.user && ((typeof r.user === 'object' && r.user.id) || r.user) == user?.id)));
+      setUserHasActive(hasRes);
+    } catch (err) {
+      console.warn('Could not determine if user has active desk/reservation:', err);
+      // conservatively set false so we don't block unnecessarily on errors
+      setUserHasActive(false);
+    }
+  }
+
+  // Refresh userHasActive when component mounts or user changes
+  useEffect(() => {
+    if (user) {
+      refreshUserActive();
+    }
+  }, [user]);
 
   const fetchUserReservations = async () => {
     try {
@@ -282,11 +318,18 @@ export default function Reservations({ setSelectedDeskId }) {
     try {
       const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
 
-      // Prevent user from starting a hotdesk if they already have an active desk or active reservation
+      // If we already know user has an active desk/reservation, block immediately
+      if (userHasActive) {
+        toast.error('You already have an active desk or reservation. Release it before starting another.');
+        return;
+      }
+
+      // Double-check on the server before starting
       try {
         const desksRes = await axios.get(`http://localhost:8000/api/desks/`, config);
         const existingDesk = (desksRes.data || []).find(d => d.current_user && String(d.current_user.id) === String(user?.id) && d.current_status !== 'available');
         if (existingDesk) {
+          setUserHasActive(true);
           toast.error('You already have an active desk. Release it before starting another.');
           return;
         }
@@ -296,8 +339,9 @@ export default function Reservations({ setSelectedDeskId }) {
 
       try {
         const res = await axios.get(`http://localhost:8000/api/reservations/`, config);
-        const hasActiveReservation = (res.data || []).some(r => (r.status === 'active' || r.status === 'confirmed') && (r.user_id === user?.id || r.user === user?.id));
+        const hasActiveReservation = (res.data || []).some(r => (r.status === 'active' || r.status === 'confirmed') && ((r.user_id && String(r.user_id) === String(user?.id)) || (r.user && ((typeof r.user === 'object' && r.user.id) || r.user) == user?.id)));
         if (hasActiveReservation) {
+          setUserHasActive(true);
           toast.error('You have an active reservation. Release or cancel it before starting a hotdesk.');
           return;
         }
@@ -316,7 +360,10 @@ export default function Reservations({ setSelectedDeskId }) {
       } else {
         toast.success("Hot desk started!");
         setSelectedDeskId(deskId);
+        setUserHasActive(true); // Update state so subsequent Use clicks are blocked
         fetchHotdeskStatus();
+        // Notify dashboard about the desk use
+        window.dispatchEvent(new Event('reservation-updated'));
       }
     } catch (err) {
       toast.error("Failed to start hot desk", { description: err.response?.data?.error || err.message });
@@ -392,18 +439,18 @@ export default function Reservations({ setSelectedDeskId }) {
                     return (
                       <div
                         key={desk.id}
-                        className={`flex items-center justify-between p-4 border rounded-lg ${desk.reserved ? "bg-yellow-50 border-yellow-300" : "bg-green-50 border-green-300"}`}
+                        className={`flex items-center justify-between p-4 border rounded-lg ${desk.reserved ? "bg-yellow-50 border-yellow-300 dark:bg-yellow-900 dark:border-yellow-700" : "bg-green-50 border-green-300 dark:bg-slate-800 dark:border-slate-700"}`}
                       >
                         <div>
                           <h3 className="font-semibold">{desk.name || desk.desk_name || `Desk ${desk.id}`}</h3>
                           {desk.reserved ? (
                             isReserver ? (
-                              <p className="text-sm text-blue-700">You have reserved this desk at {formatTimeFromISO(desk.reserved_time)}</p>
+                              <p className="text-sm text-blue-700 dark:text-blue-200">You have reserved this desk at {formatTimeFromISO(desk.reserved_time)}</p>
                             ) : (
-                              <p className="text-sm text-yellow-700">Warning: Reserved at {formatTimeFromISO(desk.reserved_time)}</p>
+                              <p className="text-sm text-yellow-700 dark:text-yellow-200">Warning: Reserved at {formatTimeFromISO(desk.reserved_time)}</p>
                             )
                           ) : (
-                            <p className="text-sm text-green-700">Free all day</p>
+                            <p className="text-sm text-green-700 dark:text-green-200">Free all day</p>
                           )}
                         </div>
 
@@ -419,12 +466,12 @@ export default function Reservations({ setSelectedDeskId }) {
                               </button>
                             </div>
                           ) : canUse ? (
-                            <Button onClick={() => startHotDesk(desk.id)}>Use</Button>
+                            <Button onClick={() => startHotDesk(desk.id)} disabled={userHasActive} title={userHasActive ? 'You already have an active desk or reservation' : undefined}>Use</Button>
                           ) : (
                             <span className="text-xs text-red-500">Reserved — desk locked</span>
                           )
                         ) : (
-                          <Button onClick={() => startHotDesk(desk.id)}>Use</Button>
+                          <Button onClick={() => startHotDesk(desk.id)} disabled={userHasActive} title={userHasActive ? 'You already have an active desk or reservation' : undefined}>Use</Button>
                         )}
                       </div>
                     );
