@@ -311,7 +311,7 @@ export default function Reservations({ setSelectedDeskId }) {
 
                     const isOccupied = !!desk.occupied || (!!desk.current_status && desk.current_status === "occupied");
                     const isReserved = !!desk.reserved;
-                    const isReserver = String(desk.reserved_by) === String(user?.id);
+                    const isReserver = desk.reserved_by && user?.id && String(desk.reserved_by) === String(user.id);
 
                     let canUse = false;
                     if (isOccupied) {
@@ -349,13 +349,12 @@ export default function Reservations({ setSelectedDeskId }) {
                           <span className="text-xs text-red-500">Desk is being used</span>
                         ) : isReserved ? (
                           isReserver ? (
-                            canUse ? (
-                              <Button onClick={() => startHotDesk(desk.id)}>Use</Button>
-                            ) : (
+                            // Reserver: show reserved message and instruction to check in via Employee Dashboard
+                            <div>
                               <button className="px-3 py-1 rounded-md border text-sm text-muted-foreground" disabled>
-                                Available from {formatTimeFromISO(desk.reserved_start_time || desk.reserved_time)}
+                                Please check in 30 minutes before your reserve time starts
                               </button>
-                            )
+                            </div>
                           ) : canUse ? (
                             <Button onClick={() => startHotDesk(desk.id)}>Use</Button>
                           ) : (
