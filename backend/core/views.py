@@ -841,10 +841,8 @@ def hotdesk_status(request):
                 .order_by("-started_at")
                 .first()
             )
-
-            reserved_time = (
-                active_session.started_at.strftime("%H:%M")
-                if active_session else now.strftime("%H:%M")
+            reserved_time_iso = (
+                active_session.started_at.isoformat() if active_session else now.isoformat()
             )
 
             result.append({
@@ -852,7 +850,11 @@ def hotdesk_status(request):
                 "desk_name": desk.name,
                 "reserved": True,
                 "reserved_by": desk.current_user.id,
-                "reserved_time": reserved_time,
+                "reserved_time": reserved_time_iso,
+                "reserved_start_time": reserved_time_iso,
+                "reserved_end_time": None,
+                "occupied": True,
+                "current_status": desk.current_status,
                 "locked_for_checkin": desk.current_status in [
                     "pending_verification",
                     "occupied",
@@ -876,8 +878,9 @@ def hotdesk_status(request):
             end_time = reservation.end_time
             reserved_by = reservation.user.id
 
+            # Lock the desk starting 30 minutes before the reservation
             is_locked = (
-                now >= start_time - timedelta(minutes=15)
+                now >= start_time - timedelta(minutes=30)
                 and now <= end_time
             )
 
@@ -890,6 +893,7 @@ def hotdesk_status(request):
                 "reserved_start_time": start_time.isoformat(),
                 "reserved_end_time": end_time.isoformat(),
                 "locked_for_checkin": is_locked,
+                "occupied": False,
             })
         else:
             result.append({

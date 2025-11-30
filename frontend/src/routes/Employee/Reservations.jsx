@@ -297,37 +297,76 @@ export default function Reservations({ setSelectedDeskId }) {
                 <p className="text-center text-muted-foreground">No desk data available.</p>
               ) : (
                 <div className="space-y-3">
-                  {hotdeskStatus.map((desk) => (
-                    <div
-                      key={desk.id}
-                      className={`flex items-center justify-between p-4 border rounded-lg ${desk.reserved ? "bg-yellow-50 border-yellow-300" : "bg-green-50 border-green-300"}`}
-                    >
-                      <div>
-                        <h3 className="font-semibold">{desk.name || desk.desk_name || `Desk ${desk.id}`}</h3>
-                        {desk.reserved ? (
-                          // FIXED: Converted to String for comparison (Warning Bug)
-                          String(desk.reserved_by) === String(user?.id) ? (
-                            <p className="text-sm text-blue-700">You have reserved this desk at {formatTimeFromISO(desk.reserved_time)}</p>
+                  {hotdeskStatus.map((desk) => {
+                    const now = new Date();
+                    const reservedStart = desk.reserved_start_time
+                      ? new Date(desk.reserved_start_time)
+                      : desk.reserved_time
+                      ? new Date(desk.reserved_time)
+                      : null;
+
+                    const threshold = reservedStart
+                      ? new Date(reservedStart.getTime() - 30 * 60 * 1000)
+                      : null; // 30 minutes before reservation
+
+                    const isOccupied = !!desk.occupied || (!!desk.current_status && desk.current_status === "occupied");
+                    const isReserved = !!desk.reserved;
+                    const isReserver = String(desk.reserved_by) === String(user?.id);
+
+                    let canUse = false;
+                    if (isOccupied) {
+                      canUse = false;
+                    } else if (!isReserved) {
+                      canUse = true;
+                    } else if (isReserver) {
+                      // Reserver can only use from threshold onwards
+                      canUse = threshold ? now >= threshold : false;
+                    } else {
+                      // Other users can use until threshold
+                      canUse = threshold ? now < threshold : true;
+                    }
+
+                    return (
+                      <div
+                        key={desk.id}
+                        className={`flex items-center justify-between p-4 border rounded-lg ${desk.reserved ? "bg-yellow-50 border-yellow-300" : "bg-green-50 border-green-300"}`}
+                      >
+                        <div>
+                          <h3 className="font-semibold">{desk.name || desk.desk_name || `Desk ${desk.id}`}</h3>
+                          {desk.reserved ? (
+                            isReserver ? (
+                              <p className="text-sm text-blue-700">You have reserved this desk at {formatTimeFromISO(desk.reserved_time)}</p>
+                            ) : (
+                              <p className="text-sm text-yellow-700">Warning: Reserved at {formatTimeFromISO(desk.reserved_time)}</p>
+                            )
                           ) : (
-                            <p className="text-sm text-yellow-700">Warning: Reserved at {formatTimeFromISO(desk.reserved_time)}</p>
+                            <p className="text-sm text-green-700">Free all day</p>
+                          )}
+                        </div>
+
+                        {/* Action area */}
+                        {isOccupied ? (
+                          <span className="text-xs text-red-500">Desk is being used</span>
+                        ) : isReserved ? (
+                          isReserver ? (
+                            canUse ? (
+                              <Button onClick={() => startHotDesk(desk.id)}>Use</Button>
+                            ) : (
+                              <button className="px-3 py-1 rounded-md border text-sm text-muted-foreground" disabled>
+                                Available from {formatTimeFromISO(desk.reserved_start_time || desk.reserved_time)}
+                              </button>
+                            )
+                          ) : canUse ? (
+                            <Button onClick={() => startHotDesk(desk.id)}>Use</Button>
+                          ) : (
+                            <span className="text-xs text-red-500">Reserved — desk locked</span>
                           )
                         ) : (
-                          <p className="text-sm text-green-700">Free all day</p>
+                          <Button onClick={() => startHotDesk(desk.id)}>Use</Button>
                         )}
                       </div>
-                      {desk.locked_for_checkin ? (
-                        String(desk.reserved_by) === String(user?.id) ? (
-                          // If the current user is pending verification, show a waiting status
-                          <span className="text-xs text-blue-500 font-medium">Verification Pending...</span>
-                        ) : (
-                          // If someone else is locking it (via reservation or hot desk)
-                          <span className="text-xs text-red-500">Reserved — desk locked</span>
-                        )
-                      ) : (
-                        <Button onClick={() => startHotDesk(desk.id)}>Use</Button>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
