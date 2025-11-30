@@ -59,9 +59,9 @@ export default function UserManagement() {
           lastLogin: user.last_login
             ? new Date(user.last_login).toLocaleString()
             : "Never",
-          deskUsage: Math.floor(Math.random() * 20), // 🔧 placeholder
-          favoriteDesk: "Desk 01", // 🔧 placeholder
-          deskUsageHistory: [3, 4, 2, 5, 3, 6], // 🔧 placeholder
+          deskUsage: user.total_usage_hours ?? 50,
+          favoriteDesk: "Desk XXXX", // placeholder
+          deskUsageHistory: user.is_admin ? [1,1] : [2,2], // placeholder
           status: user.is_active ? "Active" : "Disabled",
           created: new Date(user.created_at).toLocaleDateString(),
         }));

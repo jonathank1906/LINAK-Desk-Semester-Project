@@ -283,3 +283,55 @@ class SensorReading(models.Model):
     
     def __str__(self):
         return f"{self.pico_device.desk.name} - {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}"
+
+
+class Complaint(models.Model):
+    STATUS_CHOICES = [
+        ("open", "Open"),
+        ("solved", "Solved"),
+    ]
+
+    user = models.ForeignKey(
+        UserAccount,
+        on_delete=models.CASCADE,
+        related_name="complaints",
+    )
+    desk = models.ForeignKey(
+        Desk,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="complaints",
+    )
+    reservation = models.ForeignKey(
+        Reservation,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="complaints",
+    )
+
+    subject = models.CharField(max_length=200, blank=True)
+    message = models.TextField()
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="open",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    solved_at = models.DateTimeField(blank=True, null=True)
+    solved_by = models.ForeignKey(
+        UserAccount,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="solved_complaints",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        base = self.subject or (self.message[:30] + ("..." if len(self.message) > 30 else ""))
+        return f"Complaint by {self.user.email}: {base}"

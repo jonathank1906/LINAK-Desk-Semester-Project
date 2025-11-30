@@ -5,6 +5,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework import status
+from django.db.models import Count, Sum, Max, Q, DurationField, ExpressionWrapper, F
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.token_blacklist.models import (
     BlacklistedToken,
@@ -164,8 +165,32 @@ def reset_password_confirm(request, uid, token):
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
 def list_all_users(request):
-    User = get_user_model()  # Dynamically get the custom user model
-    users = User.objects.all().order_by("-created_at")
+    """Admin-only list of users with some analytics aggregates."""
+    
+    User = get_user_model()
+
+    users = (
+        User.objects
+        .all()
+        .annotate(
+            reservations_count=Count('reservations', distinct=True),
+            cancellations_count=Count(
+                'reservations',
+                filter=Q(reservations__status='cancelled'),
+                distinct=True,
+            ),
+            total_reservation_duration=Sum(
+                ExpressionWrapper(
+                    F('reservations__end_time') - F('reservations__start_time'),
+                    output_field=DurationField(),
+                ),
+                filter=Q(reservations__end_time__isnull=False),
+            ),
+            last_reservation_at=Max('reservations__start_time'),
+        )
+        .order_by('-created_at')
+    )
+
     serializer = AdminUserListSerializer(users, many=True)
     return Response(serializer.data)
 
@@ -609,6 +634,449 @@ def list_available_hot_desks(request):
 
 
 from core.services.MQTTService import get_mqtt_service
+from .models import Complaint, DeskUsageLog
+from .serializers import ComplaintSerializer
+
+
+# ================= ADMIN ANALYTICS VIEWS =================
+
+
+def _get_recent_reservations(days=30):
+    """Helper function to fetch reservations in the last N days (excluding admins)."""
+    now = timezone.now()
+    since = now - timedelta(days=days)
+    return Reservation.objects.filter(start_time__gte=since, user__is_admin=False)
+
+
+def _bucket_reservation_minutes_by_hour(reservations, day_start, hours_labels):
+    """Return list of utilization percentages per hour for a single day.
+
+    Utilization per hour = reserved minutes in that hour / (total_desks * 60) * 100.
+    """
+    from django.db.models import Count
+
+    desks_count = Desk.objects.count() or 1
+    results = []
+
+    for hour_label, hour_idx in zip(hours_labels, range(len(hours_labels))):
+        start = day_start + timedelta(hours=hour_idx)
+        end = start + timedelta(hours=1)
+
+        minutes = 0
+        for r in reservations:
+            # Overlap between [r.start_time, r.end_time] and [start, end)
+            if not r.end_time:
+                continue
+            overlap_start = max(r.start_time, start)
+            overlap_end = min(r.end_time, end)
+            if overlap_start < overlap_end:
+                minutes += int((overlap_end - overlap_start).total_seconds() / 60)
+
+        utilization = (minutes / (desks_count * 60)) * 100 if desks_count else 0
+        results.append(round(utilization, 1))
+
+    return results
+
+# -------------------------------------------------------------
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def admin_dashboard_analytics(request):
+    """Return summary metrics and small charts for the admin dashboard."""
+    now = timezone.now()
+
+    # Top-line metrics
+    User = get_user_model()
+    total_users = User.objects.filter(is_admin=False).count()
+    active_users = User.objects.filter(is_active=True, is_admin=False).count()
+
+    total_desks = Desk.objects.count()
+    available_desks = Desk.objects.filter(current_status="available").count()
+    desks_in_use_online = Desk.objects.filter(
+        current_status__in=["occupied", "moving", "pending_verification"]
+    ).count()
+
+    has_desk_errors = Desk.objects.filter(last_error__isnull=False).exists()
+    from core.models import Pico as PicoModel  # avoid shadowing
+    has_pico_errors = PicoModel.objects.filter(status='error').exists()
+    system_status = "operational" if not (has_desk_errors or has_pico_errors) else "issues"
+
+    # Today reservations
+    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_of_day = start_of_day + timedelta(days=1)
+    todays_reservations = Reservation.objects.filter(
+        start_time__gte=start_of_day,
+        start_time__lt=end_of_day,
+        user__is_admin=False,
+    )
+
+    # Hourly utilization (e.g. 6AM–6PM)
+    hours_labels = [
+        "6AM", "7AM", "8AM", "9AM", "10AM", "11AM",
+        "12PM", "1PM", "2PM", "3PM", "4PM", "5PM", "6PM",
+    ]
+    day_start = start_of_day + timedelta(hours=6)
+    hourly_values = _bucket_reservation_minutes_by_hour(
+        todays_reservations, day_start, hours_labels
+    )
+
+    # Active users by department over recent window (last 30 days)
+    recent_reservations = _get_recent_reservations(days=30)
+    dept_stats = (
+        recent_reservations
+        .values('user__department')
+        .annotate(active_users=Count('user', distinct=True))
+        .order_by('user__department')
+    )
+    active_users_by_department = [
+        {
+            "department": d["user__department"] or "Unassigned",
+            "active_users": d["active_users"],
+        }
+        for d in dept_stats
+    ]
+
+    # Today booking timeline
+    timeline_slots = [6, 8, 10, 12, 14, 16, 18]  # hours
+    slot_labels = ["6AM", "8AM", "10AM", "12PM", "2PM", "4PM", "6PM"]
+    slot_counts = [0 for _ in slot_labels]
+    for r in todays_reservations:
+        hour = r.start_time.hour
+        for i, h in enumerate(timeline_slots):
+            # for the last slot, include up to 23:59
+            upper = timeline_slots[i + 1] if i + 1 < len(timeline_slots) else 24
+            if h <= hour < upper:
+                slot_counts[i] += 1
+                break
+
+    # Recent bookings list (reservations + hot-desk sessions)
+    recent_reservations = (
+        Reservation.objects
+        .select_related('user', 'desk')
+        .filter(user__is_admin=False)
+        .order_by('-start_time')[:5]
+    )
+
+    recent_hotdesks = (
+        DeskUsageLog.objects
+        .select_related('user', 'desk')
+        .filter(user__is_admin=False, source='hotdesk')
+        .order_by('-started_at')[:5]
+    )
+
+    combined = []
+    for r in recent_reservations:
+        combined.append({
+            "type": "reservation",
+            "user": f"{r.user.first_name} {r.user.last_name}".strip() or r.user.email,
+            "desk": r.desk.name,
+            "start": r.start_time,
+        })
+    for log in recent_hotdesks:
+        combined.append({
+            "type": "hotdesk",
+            "user": f"{log.user.first_name} {log.user.last_name}".strip() or log.user.email,
+            "desk": log.desk.name,
+            "start": log.started_at,
+        })
+
+    combined.sort(key=lambda x: x["start"], reverse=True)
+    combined = combined[:5]
+
+    recent_bookings = [
+        {
+            "type": item["type"],
+            "user": item["user"],
+            "desk": item["desk"],
+        }
+        for item in combined
+    ]
+
+    # Complaints – latest open complaints (serialized so shape matches complaints API)
+    complaints_qs = (
+        Complaint.objects
+        .select_related('user', 'desk')
+        .filter(status="open")
+        .order_by('-created_at')[:10]
+    )
+    complaints = ComplaintSerializer(complaints_qs, many=True).data
+
+    data = {
+        "total_users": total_users,
+        "active_users": active_users,
+        "total_desks": total_desks,
+        "available_desks": available_desks,
+        "desks_in_use_online": desks_in_use_online,
+        "system_status": system_status,
+        "hourly_utilization": {
+            "labels": hours_labels,
+            "values": hourly_values,
+        },
+        "active_users_by_department": active_users_by_department,
+        "today_bookings_timeline": {
+            "labels": slot_labels,
+            "values": slot_counts,
+        },
+        "recent_bookings": recent_bookings,
+        "complaints": complaints,
+    }
+
+    return Response(data)
+
+
+
+# -------------------------------------------------------------
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def admin_full_analytics(request):
+    """Return aggregated analytics for the full AnalyticsPage."""
+    now = timezone.now()
+
+    days = 12 # last N days for heatmap and daily usage
+    all_reservations = _get_recent_reservations(days=days + 2)
+
+    # Build date labels (oldest -> newest)
+    date_labels = [
+        (now.date() - timedelta(days=i)) for i in range(days - 1, -1, -1)
+    ]
+    date_str_labels = [d.strftime("%b %d") for d in date_labels]
+
+    hours_labels = [
+        "6AM", "7AM", "8AM", "9AM", "10AM", "11AM",
+        "12PM", "1PM", "2PM", "3PM", "4PM", "5PM", "6PM",
+    ]
+
+    # Heatmap matrix per day
+    heatmap_matrix = []
+    for d in date_labels:
+        day_start = datetime.combine(d, datetime.min.time()).replace(tzinfo=now.tzinfo)
+        day_end = day_start + timedelta(days=1)
+        day_reservations = all_reservations.filter(
+            start_time__lt=day_end,
+            end_time__gt=day_start,
+        )
+        row = _bucket_reservation_minutes_by_hour(day_reservations, day_start + timedelta(hours=6), hours_labels)
+        heatmap_matrix.append(row)
+
+    # Desk usage per day (hours)
+    from django.db.models import F, ExpressionWrapper, DurationField, Sum
+
+    daily_usage = (
+        all_reservations
+        .annotate(
+            duration=ExpressionWrapper(
+                F('end_time') - F('start_time'),
+                output_field=DurationField(),
+            )
+        )
+        .values('start_time__date')
+        .annotate(total_duration=Sum('duration'))
+    )
+    duration_by_date = {row['start_time__date']: row['total_duration'] for row in daily_usage}
+    desk_usage_week_values = []
+    for d in date_labels:
+        dur = duration_by_date.get(d, None)
+        hours = (dur.total_seconds() / 3600.0) if dur else 0.0
+        desk_usage_week_values.append(round(hours, 2))
+
+    # Desk usage by department
+    dept_usage = (
+        all_reservations
+        .annotate(
+            duration=ExpressionWrapper(
+                F('end_time') - F('start_time'),
+                output_field=DurationField(),
+            )
+        )
+        .values('user__department')
+        .annotate(total_duration=Sum('duration'))
+    )
+    desk_usage_by_department_labels = []
+    desk_usage_by_department_values = []
+    for row in dept_usage:
+        dept = row['user__department'] or 'Unassigned'
+        dur = row['total_duration']
+        hours = (dur.total_seconds() / 3600.0) if dur else 0.0
+        desk_usage_by_department_labels.append(dept)
+        desk_usage_by_department_values.append(round(hours, 2))
+
+    # Used desks chart – count reservations per desk
+    desk_counts = (
+        all_reservations
+        .values('desk__name')
+        .annotate(count=Count('id'))
+        .order_by('desk__name')
+    )
+    used_desks_labels = [row['desk__name'] for row in desk_counts]
+    used_desks_values = [row['count'] for row in desk_counts]
+
+    # System health – number of desks with errors per day based on error_timestamp
+    system_labels = []
+    system_values = []
+    for d in date_labels:
+        day_start = datetime.combine(d, datetime.min.time()).replace(tzinfo=now.tzinfo)
+        day_end = day_start + timedelta(days=1)
+        count = Desk.objects.filter(
+            error_timestamp__gte=day_start,
+            error_timestamp__lt=day_end,
+        ).count()
+        system_labels.append(d.strftime("%b %d"))
+        system_values.append(count)
+
+    # Booking types – hot desk vs reservations in last 30 days
+    last_30_start = now - timedelta(days=30)
+
+    # (Ad-hoc = hot desk sessions here)
+    adhoc = (
+        DeskUsageLog.objects
+        .filter(
+            source="hotdesk",
+            started_at__gte=last_30_start,
+            user__is_admin=False,
+        )
+        .count()
+    )
+
+    # (Recurring = reservation-based bookings in the same window)
+    recurring = (
+        Reservation.objects
+        .filter(
+            start_time__gte=last_30_start,
+            user__is_admin=False,
+        )
+        .exclude(status='cancelled')
+        .count()
+    )
+
+    # Cancellation rate per week (last 4 weeks)
+    last_28_start = now - timedelta(days=28)
+    cancelled = Reservation.objects.filter(
+        status='cancelled',
+        cancelled_at__gte=last_28_start,
+        user__is_admin=False,
+    )
+    # Weeks: 0..3 (0 = oldest week)
+    week_labels = ["Week 1", "Week 2", "Week 3", "Week 4"]
+    week_values = [0, 0, 0, 0]
+    for r in cancelled:
+        delta_days = (r.cancelled_at - last_28_start).days
+        idx = min(delta_days // 7, 3)
+        if idx >= 0:
+            week_values[idx] += 1
+
+    # Leaderboard – top users by total reservation hours and booking count
+    User = get_user_model()
+    leaderboard_qs = (
+        User.objects
+        .filter(is_admin=False)
+        .annotate(
+            bookings=Count('reservations'),
+            total_duration=Sum(
+                ExpressionWrapper(
+                    F('reservations__end_time') - F('reservations__start_time'),
+                    output_field=DurationField(),
+                ),
+                filter=Q(reservations__end_time__isnull=False),
+            ),
+        )
+        .filter(bookings__gt=0)
+        .order_by('-total_duration')[:5]
+    )
+    leaderboard = []
+    for u in leaderboard_qs:
+        dur = u.total_duration
+        hours = (dur.total_seconds() / 3600.0) if dur else 0.0
+        name = f"{u.first_name} {u.last_name}".strip() or u.email
+        leaderboard.append({
+            "name": name,
+            "hours": round(hours, 1),
+            "bookings": u.bookings,
+        })
+
+    data = {
+        "heatmap": {
+            "dates": date_str_labels,
+            "hours": hours_labels,
+            "matrix": heatmap_matrix,
+        },
+        "desk_usage_week": {
+            "labels": date_str_labels,
+            "values": desk_usage_week_values,
+        },
+        "desk_usage_by_department": {
+            "labels": desk_usage_by_department_labels,
+            "values": desk_usage_by_department_values,
+        },
+        "used_desks": {
+            "labels": used_desks_labels,
+            "values": used_desks_values,
+        },
+        "system_health": {
+            "labels": system_labels,
+            "values": system_values,
+        },
+        "booking_types": {
+            "labels": ["Hot desk", "Reservations"],
+            "values": [adhoc, recurring],
+        },
+        "cancellation_rate": {
+            "labels": week_labels,
+            "values": week_values,
+        },
+        "leaderboard": leaderboard,
+    }
+
+    return Response(data)
+
+
+# ================= COMPLAINTS API =================
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def complaints_view(request):
+    """List or create complaints.
+
+    - GET: regular users see their own complaints; admins see all complaints.
+    - POST: create a new complaint for the authenticated user.
+    """
+    if request.method == "GET":
+        if request.user.is_admin:
+            qs = Complaint.objects.select_related("user", "desk").all()
+        else:
+            qs = Complaint.objects.select_related("user", "desk").filter(user=request.user)
+        serializer = ComplaintSerializer(qs, many=True)
+        return Response(serializer.data)
+
+    # POST
+    serializer = ComplaintSerializer(data=request.data, context={"request": request})
+    serializer.is_valid(raise_exception=True)
+    complaint = serializer.save()
+    return Response(ComplaintSerializer(complaint).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def solve_complaint(request, complaint_id: int):
+    """Mark a complaint as solved.
+
+    This is intended for use from the admin dashboard only.
+    """
+    try:
+        complaint = Complaint.objects.get(id=complaint_id)
+    except Complaint.DoesNotExist:
+        return Response({"error": "Complaint not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if complaint.status == "solved":
+        serializer = ComplaintSerializer(complaint)
+        return Response(serializer.data)
+
+    complaint.status = "solved"
+    complaint.solved_at = timezone.now()
+    complaint.solved_by = request.user
+    complaint.save(update_fields=["status", "solved_at", "solved_by"])
+
+    serializer = ComplaintSerializer(complaint)
+    return Response(serializer.data)
 
 
 @api_view(["POST"])

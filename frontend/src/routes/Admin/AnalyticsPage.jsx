@@ -1,10 +1,8 @@
 "use client";
 
 import { useAuth } from "@/contexts/useAuth";
-import { ModeToggle } from "@/components/mode-toggle";
-import { NavUser } from "@/components/nav-user";
-import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 
+import { useEffect, useState } from "react";
 import { Line, Bar, Doughnut } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -35,110 +33,136 @@ ChartJS.register(
 export default function AnalyticsPage() {
   const { user } = useAuth();
 
-  // Mock Data
- const weekDates = [
-  "Nov 1", "Nov 2", "Nov 3", "Nov 4", "Nov 5", "Nov 6", "Nov 7", 
-  "Nov 8", "Nov 9", "Nov 10", "Nov 11", "Nov 12"
-];
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-const hours = [
-  "6AM", "7AM", "8AM", "9AM", "10AM", "11AM", "12PM", "1PM", 
-  "2PM", "3PM", "4PM", "5PM", "6PM"
-];
+  const [heatmapDates, setHeatmapDates] = useState([]);
+  const [heatmapHours, setHeatmapHours] = useState([]);
+  const [heatmapData, setHeatmapData] = useState([]);
 
-  const heatmapData = weekDates.map(() =>
-    hours.map(() => Math.floor(Math.random() * 100))
-  );
+  const [deskUsageWeek, setDeskUsageWeek] = useState({ labels: [], datasets: [] });
+  const [deskUsageByDept, setDeskUsageByDept] = useState({ labels: [], datasets: [] });
+  const [usedDesks, setUsedDesks] = useState({ labels: [], datasets: [] });
+  const [systemHealth, setSystemHealth] = useState({ labels: [], datasets: [] });
+  const [bookingTypes, setBookingTypes] = useState({ labels: [], datasets: [] });
+  const [cancellationRate, setCancellationRate] = useState({ labels: [], datasets: [] });
+  const [leaderboard, setLeaderboard] = useState([]);
 
-  const deskUsageWeek = {
-    labels: weekDates,
-    datasets: [
-      {
-        label: "Desk Usage (hrs)",
-        data: [12, 18, 10, 22, 15, 10, 10, 18, 20, 13, 8, 4],
-        borderColor: "#3b82f6",
-        backgroundColor: "rgba(59, 130, 246, 0.2)",
-        fill: true,
-        tension: 0.4,
-      },
-    ],
-  };
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch("http://localhost:8000/api/admin/analytics/", {
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed to fetch admin analytics");
+        const data = await res.json();
 
-  const deskUsageByDept = {
-    labels: ["Engineering", "Marketing", "Design", "HR"],
-    datasets: [
-      {
-        label: "Hours",
-        data: [210, 160, 130, 90],
-        backgroundColor: "#6366f1",
-      },
-    ],
-  };
+        if (data.heatmap) {
+          setHeatmapDates(data.heatmap.dates || []);
+          setHeatmapHours(data.heatmap.hours || []);
+          setHeatmapData(data.heatmap.matrix || []);
+        }
 
-  const usedDesks = {
-    labels: Array.from({ length: 24 }, (_, i) => `Desk ${i + 1}`),
-    datasets: [
-      {
-        label: "Usage Count",
-        data: Array.from({ length: 24 }, () => Math.floor(Math.random() * 12)),
-        backgroundColor: "#22c55e",
-      },
-    ],
-  };
+        if (data.desk_usage_week) {
+          setDeskUsageWeek({
+            labels: data.desk_usage_week.labels || [],
+            datasets: [
+              {
+                label: "Desk Usage (hrs)",
+                data: data.desk_usage_week.values || [],
+                borderColor: "#3b82f6",
+                backgroundColor: "rgba(59, 130, 246, 0.2)",
+                fill: true,
+                tension: 0.4,
+              },
+            ],
+          });
+        }
 
-  const systemHealth = {
-    labels: ["Nov 1", "Nov 2", "Nov 3", "Nov 4", "Nov 5", "Nov 6"],
-    datasets: [
-      {
-        label: "Errors",
-        data: [1, 0, 2, 1, 0, 3],
-        borderColor: "#ef4444",
-        backgroundColor: "rgba(239, 68, 68, 0.2)",
-        fill: true,
-        tension: 0.4,
-      },
-    ],
-  };
+        if (data.desk_usage_by_department) {
+          setDeskUsageByDept({
+            labels: data.desk_usage_by_department.labels || [],
+            datasets: [
+              {
+                label: "Hours",
+                data: data.desk_usage_by_department.values || [],
+                backgroundColor: "#6366f1",
+              },
+            ],
+          });
+        }
 
-  const bookingTypes = {
-    labels: ["Ad-hoc", "Recurring"],
-    datasets: [
-      {
-        data: [65, 35],
-        backgroundColor: ["#10b981", "#6366f1"],
-      },
-    ],
-  };
+        if (data.used_desks) {
+          setUsedDesks({
+            labels: data.used_desks.labels || [],
+            datasets: [
+              {
+                label: "Usage Count",
+                data: data.used_desks.values || [],
+                backgroundColor: "#22c55e",
+              },
+            ],
+          });
+        }
 
-  const cancellationRate = {
-    labels: ["Week 1", "Week 2", "Week 3", "Week 4"],
-    datasets: [
-      {
-        label: "Cancelled",
-        data: [4, 6, 3, 7],
-        backgroundColor: "#f97316",
-      },
-    ],
-  };
+        if (data.system_health) {
+          setSystemHealth({
+            labels: data.system_health.labels || [],
+            datasets: [
+              {
+                label: "Errors",
+                data: data.system_health.values || [],
+                borderColor: "#ef4444",
+                backgroundColor: "rgba(239, 68, 68, 0.2)",
+                fill: true,
+                tension: 0.4,
+              },
+            ],
+          });
+        }
 
-  const leaderboard = [
-    { name: "Alice Smith", hours: 40, bookings: 22 },
-    { name: "Bob Johnson", hours: 36, bookings: 20 },
-    { name: "Carol Williams", hours: 33, bookings: 18 },
-  ];
+        if (data.booking_types) {
+          // Backend: index 0 = hot-desk, index 1 = reservations
+          setBookingTypes({
+            labels: ["Hot desk", "Reservations"],
+            datasets: [
+              {
+                data: data.booking_types.values || [],
+                backgroundColor: ["#10b981", "#6366f1"],
+              },
+            ],
+          });
+        }
+
+        if (data.cancellation_rate) {
+          setCancellationRate({
+            labels: data.cancellation_rate.labels || [],
+            datasets: [
+              {
+                label: "Cancelled",
+                data: data.cancellation_rate.values || [],
+                backgroundColor: "#f97316",
+              },
+            ],
+          });
+        }
+
+        setLeaderboard(data.leaderboard || []);
+        setError(null);
+      } catch (err) {
+        console.error(err);
+        setError("Could not load admin analytics.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnalytics();
+  }, []);
 
   return (
-    <>
-      {/* Top Right Controls */}
-      <div className="absolute top-4 right-4 z-50">
-        <div className="flex items-center gap-3">
-          <ModeToggle />
-          <NavUser user={user} />
-        </div>
-      </div>
-
-      <SidebarInset>
-        <div className="flex flex-col gap-6 px-6 pb-12 pt-4">
+    <div className="flex flex-col gap-6 px-6 pb-12 pt-4">
           {/* Header */}
           <div className="flex items-center justify-between mb-8 gap-4">
             <h1 className="text-2xl font-bold">Analytics</h1>
@@ -147,14 +171,14 @@ const hours = [
           {/* Row 1 */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Heatmap (larger) */}
-            <div className="lg:col-span-2 bg-muted/50 p-4 rounded-lg shadow hover:scale-[1.01] transition">
+            <div className="lg:col-span-2 bg-muted/50 p-4 rounded-xl hover:scale-[1.01] transition-transform">
               <h2 className="text-lg font-semibold mb-3">Desk Usage Heatmap</h2>
               <div className="overflow-x-auto">
                 <table className="text-sm">
                   <thead>
                     <tr>
                       <th className="p-2"></th>
-                      {hours.map((h) => (
+                      {heatmapHours.map((h) => (
                         <th key={h} className="p-2 text-center">{h}</th>
                       ))}
                     </tr>
@@ -162,14 +186,14 @@ const hours = [
                   <tbody>
                     {heatmapData.map((row, dayIdx) => (
                       <tr key={dayIdx}>
-                        <td className="p-2 font-semibold">{weekDates[dayIdx]}</td>
+                        <td className="p-2 font-semibold">{heatmapDates[dayIdx]}</td>
                         {row.map((value, colIdx) => (
                           <td key={colIdx} className="p-1">
                             <div
                               className="h-6 w-6 text-center text-xs rounded-sm"
                               style={{
                                 backgroundColor: `rgba(59,130,246,${value / 100})`,
-                                color: value > 70 ? "white" : "black",
+                                color: value > 0 ? "var(--foreground)" : "var(--muted-foreground)",
                                 lineHeight: "1.5rem",
                               }}
                             >
@@ -217,8 +241,7 @@ const hours = [
               <Bar data={cancellationRate} />
             </ChartCard>
 
-            <div className="bg-muted/50 p-4 rounded-lg shadow hover:scale-[1.02] transition">
-              <h2 className="text-lg font-semibold mb-3">Power Users Leaderboard</h2>
+            <ChartCard title="Power Users Leaderboard">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-muted-foreground">
@@ -237,17 +260,15 @@ const hours = [
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ChartCard>
           </div>
-        </div>
-      </SidebarInset>
-    </>
+    </div>
   );
 }
 
 function ChartCard({ title, children }) {
   return (
-    <div className="bg-muted/50 p-4 rounded-lg shadow hover:scale-[1.02] transition min-h-[250px]">
+    <div className="bg-muted/50 p-4 rounded-xl min-h-[250px] hover:scale-[1.01] transition-transform">
       <h2 className="text-lg font-semibold mb-2">{title}</h2>
       {children}
     </div>
