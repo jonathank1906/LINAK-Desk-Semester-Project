@@ -308,6 +308,7 @@ def desk_usage(request, desk_id):
 
         # Calculate elapsed time
         now = timezone.now()
+        fifteen_minutes = timedelta(minutes=15)
         started_at = log.started_at
         elapsed_seconds = int((now - started_at).total_seconds())
 
@@ -824,6 +825,7 @@ def hotdesk_status(request):
     date = timezone.datetime.strptime(date_str, "%Y-%m-%d").date()
     desks = Desk.objects.all()
     result = []
+    now = timezone.now()
 
     for desk in desks:
         reservation = (
@@ -833,19 +835,35 @@ def hotdesk_status(request):
             .order_by("start_time")
             .first()
         )
+
         if reservation:
-            result.append(
-                {
-                    "id": desk.id,
-                    "desk_name": desk.name,  # added
-                    "reserved": True,
-                    "reserved_time": reservation.start_time.strftime("%H:%M"),
-                }
+            start_time = reservation.start_time
+            end_time = reservation.end_time
+            reserved_by = reservation.user.id
+
+            # Determine lock logic
+            is_locked = (
+                now >= start_time - timedelta(minutes=15)
+                and now <= end_time
             )
+
+            result.append({
+                "id": desk.id,
+                "desk_name": desk.name,
+                "reserved": True,
+                "reserved_by": reserved_by,
+                "reserved_time": start_time.strftime("%H:%M"),
+                "reserved_start_time": start_time.isoformat(),
+                "reserved_end_time": end_time.isoformat(),
+                "locked_for_checkin": is_locked
+            })
         else:
-            result.append(
-                {"id": desk.id, "desk_name": desk.name, "reserved": False}  # added
-            )
+            result.append({
+                "id": desk.id,
+                "desk_name": desk.name,
+                "reserved": False,
+                "locked_for_checkin": False
+            })
 
     return Response(result)
 
@@ -894,15 +912,26 @@ def create_reservation(request):
 def check_in_reservation(request, reservation_id):
     try:
         reservation = Reservation.objects.get(id=reservation_id, user=request.user)
+        now = timezone.now()
+
         if reservation.status != "confirmed":
             return Response(
                 {"error": "Reservation not confirmed or already active"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Only allow check-in within 15 minutes before the start
+        allowed_window_start = reservation.start_time - timedelta(minutes=15)
+        allowed_window_end = reservation.start_time + timedelta(minutes=15)  # small grace period
+
+        if not (allowed_window_start <= now <= allowed_window_end):
+            return Response({
+                "error": f"You can only check in within 15 minutes before or after your reservation starts. Check-in allowed from {allowed_window_start.strftime('%H:%M')}."
+            }, status=status.HTTP_403_FORBIDDEN)
+
         # Mark reservation as active
         reservation.status = "active"
-        reservation.checked_in_at = timezone.now()
+        reservation.checked_in_at = now
         reservation.save()
 
         # Mark desk as occupied
@@ -915,14 +944,17 @@ def check_in_reservation(request, reservation_id):
         DeskUsageLog.objects.create(
             user=request.user,
             desk=desk,
-            started_at=timezone.now(),
+            started_at=now,
             source="reservation",
         )
+
         return Response({"success": True})
+
     except Reservation.DoesNotExist:
         return Response(
             {"error": "Reservation not found"}, status=status.HTTP_404_NOT_FOUND
         )
+
 
 
 @api_view(["POST"])

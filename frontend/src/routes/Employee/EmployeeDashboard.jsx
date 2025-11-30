@@ -70,6 +70,30 @@ export default function EmployeeDashboard() {
     const [verificationModalOpen, setVerificationModalOpen] = useState(false);
     const [pendingDeskId, setPendingDeskId] = useState(null);
 
+    // HELPER: Safely parse Django date strings (handles " " vs "T")
+    const parseDateSafe = (dateString) => {
+        if (!dateString) return new Date();
+        // Django sometimes returns "YYYY-MM-DD HH:MM:SS" which JS hates. Replace space with T.
+        const isoLike = dateString.replace(' ', 'T'); 
+        return new Date(isoLike);
+    };
+
+        const canCheckIn = (reservation) => {
+        if (!reservation.start_time) return false;
+        
+        const now = new Date();
+        const start = parseDateSafe(reservation.start_time);
+        
+        // Calculate difference in minutes
+        const diffMs = start - now;
+        const diffMins = diffMs / 1000 / 60;
+        
+        // Allow check-in if within 15 minutes (positive diff) OR if time has passed (negative diff)
+        // But stop allowing if the reservation is over (handled by status usually)
+        return diffMins <= 15 && reservation.status === "confirmed";
+    };
+
+
     // Fetch user's occupied desk on login/page load
     useEffect(() => {
         if (!user) return;
@@ -118,10 +142,10 @@ useEffect(() => {
             const res = await axios.get("http://localhost:8000/api/reservations/", config);
 
             const upcoming = res.data
-                .filter(r => r.status === "confirmed")
+                .filter(r => r.status === "confirmed" || r.status === "active")
                 .map(r => ({
                     id: r.id,
-                    date: new Date(r.start_time).toLocaleDateString(),
+                    date: parseDateSafe(r.start_time).toLocaleDateString(),
                     desk_name: r.desk_name || `Desk ${r.desk_id}`,
                     start_time: r.start_time.slice(11,16),
                     end_time: r.end_time.slice(11,16),
@@ -279,10 +303,6 @@ useEffect(() => {
 
         return () => clearInterval(liveInterval);
     }, [baseSittingSeconds, baseStandingSeconds, lastFetchTime, currentHeight, usageStats]);
-
-    function handleEditReservation(id) {
-        // TODO: open edit modal / navigate to edit form
-    }
 
     function handleDeleteReservation(id) {
         setUpcomingReservations((prev) => prev.filter((r) => r.id !== id));
@@ -496,16 +516,18 @@ async function handleCheckOutReservation(reservationId) {
                                             <div className="flex items-center gap-2">
                                                 {idx === 0 ? (
                                                     <>
-                                                        {!r.checkedIn ? (
-                                                            <button
-                                                                onClick={() => handleCheckInReservation(r.id)}
-                                                                className="px-3 py-1 rounded-md bg-primary text-white text-sm hover:opacity-90"
-                                                                aria-label="Check in"
-                                                            >
-                                                                Check in
-                                                            </button>
+                                                        {!r.checkedIn && canCheckIn(r) ? (
+                                                        <button
+                                                            onClick={() => handleCheckInReservation(r.id)}
+                                                            className="px-3 py-1 rounded-md bg-primary text-white text-sm hover:opacity-90"
+                                                            aria-label="Check in"
+                                                        >
+                                                            Check in
+                                                        </button>
+                                                        ) : !r.checkedIn ? (
+                                                        <span className="text-xs text-muted-foreground">Check-in available 15 mins before</span>
                                                         ) : (
-                                                            <span className="px-2 py-1 text-xs rounded-md bg-green-100 text-green-800">Checked in</span>
+                                                        <span className="px-2 py-1 text-xs rounded-md bg-green-100 text-green-800">Checked in</span>
                                                         )}
 
                                                         <button
