@@ -28,6 +28,9 @@ set(PICO_BOARD pico_w CACHE STRING "Board type")
 set(MQTT_SERVER "192.168.68.101")
 set(WIFI_SSID "OPPO A98 5G")
 set(WIFI_PASSWORD "12345678")
+if(NOT EXISTS ${CMAKE_CURRENT_LIST_DIR}/wifi_config.h)
+    message(FATAL_ERROR "wifi_config.h not found! Copy wifi_config.h.example to wifi_config.h and fill in your WiFi credentials.")
+endif()
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
@@ -70,12 +73,6 @@ target_link_libraries(main
 # Add the standard include files to the build
 target_include_directories(main PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
-)
-
-target_compile_definitions(main PRIVATE
-    WIFI_SSID=\"${WIFI_SSID}\"
-    WIFI_PASSWORD=\"${WIFI_PASSWORD}\"
-    MQTT_SERVER=\"${MQTT_SERVER}\"
 )
 
 pico_add_extra_outputs(main)

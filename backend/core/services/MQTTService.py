@@ -12,6 +12,7 @@ class MQTTService:
     
     def __init__(self):
         self.broker = getattr(settings, 'MQTT_BROKER', '192.168.68.101')
+        self.broker = getattr(settings, 'MQTT_BROKER', 'localhost')
         self.port = getattr(settings, 'MQTT_PORT', 1883)
         self.client = mqtt.Client()
         self.client.on_connect = self.on_connect

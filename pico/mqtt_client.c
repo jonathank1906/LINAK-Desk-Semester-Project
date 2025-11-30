@@ -19,6 +19,7 @@
 #include "Buzzer.h"
 #include "led_mode.h"
 #include "buzzer_mode.h"
+#include "wifi_config.h"
 
 // FIX: Declare extern only once at the top, not inside handler blocks
 #ifdef __cplusplus
@@ -522,7 +523,6 @@ static void dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg)
 
 void mqtt_init(void)
 {
-
     sleep_ms(2000); // Wait for USB serial
 
     INFO_printf("\n\n=================================\n");
@@ -538,23 +538,30 @@ void mqtt_init(void)
         panic("Failed to initialize CYW43");
     }
 
-    // Generate unique device name
-    char unique_id_buf[5];
-    pico_get_unique_board_id_string(unique_id_buf, sizeof(unique_id_buf));
-    for (int i = 0; i < sizeof(unique_id_buf) - 1; i++)
+    // Connect to WiFi FIRST
+    INFO_printf("\nConnecting to WiFi: %s\n", WIFI_SSID);
+    cyw43_arch_enable_sta_mode();
+
+    if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 30000))
     {
-        unique_id_buf[i] = tolower(unique_id_buf[i]);
+        panic("WiFi connection failed");
     }
+    INFO_printf("✓ Connected to WiFi\n");
+    INFO_printf("IP Address: %s\n", ip4addr_ntoa(netif_ip4_addr(netif_list)));
 
-    static char client_id_buf[sizeof(MQTT_DEVICE_NAME) + sizeof(unique_id_buf) - 1];
-    memcpy(&client_id_buf[0], MQTT_DEVICE_NAME, sizeof(MQTT_DEVICE_NAME) - 1);
-    memcpy(&client_id_buf[sizeof(MQTT_DEVICE_NAME) - 1], unique_id_buf, sizeof(unique_id_buf) - 1);
-    client_id_buf[sizeof(client_id_buf) - 1] = 0;
+    // NOW get MAC address (after WiFi is connected)
+    uint8_t mac[6];
+    cyw43_hal_get_mac(CYW43_ITF_STA, mac);
+    
+    static char mac_address_buf[18];
+    snprintf(mac_address_buf, sizeof(mac_address_buf), 
+             "%02X:%02X:%02X:%02X:%02X:%02X",
+             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    
+    INFO_printf("WiFi MAC Address: %s\n", mac_address_buf);
 
-    INFO_printf("Device ID: %s\n", client_id_buf);
-
-    // Configure MQTT client info
-    g_state.mqtt_client_info.client_id = client_id_buf;
+    // Configure MQTT client info using MAC as client ID
+    g_state.mqtt_client_info.client_id = mac_address_buf;
     g_state.mqtt_client_info.keep_alive = MQTT_KEEP_ALIVE_S;
 
 #if defined(MQTT_USERNAME) && defined(MQTT_PASSWORD)
@@ -573,16 +580,6 @@ void mqtt_init(void)
     g_state.mqtt_client_info.will_msg = MQTT_WILL_MSG;
     g_state.mqtt_client_info.will_qos = MQTT_WILL_QOS;
     g_state.mqtt_client_info.will_retain = true;
-
-    // Connect to WiFi
-    INFO_printf("\nConnecting to WiFi: %s\n", WIFI_SSID);
-    cyw43_arch_enable_sta_mode();
-
-    if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 30000))
-    {
-        panic("WiFi connection failed");
-    }
-    INFO_printf("✓ Connected to WiFi\n");
 
     // DNS lookup for MQTT server
     INFO_printf("\nResolving MQTT server: %s\n", MQTT_SERVER);

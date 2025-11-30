@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 import os
 from pathlib import Path
 from datetime import timedelta
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -206,6 +207,8 @@ DJOSER = {
 # MQTT Configuration
 MQTT_BROKER = '192.168.68.101'  # Same as your Pico's MQTT_SERVER from CMakeLists.txt
 MQTT_PORT = 1883
+MQTT_BROKER = config('MQTT_BROKER', default='localhost')
+MQTT_PORT = config('MQTT_PORT', default=1883, cast=int)
 
 
 # Default primary key field type
