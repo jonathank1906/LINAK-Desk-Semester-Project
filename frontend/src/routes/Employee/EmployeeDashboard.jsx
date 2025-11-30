@@ -59,34 +59,41 @@ export default function EmployeeDashboard() {
 
     // HELPER: Safely parse Django date strings (handles " " vs "T")
     const parseDateSafe = (dateString) => {
-        if (!dateString) return new Date();
-        // Django sometimes returns "YYYY-MM-DD HH:MM:SS" which JS hates. Replace space with T.
-        const isoLike = dateString.replace(' ', 'T'); 
-        return new Date(isoLike);
-    };
+  if (!dateString || typeof dateString !== "string") return null;
+
+  // Handles both "YYYY-MM-DDTHH:MM:SS" and "YYYY-MM-DD HH:MM:SS"
+  const clean = dateString.replace("T", " ");
+  const [datePart, timePart] = clean.split(" ");
+  
+  if (!datePart || !timePart) return null;
+
+  const [year, month, day] = datePart.split("-").map(Number);
+  const [hour, minute, second] = timePart.split(":").map(Number);
+
+  if (
+    [year, month, day, hour, minute].some((val) => isNaN(val))
+  ) {
+    console.warn("Invalid reservation datetime string:", dateString);
+    return null;
+  }
+
+  return new Date(year, month - 1, day, hour, minute, second || 0);
+};
+
+
 
     const canCheckIn = (reservation) => {
-        if (!reservation.start_time) return false;
-        
-        // 1. Get the current time as a simple numeric timestamp (milliseconds since epoch).
-        // This is always universal and prevents time zone re-interpretation issues.
-        const nowMs = new Date().getTime(); 
-        
-        // 2. Parse the reservation start time string into a Date object.
-        // It's effectively treated as UTC/Server time.
-        const start = parseDateSafe(reservation.start_time);
-        
-        // 3. Get the reservation start time in milliseconds since epoch.
-        const startMs = start.getTime(); 
-        
-        // Calculate the difference: (Start Time MS) - (Current Time MS)
-        // A positive result means the start time is in the future.
-        const diffMs = startMs - nowMs;
-        const diffMins = diffMs / 1000 / 60;
-        
-        // Check if the difference is 15 minutes or less (including negative/past time).
-        return diffMins <= 15 && diffMins >= -15 && reservation.status === "confirmed";
-    };
+  if (!reservation?.start_time || reservation.status !== "confirmed") return false;
+
+  const start = parseDateSafe(reservation.start_time);
+  if (!start) return false; 
+
+  const nowMs = new Date().getTime();
+  const startMs = start.getTime();
+  const diffMins = (startMs - nowMs) / 1000 / 60;
+
+  return diffMins <= 15 && diffMins >= -15;
+};
 
     // Fetch user's occupied desk on login/page load
     useEffect(() => {
@@ -136,29 +143,29 @@ useEffect(() => {
             const res = await axios.get("http://localhost:8000/api/reservations/", config);
 
             const upcoming = res.data
-                .filter(r => r.status === "confirmed" || r.status === "active")
-                .map(r => { 
-                    const parsedStartTime = parseDateSafe(r.start_time);
-                    const parsedEndTime = parseDateSafe(r.end_time);
+  .filter(r => r.status === "confirmed" || r.status === "active")
+  .map(r => {
+    const parsedStartTime = parseDateSafe(r.start_time);
+    const parsedEndTime = parseDateSafe(r.end_time);
 
-                    // --- FIX APPLIED HERE ---
-                    const startHours = String(parsedStartTime.getHours()).padStart(2, '0');
-                    const startMinutes = String(parsedStartTime.getMinutes()).padStart(2, '0');
-                    const endHours = String(parsedEndTime.getHours()).padStart(2, '0');
-                    const endMinutes = String(parsedEndTime.getMinutes()).padStart(2, '0');
+    if (!parsedStartTime || !parsedEndTime) return null;
 
-                    // ------------------------
+    const startHours = String(parsedStartTime.getHours()).padStart(2, '0');
+    const startMinutes = String(parsedStartTime.getMinutes()).padStart(2, '0');
+    const endHours = String(parsedEndTime.getHours()).padStart(2, '0');
+    const endMinutes = String(parsedEndTime.getMinutes()).padStart(2, '0');
 
-                    return {
-                        id: r.id,
-                        date: formatNiceDate(parsedStartTime),
-                        desk_name: r.desk_name || `Desk ${r.desk_id}`,
-                        
-                        start_time: `${startHours}:${startMinutes}`, // Use fixed format
-                        end_time: `${endHours}:${endMinutes}`,       // Use fixed format
-                        checkedIn: r.status === "active"
-                    };
-                });
+    return {
+      id: r.id,
+      date: formatNiceDate(parsedStartTime),
+      desk_name: r.desk_name || `Desk ${r.desk_id}`,
+      start_time: `${startHours}:${startMinutes}`,
+      end_time: `${endHours}:${endMinutes}`,
+      checkedIn: r.status === "active"
+    };
+  })
+  .filter(Boolean); // ✅ filter out null values safely
+
 
             setUpcomingReservations(upcoming);
         } catch (err) { console.error("API error:", err);}
