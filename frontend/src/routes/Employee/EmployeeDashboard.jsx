@@ -93,7 +93,8 @@ export default function EmployeeDashboard() {
   const startMs = start.getTime();
   const diffMins = (startMs - nowMs) / 1000 / 60;
 
-  return diffMins <= 20 && diffMins >= -10;
+  // Allow check-in from 30 minutes before to 10 minutes after reservation start
+  return diffMins <= 30 && diffMins >= -10;
 };
 
 
