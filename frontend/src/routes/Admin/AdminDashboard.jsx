@@ -193,28 +193,26 @@ useEffect(() => {
       default:
         return (
           <div className="flex flex-1 flex-col gap-6 p-4 pt-0">
-            {/* SYSTEM STATUS */}
+            {/* TOP ROW: SYSTEM STATUS + METRICS */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
               <SystemStatusCard status={metrics.system_status} />
-            </div>
-
-            {/* TOP METRICS */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card
-                title="Total Active Users"
-                icon={<IconUsers size={32} />}
-                value={metrics.active_users}
-              />
-              <Card
-                title="Available Desks"
-                icon={<IconDesk size={32} />}
-                value={metrics.available_desks}
-              />
-              <Card
-                title="Desks In Use Online"
-                icon={<IconDesk size={32} />}
-                value={metrics.desks_in_use_online}
-              />
+              <div className="grid grid-cols-3 gap-4">
+                <Card
+                  title="Total Active Users"
+                  icon={<IconUsers size={32} />}
+                  value={metrics.active_users}
+                />
+                <Card
+                  title="Available Desks"
+                  icon={<IconDesk size={32} />}
+                  value={metrics.available_desks}
+                />
+                <Card
+                  title="Desks In Use Online"
+                  icon={<IconDesk size={32} />}
+                  value={metrics.desks_in_use_online}
+                />
+              </div>
             </div>
 
             {/* CHARTS ROW */}
