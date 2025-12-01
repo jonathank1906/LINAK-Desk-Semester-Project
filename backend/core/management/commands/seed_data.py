@@ -3,30 +3,35 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.apps import apps
 from decouple import config
+from datetime import timedelta
 
 class Command(BaseCommand):
     help = "Seed initial database data"
 
     def handle(self, *args, **options):
+        # -------------------------------------------------
+        # Seed users
+        # -------------------------------------------------
         # Create admin user
         User = get_user_model()
-        user, created = User.objects.get_or_create(username='admin', defaults={'email': 'admin@example.com'})
-        user.first_name = 'First'
-        user.last_name = 'Last'
-        user.is_admin = True
-        user.is_staff = True
-        user.is_superuser = True
-        user.department = 'Engineering'
-        user.set_password('123')
-        user.save()
+        admin_user, created = User.objects.get_or_create(username='admin', defaults={'email': 'admin@example.com'})
+        admin_user.first_name = 'Admin'
+        admin_user.last_name = 'User'
+        admin_user.is_admin = True
+        admin_user.is_staff = True
+        admin_user.is_superuser = True
+        admin_user.department = 'Engineering'
+        admin_user.set_password('123')
+        admin_user.save()
         if created:
             self.stdout.write(self.style.SUCCESS('User "admin" created successfully'))
         else:
             self.stdout.write(self.style.WARNING('User "admin" updated'))
 
+        # Create regular users
         regular_user, created = User.objects.get_or_create(username='user', defaults={'email': 'user@example.com'})
-        regular_user.first_name = 'First'
-        regular_user.last_name = 'Last'
+        regular_user.first_name = 'Michael'
+        regular_user.last_name = 'Wazowski'
         regular_user.is_admin = False
         regular_user.is_staff = False
         regular_user.department = 'Design'
@@ -37,7 +42,52 @@ class Command(BaseCommand):
         else:
             self.stdout.write(self.style.WARNING('User "user" updated'))
 
+        # (user2)
+        regular_user2, created = User.objects.get_or_create(username='user2', defaults={'email': 'user2@example.com'})
+        regular_user2.first_name = 'Walter'
+        regular_user2.last_name = 'White'
+        regular_user2.is_admin = False
+        regular_user2.is_staff = False
+        regular_user2.department = 'Science'
+        regular_user2.set_password('123')
+        regular_user2.save()
+        if created:
+            self.stdout.write(self.style.SUCCESS('User "user2" created successfully'))
+        else:
+            self.stdout.write(self.style.WARNING('User "user2" updated'))
+
+        # (user3)
+        regular_user3, created = User.objects.get_or_create(username='user3', defaults={'email': 'user3@example.com'})
+        regular_user3.first_name = 'Steve'
+        regular_user3.last_name = 'Jobs'
+        regular_user3.is_admin = False
+        regular_user3.is_staff = False
+        regular_user3.department = 'Marketing'
+        regular_user3.set_password('123')
+        regular_user3.save()
+        if created:
+            self.stdout.write(self.style.SUCCESS('User "user3" created successfully'))
+        else:
+            self.stdout.write(self.style.WARNING('User "user3" updated'))
+
+        # (user4)
+        regular_user4, created = User.objects.get_or_create(username='user4', defaults={'email': 'user4@example.com'})
+        regular_user4.first_name = 'Larry'
+        regular_user4.last_name = 'Smalls'
+        regular_user4.is_admin = False
+        regular_user4.is_staff = False
+        regular_user4.department = 'Engineering'
+        regular_user4.set_password('123')
+        regular_user4.save()
+        if created:
+            self.stdout.write(self.style.SUCCESS('User "user4" created successfully'))
+        else:
+            self.stdout.write(self.style.WARNING('User "user4" updated'))
+
+
+        # -------------------------------------------------
         # Create desks
+        # -------------------------------------------------
         try:
             Desk = apps.get_model('core', 'Desk')
         except LookupError:
@@ -207,7 +257,12 @@ class Command(BaseCommand):
             else:
                 self.stdout.write(self.style.SUCCESS(f"Updated desk {desk_obj.wifi2ble_id} -> {desk_obj.name}"))
 
+
+
+
+        # -------------------------------------------------
         # Create Pico W
+        # -------------------------------------------------
         try:
             Pico = apps.get_model('core', 'Pico')
         except LookupError:
@@ -244,3 +299,154 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f"Created Pico {pico_obj.mac_address} -> Desk ID {pico_obj.desk_id}"))
             else:
                 self.stdout.write(self.style.SUCCESS(f"Updated Pico {pico_obj.mac_address} -> Desk ID {pico_obj.desk_id}"))
+
+
+
+
+        # -------------------------------------------------
+        # Seed sample reservations, desk usage logs and complaints
+        # -------------------------------------------------
+        try:
+            Reservation = apps.get_model('core', 'Reservation')
+            DeskUsageLog = apps.get_model('core', 'DeskUsageLog')
+            Complaint = apps.get_model('core', 'Complaint')
+        except LookupError:
+            self.stderr.write("Reservation, DeskUsageLog or Complaint model not found - skipping analytics seeding")
+            return
+
+        desks = list(Desk.objects.all()[:5])
+        if not desks:
+            self.stdout.write(self.style.WARNING('No desks found, skipping reservations seeding'))
+            return
+
+        now = timezone.now()
+        base_day = now.replace(hour=8, minute=0, second=0, microsecond=0)
+
+        sample_reservations = []
+
+        # Create a few days of reservations for user2
+        for day_offset in range(0, 8):
+            day_start = base_day - timedelta(days=day_offset)
+
+            sample_reservations.append({
+                "user": regular_user2,
+                "desk": desks[0],
+                "start_time": day_start,
+                "end_time": day_start + timedelta(hours=9),
+                "status": "completed",
+                "cancellation_reason": "",
+            })
+        
+        # Create a few days of reservations for user3
+        for day_offset in range(0, 5):
+            day_start = base_day - timedelta(days=day_offset)
+
+            sample_reservations.append({
+                "user": regular_user3,
+                "desk": desks[4],
+                "start_time": day_start + timedelta(hours=2),
+                "end_time": day_start + timedelta(hours=5),
+                "status": "completed",
+                "cancellation_reason": "",
+            })
+        
+        # Create a few days of reservations for user4
+        for day_offset in range(0, 12):
+            day_start = base_day - timedelta(days=day_offset)
+
+            sample_reservations.append({
+                "user": regular_user4,
+                "desk": desks[3],
+                "start_time": day_start,
+                "end_time": day_start + timedelta(hours=9),
+                "status": "completed",
+                "cancellation_reason": "",
+            })
+
+        # Create a few cancelled reservations
+        cancel_start = base_day - timedelta(days=2, hours=1)
+        sample_reservations.append({
+            "user": regular_user2,
+            "desk": desks[0],
+            "start_time": cancel_start,
+            "end_time": cancel_start + timedelta(hours=2),
+            "status": "cancelled",
+            "cancellation_reason": "",
+        })
+        sample_reservations.append({
+            "user": regular_user3,
+            "desk": desks[1],
+            "start_time": cancel_start + timedelta(days=2),
+            "end_time": cancel_start + timedelta(days=2, hours=1),
+            "status": "cancelled",
+            "cancellation_reason": "",
+        })
+
+        self.stdout.write(self.style.SUCCESS(f'Seeding {len(sample_reservations)} reservations and matching usage logs'))
+
+        for res_data in sample_reservations:
+            reservation, created = Reservation.objects.get_or_create(
+                user=res_data["user"],
+                desk=res_data["desk"],
+                start_time=res_data["start_time"],
+                defaults={
+                    "end_time": res_data["end_time"],
+                    "status": res_data["status"],
+                    "cancellation_reason": res_data.get("cancellation_reason", ""),
+                    "cancelled_at": res_data["end_time"] if res_data["status"] == "cancelled" else None,
+                },
+            )
+
+            if created:
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"Created reservation for {reservation.user.email} on {reservation.start_time}"
+                    )
+                )
+
+            # Create a matching DeskUsageLog only for non-cancelled reservations
+            if reservation.status != "cancelled":
+                duration_seconds = int((reservation.end_time - reservation.start_time).total_seconds())
+                # Split roughly 60/40 between sitting and standing
+                sitting = int(duration_seconds * 0.6)
+                standing = duration_seconds - sitting
+
+                log, created_log = DeskUsageLog.objects.get_or_create(
+                    user=reservation.user,
+                    desk=reservation.desk,
+                    started_at=reservation.start_time,
+                    defaults={
+                        "ended_at": reservation.end_time,
+                        "sitting_time": sitting,
+                        "standing_time": standing,
+                        "position_changes": 3,
+                        "source": "seed",
+                    },
+                )
+                if created_log:
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"Created usage log for {log.user.email} on desk {log.desk.name}"
+                        )
+                    )
+
+        # Create a couple of open complaints for the admin dashboard widget
+        self.stdout.write(self.style.SUCCESS("Seeding sample complaints"))
+        Complaint.objects.get_or_create(
+            user=regular_user2,
+            message="Desk 4486 feels unstable when fully raised.",
+            defaults={
+                "desk": desks[0],
+                "subject": "Desk stability issue",
+                "status": "open",
+            },
+        )
+        Complaint.objects.get_or_create(
+            user=regular_user3,
+            message="Height control buttons on Desk 6743 sometimes stop responding.",
+            defaults={
+                "desk": desks[1],
+                "subject": "Height adjustment problem",
+                "status": "open",
+            },
+        )

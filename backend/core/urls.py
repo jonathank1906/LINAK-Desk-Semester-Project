@@ -17,28 +17,45 @@ from .views import (
     list_available_hot_desks, start_hot_desk, confirm_hot_desk, end_hot_desk,
     list_user_reservations, create_reservation, cancel_pending_verification,
     check_in_reservation, check_out_reservation, hotdesk_status, available_desks_for_date, release_desk,
-    poll_desk_movement, submit_desk_report, get_all_reports, get_all_logs, delete_report
+    poll_desk_movement,
+    admin_dashboard_analytics,
+    admin_full_analytics,
+    complaints_view,
+    solve_complaint,
 )
 
 urlpatterns = [
+    # AUTHENTICATION
     path('login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('logout/', logout),
     path('token/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
     path('register/', register),
     path('authenticated/', is_logged_in),
-    path('users/', list_all_users, name='list_users'),
-    path('users/<int:user_id>/', user_detail_or_update, name='user_detail'),
+    
     path('auth/', include('djoser.urls')),
     path('auth/', include('djoser.urls.jwt')),
     path('password/reset/confirm/<int:uid>/<str:token>', reset_password_confirm, name="password_reset_confirm"),
     path('auth/set-initial-password/<str:uid>/<str:token>/', set_initial_password, name='set_initial_password'),
+    
+    # ADMIN USER + ANALYTICS
+    path('users/', list_all_users, name='list_users'),
+    path('users/<int:user_id>/', user_detail_or_update, name='user_detail'),
+    path('admin/dashboard/', admin_dashboard_analytics, name='admin_dashboard_analytics'),
+    path('admin/analytics/', admin_full_analytics, name='admin_full_analytics'),
+    path('complaints/', complaints_view, name='complaints'),
+    path('admin/complaints/<int:complaint_id>/solve/', solve_complaint, name='solve_complaint'),
+    
+    # DESKS
     path('desks/', get_user_desks, name='get_desks'),
     path('desks/<int:desk_id>/status/', get_desk_live_status, name='desk_status'),
     path("desks/<int:desk_id>/", desk_detail, name="desk-detail"),
     path('desks/<int:desk_id>/usage/', desk_usage, name='desk_usage'),
     path('desks/<int:desk_id>/control/', control_desk_height, name='control_desk'),
+    
+    # PICO CONTROLS
     path('pico/<int:pico_id>/led/', control_pico_led, name='control_pico_led'),
     path('pico/<int:pico_id>/sensors/', get_pico_sensor_data, name='pico_sensor_data'),
+    
     # HOT DESK
     path('desks/hotdesk/', list_available_hot_desks, name='hotdesk_list'),
     path('desks/hotdesk_status/', hotdesk_status, name='hotdesk_status'),
