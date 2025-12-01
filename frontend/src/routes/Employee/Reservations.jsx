@@ -8,6 +8,13 @@ import { Button } from "@/components/ui/button";
 import PendingVerificationModal from "@/components/pending-verification-modal";
 import { useNavigate } from "react-router-dom";
 import { formatTimeFromISO } from "@/utils/date";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Helper to get YYYY-MM-DD in LOCAL time
 const formatLocalYYYYMMDD = (date) => {
@@ -77,36 +84,40 @@ export default function Reservations({ setSelectedDeskId }) {
   const [pendingDeskId, setPendingDeskId] = useState(null);
   const [polling, setPolling] = useState(false);
   const nav = useNavigate();
-  
-  function generateTimeOptions(selectedDate, startFrom = "06:00", minInterval = 0) {
-  const options = [];
-  if (!selectedDate || !(selectedDate instanceof Date)) return options;
 
-  const now = new Date();
-  const isToday = selectedDate.toDateString() === now.toDateString();
+  // Helper to generate SelectItem components for time options
+  function generateSelectTimeOptions(selectedDate, startFrom = "06:00", minInterval = 0) {
+    const options = [];
+    if (!selectedDate || !(selectedDate instanceof Date)) return options;
 
-  const [startHour, startMinute] = startFrom.split(":").map(Number);
-  const minAllowed = new Date(selectedDate);
-  minAllowed.setHours(startHour);
-  minAllowed.setMinutes(startMinute + minInterval);
-  minAllowed.setSeconds(0);
-  minAllowed.setMilliseconds(0);
+    const now = new Date();
+    const isToday = selectedDate.toDateString() === now.toDateString();
 
-  for (let h = 6; h <= 22; h++) {
-    for (let m of [0, 30]) {
-      const time = new Date(selectedDate);
-      time.setHours(h, m, 0, 0);
+    const [startHour, startMinute] = startFrom.split(":").map(Number);
+    const minAllowed = new Date(selectedDate);
+    minAllowed.setHours(startHour);
+    minAllowed.setMinutes(startMinute + minInterval);
+    minAllowed.setSeconds(0);
+    minAllowed.setMilliseconds(0);
 
-      if ((isToday && time <= now) || time < minAllowed) continue;
+    for (let h = 6; h <= 22; h++) {
+      for (let m of [0, 30]) {
+        const time = new Date(selectedDate);
+        time.setHours(h, m, 0, 0);
 
-      const label = `${h.toString().padStart(2, "0")}:${m === 0 ? "00" : "30"}`;
-      options.push(<option key={label} value={label}>{label}</option>);
+        if ((isToday && time <= now) || time < minAllowed) continue;
+
+        const label = `${h.toString().padStart(2, "0")}:${m === 0 ? "00" : "30"}`;
+        options.push(
+          <SelectItem key={label} value={label}>
+            {label}
+          </SelectItem>
+        );
+      }
     }
+
+    return options;
   }
-
-  return options;
-}
-
 
   useEffect(() => {
     if (mode === "hotdesk") {
@@ -164,13 +175,13 @@ export default function Reservations({ setSelectedDeskId }) {
       setLoading(false);
     }
   };
-  
+
   const fetchHotdeskStatus = async () => {
     setLoading(true);
     try {
       // FIXED: Was using toISOString() which causes Yesterday bug. Use helper.
-      const today = formatLocalYYYYMMDD(new Date()); 
-      
+      const today = formatLocalYYYYMMDD(new Date());
+
       const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
       const response = await axios.get(`http://localhost:8000/api/desks/hotdesk_status/?date=${today}`, config);
 
@@ -266,7 +277,7 @@ export default function Reservations({ setSelectedDeskId }) {
 
   const handleEditReservation = async () => {
     if (!editingReservation) return;
-    
+
     // FIXED: Use correct logic for edits
     if (editStartTime >= editEndTime) {
       toast.error("Start time must be before end time");
@@ -277,7 +288,7 @@ export default function Reservations({ setSelectedDeskId }) {
 
     try {
       const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
-      
+
       await axios.patch(
         `http://localhost:8000/api/reservations/${editingReservation.id}/edit/`,
         {
@@ -307,7 +318,7 @@ export default function Reservations({ setSelectedDeskId }) {
       setUserReservations((prev) => prev.filter((res) => res.id !== reservationId));
       fetchUserReservations();
       fetchAvailableDesks();
-      window.dispatchEvent(new Event("reservation-updated")); 
+      window.dispatchEvent(new Event("reservation-updated"));
       if (setSelectedDeskId) setSelectedDeskId(null);
     } catch (err) { console.error("API error:", err);
       toast.error("Failed to cancel reservation");
@@ -503,33 +514,34 @@ export default function Reservations({ setSelectedDeskId }) {
 
                 <div className="flex flex-col items-start w-full">
                   <label className="text-sm font-medium mb-1">Start Time</label>
-                  <select
-                    className="w-full border rounded px-2 py-1"
-                    value={startTime}
-                    onChange={(e) => {
-                      const newStart = e.target.value;
-                      setStartTime(newStart);
-                      const [h, m] = newStart.split(":").map(Number);
-                      const endDate = new Date();
-                      endDate.setHours(h);
-                      endDate.setMinutes(m + 30); 
-                      const nextEnd = `${endDate.getHours().toString().padStart(2, "0")}:${endDate.getMinutes() < 30 ? "00" : "30"}`;
-                      if (endTime <= newStart) setEndTime(nextEnd); 
-                    }}
-                  >
-                    {generateTimeOptions(selectedDate)}
-                  </select>
+                  <Select value={startTime} onValueChange={(newStart) => {
+                    setStartTime(newStart);
+                    const [h, m] = newStart.split(":").map(Number);
+                    const endDate = new Date();
+                    endDate.setHours(h);
+                    endDate.setMinutes(m + 30);
+                    const nextEnd = `${endDate.getHours().toString().padStart(2, "0")}:${endDate.getMinutes() < 30 ? "00" : "30"}`;
+                    if (endTime <= newStart) setEndTime(nextEnd);
+                  }}>
+                    <SelectTrigger className="w-full border rounded px-2 py-1">
+                      <SelectValue placeholder="Select start time" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {generateSelectTimeOptions(selectedDate)}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="flex flex-col items-start w-full">
                   <label className="text-sm font-medium mb-1">End Time</label>
-                  <select
-                    className="w-full border rounded px-2 py-1"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                  >
-                    {generateTimeOptions(selectedDate, startTime, 30)}
-                  </select>
+                  <Select value={endTime} onValueChange={setEndTime}>
+                    <SelectTrigger className="w-full border rounded px-2 py-1">
+                      <SelectValue placeholder="Select end time" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {generateSelectTimeOptions(selectedDate, startTime, 30)}
+                    </SelectContent>
+                  </Select>
                 </div>
               </CardContent>
             </Card>
@@ -599,44 +611,39 @@ export default function Reservations({ setSelectedDeskId }) {
         )}
       </div>
       <PendingVerificationModal open={verificationModalOpen} deskId={pendingDeskId} onClose={() => setVerificationModalOpen(false)} />
-      
+
       {editingReservation && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded shadow-lg w-full max-w-md space-y-4">
-              <h3 className="text-lg font-bold">Edit Reservation</h3>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded shadow-lg w-full max-w-md space-y-4">
+            <h3 className="text-lg font-bold">Edit Reservation</h3>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Start Time</label>
+              <Select value={editStartTime} onValueChange={setEditStartTime}>
+                <SelectTrigger className="w-full border rounded px-2 py-1">
+                  <SelectValue placeholder="Select start time" />
+                </SelectTrigger>
+                <SelectContent>
+                  {generateSelectTimeOptions(selectedDate, "06:00", 0)}
+                </SelectContent>
+              </Select>
 
-              <div className="space-y-2">
-                <label className="block text-sm font-medium">Start Time</label>
-                <select
-                  className="w-full border rounded px-2 py-1"
-                  value={editStartTime}
-                  onChange={(e) => {
-                    const newStart = e.target.value;
-                    // **FIX**: Was updating main setStartTime, changed to setEditStartTime
-                    setEditStartTime(newStart); 
-                  }}
-                >
-                   {generateTimeOptions(selectedDate, "06:00", 0)}
-                </select>
-
-                <label className="block text-sm font-medium">End Time</label>
-                <select
-                  className="w-full border rounded px-2 py-1"
-                  value={editEndTime}
-                  onChange={(e) => setEditEndTime(e.target.value)}
-                >
-                  // **FIX**: Changed startTime to editStartTime for options generation
-                  {generateTimeOptions(selectedDate, editStartTime, 30)}
-                </select>
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <Button variant="ghost" onClick={() => setEditingReservation(null)}>Cancel</Button>
-                <Button onClick={() => handleEditReservation()}>Save</Button>
-              </div>
+              <label className="block text-sm font-medium">End Time</label>
+              <Select value={editEndTime} onValueChange={setEditEndTime}>
+                <SelectTrigger className="w-full border rounded px-2 py-1">
+                  <SelectValue placeholder="Select end time" />
+                </SelectTrigger>
+                <SelectContent>
+                  {generateSelectTimeOptions(selectedDate, editStartTime, 30)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setEditingReservation(null)}>Cancel</Button>
+              <Button onClick={() => handleEditReservation()}>Save</Button>
             </div>
           </div>
-        )}
+        </div>
+      )}
     </div>
   );
 }
