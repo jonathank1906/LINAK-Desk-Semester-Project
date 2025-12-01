@@ -103,12 +103,8 @@ useEffect(() => {
   });
 
   const [recentBookings, setRecentBookings] = useState([]);
-  const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const openComplaintsCount = complaints.filter((c) => c.status !== "solved").length;
-  const hasOpenComplaints = openComplaintsCount > 0;
 
   useEffect(() => {
     const fetchDashboardAnalytics = async () => {
@@ -173,7 +169,6 @@ useEffect(() => {
         }
 
         setRecentBookings(data.recent_bookings || []);
-        setComplaints(data.complaints || []);
         setError(null);
       } catch (err) {
         console.error(err);
@@ -185,27 +180,6 @@ useEffect(() => {
 
     fetchDashboardAnalytics();
   }, []);
-
-  const handleSolveComplaint = async (complaintId) => {
-    if (!complaintId) return;
-    try {
-      const res = await fetch(
-        `http://localhost:8000/api/admin/complaints/${complaintId}/solve/`,
-        {
-          method: "POST",
-          credentials: "include",
-        }
-      );
-      if (!res.ok) throw new Error("Failed to mark complaint as solved");
-      const updated = await res.json();
-      setComplaints((prev) =>
-        prev.map((c) => (c.id === updated.id ? updated : c))
-      );
-    } catch (err) {
-      console.error(err);
-      setError("Could not update complaint status.");
-    }
-  };
 
   function renderContent() {
     switch (selectedSection) {
@@ -219,58 +193,9 @@ useEffect(() => {
       default:
         return (
           <div className="flex flex-1 flex-col gap-6 p-4 pt-0">
-            {/* SYSTEM STATUS + COMPLAINTS */}
+            {/* SYSTEM STATUS */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
               <SystemStatusCard status={metrics.system_status} />
-
-              <div className="bg-muted/50 rounded-xl p-4 flex flex-col justify-between hover:scale-[1.02] transition-transform">
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Complaints and Reports</h3>
-                  <div className="flex items-center gap-2 mb-4">
-                    {hasOpenComplaints ? (
-                      <IconAlertCircle size={40} className="text-red-500" />
-                    ) : (
-                      <IconCheck size={40} className="text-emerald-500" />
-                    )}
-                    <div className="flex flex-col">
-                      <span className="text-xs text-muted-foreground uppercase tracking-wide">
-                        Open complaints
-                      </span>
-                      <span className="text-2xl font-bold">{openComplaintsCount}</span>
-                    </div>
-                  </div>
-                </div>
-                <ul className="text-sm space-y-2 max-h-40 overflow-y-auto overflow-x-hidden pr-1">
-                  {complaints.map((c) => (
-                    <li
-                      key={c.id ?? c.note}
-                      className="flex items-start gap-3"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <span className="font-medium block break-words">
-                          {c.user_display || c.user}
-                        </span>
-                        <span className="text-muted-foreground text-xs break-words">
-                          {c.message || c.note}
-                        </span>
-                      </div>
-                      {c.status === "solved" ? (
-                        <span className="text-xs text-emerald-500 flex items-center gap-1 whitespace-nowrap self-start">
-                          <IconCheck size={14} /> Solved
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleSolveComplaint(c.id)}
-                          className="text-xs px-2 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700 whitespace-nowrap self-start"
-                        >
-                          Mark solved
-                        </button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
             </div>
 
             {/* TOP METRICS */}

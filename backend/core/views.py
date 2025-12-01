@@ -25,7 +25,7 @@ from .serializers import (
     AdminUserListSerializer,
     DeskLogSerializer
 )
-from .models import Desk, DeskUsageLog, DeskLog
+from .models import Desk, DeskUsageLog, DeskLog, DeskReport
 from .services.WiFi2BLEService import WiFi2BLEService
 from core.services.MQTTService import get_mqtt_service
 from core.models import Pico, SensorReading, Reservation
