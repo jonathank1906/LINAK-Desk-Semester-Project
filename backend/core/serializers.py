@@ -229,9 +229,25 @@ class DeskReportSerializer(serializers.ModelSerializer):
 
 
 class DeskLogSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(source="user.id", read_only=True)
     user_name = serializers.CharField(source="user.username", read_only=True)
+    user_full_name = serializers.SerializerMethodField()
     desk_name = serializers.CharField(source="desk.name", read_only=True)
+    timestamp_formatted = serializers.SerializerMethodField()
 
     class Meta:
         model = DeskLog
         fields = "__all__"
+    
+    def get_user_full_name(self, obj):
+        """Return user's full name or email if name not available"""
+        if obj.user:
+            full_name = f"{obj.user.first_name} {obj.user.last_name}".strip()
+            return full_name if full_name else obj.user.email
+        return "System"
+    
+    def get_timestamp_formatted(self, obj):
+        """Return formatted datetime string"""
+        if obj.timestamp:
+            return obj.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        return ""

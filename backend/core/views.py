@@ -432,12 +432,12 @@ def control_desk_height(request, desk_id):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Get active usage log - ✅ ADD ORDERING HERE
+        # Get active usage log - ORDERING HERE
         log = DeskUsageLog.objects.filter(
             user=request.user,
             desk=desk,
             ended_at__isnull=True
-        ).order_by("-started_at").first()  # ✅ ADDED ordering
+        ).order_by("-started_at").first()  # ADDED ordering
         
         if log:
             log.refresh_from_db()
@@ -448,7 +448,7 @@ def control_desk_height(request, desk_id):
             current_height = desk.current_height
             
             print(f"\n=== CONTROL DESK HEIGHT DEBUG ===")
-            print(f"Log ID: {log.id}")  # ✅ ADD THIS to see which log
+            print(f"Log ID: {log.id}")  
             print(f"Current time: {now}")
             print(f"Last height change BEFORE: {log.last_height_change}")
             print(f"Elapsed seconds: {elapsed_seconds}")
@@ -793,7 +793,7 @@ def admin_dashboard_analytics(request):
         for item in combined
     ]
 
-    # Complaints – latest open complaints (serialized so shape matches complaints API)
+    # Complaints – latest open complaints
     complaints_qs = (
         Complaint.objects
         .select_related('user', 'desk')
@@ -1095,7 +1095,6 @@ def start_hot_desk(request, desk_id):
         print(f"   Current desk status: {desk.current_status}")
         print(f"   Current desk user: {desk.current_user}")
         
-        # ⭐ FIX 1: Prevent duplicate occupancy
         if desk.current_user == request.user:
             if desk.current_status == "occupied":
                 print(f"⚠️ User {request.user.username} already occupies desk {desk_id}")
@@ -1152,6 +1151,13 @@ def start_hot_desk(request, desk_id):
             source="hotdesk",
         )
         print(f"✅ Created usage log ID: {usage_log.id}")
+
+        # Create desk log entry for tracking
+        DeskLog.objects.create(
+            desk=desk,
+            user=request.user,
+            action="hotdesk_started"
+        )
 
         if has_pico:
             # Notify Pico via MQTT to show "Press button to confirm"
@@ -1276,6 +1282,13 @@ def end_hot_desk(request, desk_id):
         if log:
             log.ended_at = timezone.now()
             log.save()
+
+        # desk log entry for tracking
+        DeskLog.objects.create(
+            desk=desk,
+            user=request.user,
+            action="hotdesk_ended"
+        )
 
         desk.current_user = None
         desk.current_status = "available"
@@ -1454,6 +1467,13 @@ def check_in_reservation(request, reservation_id):
             source="reservation",
         )
 
+        #  desk log entry for tracking check-in
+        DeskLog.objects.create(
+            desk=desk,
+            user=request.user,
+            action="reservation_checked_in"
+        )
+
         return Response({"success": True})
 
     except Reservation.DoesNotExist:
@@ -1494,6 +1514,14 @@ def check_out_reservation(request, reservation_id):
         desk.current_user = None
         desk.current_status = "available"
         desk.save()
+
+        #desk log entry for tracking check-out
+        DeskLog.objects.create(
+            desk=desk,
+            user=request.user,
+            action="reservation_checked_out"
+        )
+
         return Response({"success": True})
     except Reservation.DoesNotExist:
         return Response(
@@ -1618,12 +1646,19 @@ def release_desk(request, desk_id):
             
             log.save()
 
+        # desk log entry for tracking desk release
+        DeskLog.objects.create(
+            desk=desk,
+            user=request.user,
+            action="desk_released"
+        )
+
         # Release the desk
         desk.current_user = None
         desk.current_status = "available"
         desk.save()
 
-        # ✅ NEW: Notify Pico that desk is now available
+        #  Notify Pico that desk is now available
         mqtt_service = get_mqtt_service()
         has_pico = Pico.objects.filter(desk_id=desk.id).exists()
         
@@ -1655,7 +1690,7 @@ def submit_desk_report(request, desk_id):
             message=message
         )
 
-        # 🔥 Add a log entry as well
+        # Add a log entry as well
         DeskLog.objects.create(
             desk=desk,
             user=request.user,
