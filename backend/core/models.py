@@ -3,9 +3,17 @@ from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseU
 from django.conf import settings 
 
 class DeskReport(models.Model):
+    CATEGORY_CHOICES = [
+        ('desk_doesnt_move', "Desk doesn't move"),
+        ('desk_uncleaned', 'Desk uncleaned'),
+        ('desk_is_broken', 'Desk is broken'),
+        ('other', 'Other'),
+    ]
+    
     desk = models.ForeignKey("Desk", on_delete=models.CASCADE, related_name="reports")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     message = models.TextField()
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='other')
     created_at = models.DateTimeField(auto_now_add=True)
     resolved = models.BooleanField(default=False)
 

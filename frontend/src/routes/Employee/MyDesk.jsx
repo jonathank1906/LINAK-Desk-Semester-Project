@@ -27,7 +27,8 @@ export default function MyDesk({ selectedDeskId }) {
   const [isControlling, setIsControlling] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
   const [reportModal, setReportModal] = useState(false);
-const [reportMessage, setReportMessage] = useState("");
+  const [reportMessage, setReportMessage] = useState("");
+  const [reportCategory, setReportCategory] = useState("other");
   
   // Use ref to store polling interval
   const pollingIntervalRef = useRef(null);
@@ -130,10 +131,11 @@ const [reportMessage, setReportMessage] = useState("");
   try {
     const config = { headers: { Authorization: `Bearer ${user.token}` }};
     await axios.post(`http://localhost:8000/api/desks/${selectedDeskId}/report/`, 
-    { message: reportMessage }, config);
+    { message: reportMessage, category: reportCategory }, config);
 
     toast.success("Report submitted");
     setReportMessage("");
+    setReportCategory("other");
     setReportModal(false);
   } catch (err) {
     toast.error("Failed", { description: err.response?.data });
@@ -524,22 +526,48 @@ const [reportMessage, setReportMessage] = useState("");
         </button>
         {reportModal && (
           <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
-            <div className="bg-white p-6 rounded-lg w-[350px] space-y-3">
-              <h3 className="text-lg font-semibold">Report a Problem</h3>
+            <div className="bg-white dark:bg-slate-950 p-6 rounded-lg w-[400px] space-y-4 border border-gray-200 dark:border-gray-800">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Report a Problem</h3>
 
               <textarea 
                 value={reportMessage}
                 onChange={(e) => setReportMessage(e.target.value)}
-                className="w-full border rounded p-2"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded p-3 bg-white dark:bg-slate-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
                 rows="4"
                 placeholder="Describe the problem here..."
               />
 
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Category
+                </label>
+                <select 
+                  value={reportCategory}
+                  onChange={(e) => setReportCategory(e.target.value)}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded p-2 bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                >
+                  <option value="desk_doesnt_move">Desk doesn't move</option>
+                  <option value="desk_uncleaned">Desk uncleaned</option>
+                  <option value="desk_is_broken">Desk is broken</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
               <div className="flex justify-end gap-2">
-                <button onClick={() => setReportModal(false)} className="px-3 py-1 bg-gray-200 rounded">
+                <button 
+                  onClick={() => {
+                    setReportModal(false);
+                    setReportMessage("");
+                    setReportCategory("other");
+                  }} 
+                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                >
                   Cancel
                 </button>
-                <button onClick={submitReport} className="px-3 py-1 bg-red-600 text-white rounded">
+                <button 
+                  onClick={submitReport} 
+                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 transition-colors"
+                >
                   Submit
                 </button>
               </div>

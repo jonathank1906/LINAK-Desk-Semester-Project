@@ -234,6 +234,7 @@ class DeskLogSerializer(serializers.ModelSerializer):
     user_full_name = serializers.SerializerMethodField()
     desk_name = serializers.CharField(source="desk.name", read_only=True)
     timestamp_formatted = serializers.SerializerMethodField()
+    report_category = serializers.SerializerMethodField()
 
     class Meta:
         model = DeskLog
@@ -251,3 +252,12 @@ class DeskLogSerializer(serializers.ModelSerializer):
         if obj.timestamp:
             return obj.timestamp.strftime("%Y-%m-%d %H:%M:%S")
         return ""
+    
+    def get_report_category(self, obj):
+        """Return report category if action is desk_report_submitted"""
+        if obj.action == "desk_report_submitted":
+            # Find the most recent report for this desk and user around this timestamp
+            report = obj.desk.reports.filter(user=obj.user).order_by("-created_at").first()
+            if report:
+                return report.get_category_display()
+        return None

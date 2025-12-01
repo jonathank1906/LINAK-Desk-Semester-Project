@@ -1678,6 +1678,7 @@ def release_desk(request, desk_id):
 def submit_desk_report(request, desk_id):
     try:
         message = request.data.get("message")
+        category = request.data.get("category", "other")
 
         if not message:
             return Response({"error": "Message is required"}, status=400)
@@ -1687,7 +1688,8 @@ def submit_desk_report(request, desk_id):
         report = DeskReport.objects.create(
             desk=desk,
             user=request.user,
-            message=message
+            message=message,
+            category=category
         )
 
         # Add a log entry as well

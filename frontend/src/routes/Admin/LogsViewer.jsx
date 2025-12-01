@@ -32,6 +32,7 @@ export default function LogsViewer() {
               <th className="text-left py-2 px-2 font-semibold text-gray-900 dark:text-gray-100">User</th>
               <th className="text-left py-2 px-2 font-semibold text-gray-900 dark:text-gray-100">Desk</th>
               <th className="text-left py-2 px-2 font-semibold text-gray-900 dark:text-gray-100">Action</th>
+              <th className="text-left py-2 px-2 font-semibold text-gray-900 dark:text-gray-100">Category</th>
               <th className="text-left py-2 px-2 font-semibold text-gray-900 dark:text-gray-100">Height</th>
               <th className="text-left py-2 px-2 font-semibold text-gray-900 dark:text-gray-100">Date & Time</th>
             </tr>
@@ -39,7 +40,7 @@ export default function LogsViewer() {
           <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
             {logs.length === 0 && (
               <tr>
-                <td colSpan="5" className="py-4 text-center text-gray-500 dark:text-gray-400">
+                <td colSpan="6" className="py-4 text-center text-gray-500 dark:text-gray-400">
                   No logs available
                 </td>
               </tr>
@@ -69,6 +70,15 @@ export default function LogsViewer() {
                   }`}>
                     {log.action.replace(/_/g, ' ').toUpperCase()}
                   </span>
+                </td>
+                <td className="py-2 px-2 text-gray-700 dark:text-gray-300 text-xs">
+                  {log.report_category ? (
+                    <span className="inline-block px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-gray-700 dark:text-gray-300">
+                      {log.report_category}
+                    </span>
+                  ) : (
+                    '—'
+                  )}
                 </td>
                 <td className="py-2 px-2 text-gray-700 dark:text-gray-300">
                   {log.height ? `${log.height}cm` : '—'}
