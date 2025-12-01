@@ -12,12 +12,12 @@ from .views import (
     control_desk_height,
     desk_usage,
     desk_detail,
-    control_pico_led,          
+    control_pico_led, cancel_reservation, edit_reservation,      
     get_pico_sensor_data, list_all_users, user_detail_or_update,
     list_available_hot_desks, start_hot_desk, confirm_hot_desk, end_hot_desk,
     list_user_reservations, create_reservation, cancel_pending_verification,
     check_in_reservation, check_out_reservation, hotdesk_status, available_desks_for_date, release_desk,
-    poll_desk_movement
+    poll_desk_movement, submit_desk_report, get_all_reports, get_all_logs, delete_report
 )
 
 urlpatterns = [
@@ -47,14 +47,21 @@ urlpatterns = [
     path('desks/<int:desk_id>/hotdesk/confirm/', confirm_hot_desk, name='confirm_hot_desk'),
     path('desks/<int:desk_id>/hotdesk/end/', end_hot_desk, name='end_hot_desk'),
 
+    #Logs
+    path("desks/<int:desk_id>/report/", submit_desk_report),
+    path("reports/", get_all_reports),
+    path("reports/<int:report_id>/", delete_report),
+    path("logs/", get_all_logs),
+
     # RESERVATIONS
     path('reservations/', list_user_reservations, name='reservations_list'),
     path('desks/available/', available_desks_for_date, name='available_desks_for_date'),
     path('reservations/create/', create_reservation, name='reservation_create'),
     path('reservations/<int:reservation_id>/check_in/', check_in_reservation, name='reservation_check_in'),
     path('reservations/<int:reservation_id>/check_out/', check_out_reservation, name='reservation_check_out'),
-
+    path("reservations/<int:reservation_id>/cancel/", cancel_reservation),
     path('desks/<int:desk_id>/release/', release_desk, name='release_desk'),
+    path('reservations/<int:reservation_id>/edit/', edit_reservation, name='edit_reservation'),
 
     path("desks/<int:desk_id>/poll-movement/", poll_desk_movement, name="poll-desk-movement"),
 ]

@@ -168,7 +168,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Europe/Copenhagen'
 
 USE_I18N = True
 
@@ -205,6 +205,8 @@ DJOSER = {
 }
 
 # MQTT Configuration
+MQTT_BROKER = '192.168.68.101'  # Same as your Pico's MQTT_SERVER from CMakeLists.txt
+MQTT_PORT = 1883
 MQTT_BROKER = config('MQTT_BROKER', default='localhost')
 MQTT_PORT = config('MQTT_PORT', default=1883, cast=int)
 

@@ -4,6 +4,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from djoser.serializers import UserCreateSerializer
 from .models import Desk, Reservation, DeskUsageLog, UserDeskPreference
 from django.utils import timezone
+from .models import DeskReport, DeskLog
 
 User = get_user_model()
 
@@ -35,7 +36,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['username', 'email', 'first_name', 'last_name', 'is_admin']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_admin']
 
 class UserCreateSerializer(UserCreateSerializer):
     class Meta:
@@ -90,12 +91,15 @@ class DeskSerializer(serializers.ModelSerializer):
 
 
 class ReservationSerializer(serializers.ModelSerializer):
+    desk_name = serializers.CharField(source="desk.name", read_only=True)
+    
     class Meta:
         model = Reservation
         fields = [
             "id",
             "user",
             "desk",
+            "desk_name",
             "start_time",
             "end_time",
             "status",
@@ -138,7 +142,6 @@ class DeskUsageLogSerializer(serializers.ModelSerializer):
             "notes",
         ]
 
-
 class UserDeskPreferenceSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserDeskPreference
@@ -155,3 +158,20 @@ class UserDeskPreferenceSerializer(serializers.ModelSerializer):
             "preferred_interval",
             "enable_reminders",
         ]
+
+class DeskReportSerializer(serializers.ModelSerializer):
+    user_name = serializers.CharField(source="user.username", read_only=True)
+    desk_name = serializers.CharField(source="desk.name", read_only=True)
+
+    class Meta:
+        model = DeskReport
+        fields = "__all__"
+
+
+class DeskLogSerializer(serializers.ModelSerializer):
+    user_name = serializers.CharField(source="user.username", read_only=True)
+    desk_name = serializers.CharField(source="desk.name", read_only=True)
+
+    class Meta:
+        model = DeskLog
+        fields = "__all__"

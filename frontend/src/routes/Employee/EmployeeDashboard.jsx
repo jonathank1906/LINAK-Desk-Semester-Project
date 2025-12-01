@@ -8,6 +8,8 @@ import MyDesk from "./MyDesk";
 import Reservations from "./Reservations";
 import PicoLab from "./PicoLab";
 import Metrics from "./Metrics";
+import { formatLocalYYYYMMDD, formatNiceDate, formatTimeFromISO } from "@/utils/date";
+
 import axios from "axios";
 import {
     Card,
@@ -26,6 +28,7 @@ import {
     DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import PendingVerificationModal from "@/components/pending-verification-modal";
+import { toast } from "sonner";
 
 export default function EmployeeDashboard() {
     const [selectedSection, setSelectedSection] = useState("dashboard");
@@ -49,53 +52,119 @@ export default function EmployeeDashboard() {
     const [liveStandingSeconds, setLiveStandingSeconds] = useState(0);
     const [currentHeight, setCurrentHeight] = useState(null);
 
-    const [upcomingReservations, setUpcomingReservations] = useState([
-        {
-            id: 1,
-            date: "Tuesday, November 9, 2021",
-            desk_name: "Desk XXXX",
-            start_time: "09:00",
-            end_time: "12:00",
-        },
-        {
-            id: 2,
-            date: "Thursday, November 11, 2021",
-            desk_name: "Desk YYYY",
-            start_time: "13:00",
-            end_time: "17:00",
-        },
-    ]);
+    const [upcomingReservations, setUpcomingReservations] = useState([]);
 
     const [verificationModalOpen, setVerificationModalOpen] = useState(false);
     const [pendingDeskId, setPendingDeskId] = useState(null);
 
+    // HELPER: Safely parse Django ISO format date strings
+    // Django returns ISO 8601 format (UTC) like "2025-11-30T19:30:00Z" or "2025-11-30T19:30:00+00:00"
+    // JavaScript's Date constructor handles these correctly
+    const parseDateSafe = (dateString) => {
+      if (!dateString || typeof dateString !== "string") return null;
+
+      try {
+        // JavaScript Date constructor properly handles ISO 8601 strings
+        // It automatically converts from UTC to the browser's local timezone
+        const date = new Date(dateString);
+        
+        // Validate the date is valid
+        if (isNaN(date.getTime())) {
+          console.warn("Invalid reservation datetime string:", dateString);
+          return null;
+        }
+        
+        return date;
+      } catch (err) {
+        console.warn("Error parsing datetime string:", dateString, err);
+        return null;
+      }
+    };
+
+
+
+   const canCheckIn = (reservation) => {
+  if (!reservation?.raw_start || reservation.raw_status !== "confirmed") return false;
+
+  const start = parseDateSafe(reservation.raw_start);
+  if (!start) return false;
+
+  const nowMs = new Date().getTime();
+  const startMs = start.getTime();
+  const diffMins = (startMs - nowMs) / 1000 / 60;
+
+  // Allow check-in from 30 minutes before to 10 minutes after reservation start
+  return diffMins <= 30 && diffMins >= -10;
+};
+
+
     // Fetch user's occupied desk on login/page load
     useEffect(() => {
         if (!user) return;
-
+        // Try to reliably find the user's occupied desk by checking desks list
+        // and falling back to active reservations. This prevents the UI from
+        // losing the selected desk when backend doesn't show current_user on desk.
         const fetchOccupiedDesk = async () => {
             try {
                 const config = {
                     headers: { Authorization: `Bearer ${user.token}` },
                     withCredentials: true,
                 };
-                const res = await axios.get(
-                    "http://localhost:8000/api/desks/",
-                    config
+
+                // 1) Check desks endpoint for any desk with this user as current_user or any desk currently occupied
+                // (hotdesk-started desks may not have current_user but will be "occupied" until released)
+                const desksRes = await axios.get(`http://localhost:8000/api/desks/`, config);
+                let occupiedDesk = desksRes.data.find(
+                    (desk) => {
+                        const isOwnedByUser = desk.current_user && String(desk.current_user.id) === String(user.id);
+                        const isOccupied = desk.current_status === "occupied" || desk.current_status === "in_use";
+                        return (isOwnedByUser || isOccupied) && desk.current_status !== "available";
+                    }
                 );
-                const occupiedDesk = res.data.find(
-                    (desk) =>
-                        desk.current_user &&
-                        desk.current_user.id === user.id &&
-                        desk.current_status !== "available"
-                );
+
+                // 2) If not found, check reservations for any active reservation by this user
+                    if (!occupiedDesk) {
+                    try {
+                        const res = await axios.get(`http://localhost:8000/api/reservations/`, config);
+                        const active = (res.data || []).find(r => {
+                            if (!(r.status === 'active' || r.status === 'confirmed')) return false;
+                            // Normalize user field: try r.user_id, r.user (object or id), or r.owner
+                            const rUserId = r.user_id || (r.user && (typeof r.user === 'object' ? r.user.id : r.user)) || r.owner;
+                            return rUserId && String(rUserId) === String(user.id);
+                        });
+                        if (active) {
+                            // Use desk id from reservation to show in dashboard
+                            const deskId = active.desk_id || active.desk;
+                            if (deskId) {
+                                occupiedDesk = { id: deskId };
+                            }
+                        }
+                    } catch (err) {
+                        console.warn('Failed to query reservations while finding occupied desk:', err);
+                    }
+                }
+
                 if (occupiedDesk) {
-                    setSelectedDeskId(occupiedDesk.id);
+                    // Verify the desk details are accessible before setting it in UI.
+                    try {
+                        const statusCheck = await axios.get(`http://localhost:8000/api/desks/${occupiedDesk.id}/`, config);
+                        // If accessible, set selected desk
+                        if (statusCheck && statusCheck.status === 200) {
+                            setSelectedDeskId(occupiedDesk.id);
+                        } else {
+                            console.warn('Desk details not accessible, skipping setting selectedDeskId for', occupiedDesk.id);
+                            setSelectedDeskId(null);
+                        }
+                    } catch (err) {
+                        // If the desk endpoint returns 403/404, don't show it as selected
+                        console.warn('Could not access desk details for', occupiedDesk.id, err);
+                        setSelectedDeskId(null);
+                    }
                 } else {
                     setSelectedDeskId(null);
                     setSessionStartTime(null);
                 }
-            } catch (err) {
+            } catch (err) { console.error("API error:", err);
                 setSelectedDeskId(null);
                 setSessionStartTime(null);
             }
@@ -103,6 +172,66 @@ export default function EmployeeDashboard() {
 
         fetchOccupiedDesk();
     }, [user]);
+
+    // 🔥 Live polling reservations every 10s
+useEffect(() => {
+    if (!user) return;
+
+    const fetchReservations = async () => {
+        try {
+            const config = {
+                headers: { Authorization: `Bearer ${user.token}` },
+                withCredentials: true,
+            };
+            const res = await axios.get("http://localhost:8000/api/reservations/", config);
+
+           const upcoming = res.data
+            .filter(r => r.status === "confirmed" || r.status === "active")
+            .map(r => {
+                const parsedStartTime = parseDateSafe(r.start_time);
+                const parsedEndTime = parseDateSafe(r.end_time);
+                if (!parsedStartTime || !parsedEndTime) return null;
+
+                const now = new Date();
+                const startDiffMins = (parsedStartTime.getTime() - now.getTime()) / 1000 / 60;
+
+                return {
+                id: r.id,
+                date: formatNiceDate(parsedStartTime),
+                desk_name: r.desk_name || `Desk ${r.desk_id}`,
+                start_time: `${String(parsedStartTime.getHours()).padStart(2, '0')}:${String(parsedStartTime.getMinutes()).padStart(2, '0')}`,
+                end_time: `${String(parsedEndTime.getHours()).padStart(2, '0')}:${String(parsedEndTime.getMinutes()).padStart(2, '0')}`,
+                checkedIn: r.status === "active",
+                loadingCheckin: startDiffMins <= 15 && startDiffMins > 14.5,
+
+                // Add raw fields back
+                raw_start: r.start_time,
+                raw_status: r.status
+                };
+
+            })
+            .filter(Boolean);
+            setUpcomingReservations(upcoming);
+        } catch (err) { console.error("API error:", err);}
+    };
+
+    fetchReservations();
+    const interval = setInterval(fetchReservations, 4000);
+
+    return () => clearInterval(interval);
+}, [user]);
+
+useEffect(() => {
+    const sync = () => {
+        // Force immediate refresh instead of waiting 10s
+        const fetchNow = document.querySelector("#force-res-fetch")?.click();
+    };
+
+    window.addEventListener("reservation-updated", sync);
+    return () => window.removeEventListener("reservation-updated", sync);
+}, []);
+
+
 
     // Fetch desk status and usage from API (every 30 seconds)
     useEffect(() => {
@@ -158,7 +287,7 @@ export default function EmployeeDashboard() {
                     setLiveStandingSeconds(0);
                     setLastFetchTime(null);
                 }
-            } catch (err) {
+            } catch (err) {  console.error("API error:", err);
                 setDeskStatus(null);
                 setUsageStats(null);
                 setSessionStartTime(null);
@@ -234,25 +363,100 @@ export default function EmployeeDashboard() {
         return () => clearInterval(liveInterval);
     }, [baseSittingSeconds, baseStandingSeconds, lastFetchTime, currentHeight, usageStats]);
 
-    function handleEditReservation(id) {
-        // TODO: open edit modal / navigate to edit form
-    }
-
+    // Unused helper kept intentionally for future use (may be used by other flows/tests)
     function handleDeleteReservation(id) {
         setUpcomingReservations((prev) => prev.filter((r) => r.id !== id));
     }
 
-    function handleCheckInReservation(id) {
-        setPendingDeskId(selectedDeskId);
-        setVerificationModalOpen(true);
+    async function handleCheckInReservation(reservationId) {
+    try {
+        const config = {
+        headers: { Authorization: `Bearer ${user?.token}` },
+        withCredentials: true,
+    };
 
-        setUpcomingReservations((prev) =>
-            prev.map((r) => (r.id === id ? { ...r, checkedIn: true } : r))
+        // Prevent user from checking into another desk if they already have an active desk
+        try {
+            const desksRes = await axios.get(`http://localhost:8000/api/desks/`, config);
+            const existing = desksRes.data.find(d => d.current_user && String(d.current_user.id) === String(user.id) && d.current_status !== 'available');
+            if (existing) {
+                toast.error('You already have an active desk. Release it before checking into another.');
+                return;
+            }
+        } catch (err) {
+            // non-fatal, continue to attempt check-in
+            console.warn('Could not verify existing desks before check-in:', err);
+        }
+
+        await axios.post(
+          `http://localhost:8000/api/reservations/${reservationId}/check_in/`,
+          {},
+          config
         );
-    }
 
-    function handleReleaseReservation(id) {
-        setUpcomingReservations((prev) => prev.filter((r) => r.id !== id));
+    toast.success("Checked in successfully");
+
+    // Refetch session info
+    setPendingDeskId(selectedDeskId);
+    setVerificationModalOpen(true);
+
+    setUpcomingReservations((prev) =>
+      prev.map((r) =>
+        r.id === reservationId ? { ...r, checkedIn: true } : r
+      )
+    );
+  } catch (err) {
+    toast.error("Failed to check in", {
+      description: err.response?.data?.error || err.message,
+    });
+  }
+}
+
+async function handleCheckOutReservation(reservationId) {
+  try {
+    const config = {
+      headers: { Authorization: `Bearer ${user?.token}` },
+      withCredentials: true,
+    };
+
+    await axios.post(
+      `http://localhost:8000/api/reservations/${reservationId}/check_out/`,
+      {},
+      config
+    );
+
+    toast.success("Checked out successfully");
+
+    setSelectedDeskId(null);
+    setSessionStartTime(null);
+    setElapsedTime("00:00:00");
+    setLiveSittingSeconds(0);
+    setLiveStandingSeconds(0);
+    setBaseSittingSeconds(0);
+    setBaseStandingSeconds(0);
+    setLastFetchTime(null);
+
+    // Optionally refetch reservations or usage logs
+  } catch (err) {  console.error("API error:", err);
+    toast.error("Failed to check out", {
+      description: err.response?.data?.error || err.message,
+    });
+  }
+}
+
+
+    async function handleReleaseReservation(id) {
+        try {
+            const config = {
+                headers: { Authorization: `Bearer ${user?.token}` },
+                withCredentials: true,
+            };
+            await axios.post(`http://localhost:8000/api/reservations/${id}/cancel/`, {}, config);
+            setUpcomingReservations((prev) => prev.filter((r) => r.id !== id));
+            toast.success('Reservation cancelled');
+        } catch (err) { console.error('API error cancelling reservation:', err);
+            toast.error('Failed to cancel reservation', { description: err.response?.data?.error || err.message });
+        }
     }
 
     function goToMyDesk() {
@@ -299,15 +503,13 @@ export default function EmployeeDashboard() {
                                     ) : null}
 
                                     {selectedDeskId && usageStats?.active_session ? (
-                                        <div className="text-xs text-muted-foreground mt-1">
-                                            <span className="font-semibold">
-                                                {sittingMinutes}m sitting
-                                            </span>
-                                            {" | "}
-                                            <span className="font-semibold">
-                                                {standingMinutes}m standing
-                                            </span>
+                                    <div className="flex flex-col items-start gap-2 mt-2">
+                                        <div className="text-xs text-muted-foreground">
+                                        <span className="font-semibold">{sittingMinutes}m sitting</span> |{" "}
+                                        <span className="font-semibold">{standingMinutes}m standing</span>
                                         </div>
+                                        {/* Check Out button removed - release flow handles reservation cancellation now */}
+                                    </div>
                                     ) : null}
                                 </div>
 
@@ -330,11 +532,40 @@ export default function EmployeeDashboard() {
                                                             headers: { Authorization: `Bearer ${user.token}` },
                                                             withCredentials: true,
                                                         };
+                                                        // Release the desk hardware/session
                                                         await axios.post(
                                                             `http://localhost:8000/api/desks/${selectedDeskId}/release/`,
                                                             {},
                                                             config
                                                         );
+
+                                                        // Then, attempt to find and cancel any reservation the user has for this desk
+                                                        try {
+                                                            const res = await axios.get(
+                                                                `http://localhost:8000/api/reservations/`,
+                                                                config
+                                                            );
+                                                            const userReservations = res.data || [];
+                                                            const matching = userReservations.find(r => (r.desk_id === selectedDeskId || r.desk === selectedDeskId) && (r.status === 'confirmed' || r.status === 'active'));
+                                                            if (matching) {
+                                                                // Cancel the reservation on the server
+                                                                await axios.post(
+                                                                    `http://localhost:8000/api/reservations/${matching.id}/cancel/`,
+                                                                    {},
+                                                                    config
+                                                                );
+                                                                // Update local upcomingReservations state if present
+                                                                setUpcomingReservations(prev => prev.filter(rr => rr.id !== matching.id));
+                                                            }
+                                                        } catch (err) {
+                                                            console.warn('Failed to auto-cancel reservation after release:', err);
+                                                            toast.error('Released desk but failed to cancel reservation', { description: err?.response?.data?.error || err?.message });
+                                                        }
+
+                                                            // Notify other components that reservations changed
+                                                            window.dispatchEvent(new Event('reservation-updated'));
+
+                                                        // Clear local desk/session state
                                                         setSelectedDeskId(null);
                                                         setSessionStartTime(null);
                                                         setElapsedTime("00:00:00");
@@ -343,8 +574,12 @@ export default function EmployeeDashboard() {
                                                         setBaseSittingSeconds(0);
                                                         setBaseStandingSeconds(0);
                                                         setLastFetchTime(null);
-                                                    } catch (err) {
+                                                    } catch (err) {  console.error("API error:", err);
                                                         console.error("Error releasing desk:", err);
+                                                        // If the release call returns 403, inform the user and do not clear UI state
+                                                        if (err?.response?.status === 403) {
+                                                            toast.error('Not authorized to release this desk (403)');
+                                                        }
                                                     }
                                                 }}
                                                 className="px-3 py-1 rounded-md bg-primary text-white text-sm hover:opacity-90"
@@ -364,6 +599,7 @@ export default function EmployeeDashboard() {
                                 <div>
                                     <CardTitle>Upcoming Reservations</CardTitle>
                                 </div>
+                                <button id="force-res-fetch" hidden></button>
                             </CardHeader>
 
                             <CardContent className="grid gap-3">
@@ -391,16 +627,24 @@ export default function EmployeeDashboard() {
                                                 {idx === 0 ? (
                                                     <>
                                                         {!r.checkedIn ? (
+                                                        canCheckIn(r) ? (
+                                                            r.loadingCheckin ? (
+                                                            <span className="text-sm text-blue-500 animate-pulse">Loading check-in...</span>
+                                                            ) : (
                                                             <button
                                                                 onClick={() => handleCheckInReservation(r.id)}
                                                                 className="px-3 py-1 rounded-md bg-primary text-white text-sm hover:opacity-90"
-                                                                aria-label="Check in"
                                                             >
                                                                 Check in
                                                             </button>
+                                                            )
                                                         ) : (
-                                                            <span className="px-2 py-1 text-xs rounded-md bg-green-100 text-green-800">Checked in</span>
+                                                            <span className="text-xs text-muted-foreground">Check-in available 30 mins before</span>
+                                                        )
+                                                        ) : (
+                                                        <span className="px-2 py-1 text-xs rounded-md bg-green-100 text-green-800">Checked in</span>
                                                         )}
+
 
                                                         <button
                                                             onClick={() => handleReleaseReservation(r.id)}

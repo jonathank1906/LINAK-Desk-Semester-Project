@@ -217,6 +217,8 @@ class Command(BaseCommand):
         pico_data = [
             {
                 "id": 1,
+                "mac_address": "2c:cf:67:db:3e:ba",
+                "ip_address": "192.168.68.111",
                 "mac_address": config('PICO_MAC_ADDRESS', default='00:00:00:00:00:00'),
                 "ip_address": config('PICO_IP_ADDRESS', default='0.0.0.0'),
                 "status": "nothing",
