@@ -314,7 +314,7 @@ export default function Reservations({ setSelectedDeskId }) {
       const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
       await axios.post(`http://localhost:8000/api/reservations/${reservationId}/cancel/`, {}, config);
 
-      toast.success("Reservation cancelled!");
+      toast.success("Reservation deleted!");
       setUserReservations((prev) => prev.filter((res) => res.id !== reservationId));
       fetchUserReservations();
       fetchAvailableDesks();
@@ -389,7 +389,7 @@ export default function Reservations({ setSelectedDeskId }) {
             type="button"
             aria-pressed={mode === "hotdesk"}
             onClick={() => setMode("hotdesk")}
-            className={`px-4 py-2 focus:outline-none transition-colors ${mode === "hotdesk" ? "bg-primary text-white" : "bg-transparent text-muted-foreground"}`}
+            className={`px-4 py-2 focus:outline-none transition-colors ${mode === "hotdesk" ? "bg-primary text-white dark:text-black" : "bg-transparent text-muted-foreground"}`}
           >
             Hot Desk
           </button>
@@ -397,7 +397,7 @@ export default function Reservations({ setSelectedDeskId }) {
             type="button"
             aria-pressed={mode === "reserve"}
             onClick={() => setMode("reserve")}
-            className={`px-4 py-2 focus:outline-none transition-colors ${mode === "reserve" ? "bg-primary text-white" : "bg-transparent text-muted-foreground"}`}
+            className={`px-4 py-2 focus:outline-none transition-colors ${mode === "reserve" ? "bg-primary text-white dark:text-black" : "bg-transparent text-muted-foreground"}`}
           >
             Reserve
           </button>
@@ -477,12 +477,12 @@ export default function Reservations({ setSelectedDeskId }) {
                               </button>
                             </div>
                           ) : canUse ? (
-                            <Button onClick={() => startHotDesk(desk.id)} disabled={userHasActive} title={userHasActive ? 'You already have an active desk or reservation' : undefined}>Use</Button>
+                            <Button variant="outline" onClick={() => startHotDesk(desk.id)} disabled={userHasActive} title={userHasActive ? 'You already have an active desk or reservation' : undefined}>Use</Button>
                           ) : (
                             <span className="text-xs text-red-500">Reserved — desk locked</span>
                           )
                         ) : (
-                          <Button onClick={() => startHotDesk(desk.id)} disabled={userHasActive} title={userHasActive ? 'You already have an active desk or reservation' : undefined}>Use</Button>
+                          <Button variant="outline" onClick={() => startHotDesk(desk.id)} disabled={userHasActive} title={userHasActive ? 'You already have an active desk or reservation' : undefined}>Use</Button>
                         )}
                       </div>
                     );
@@ -564,7 +564,7 @@ export default function Reservations({ setSelectedDeskId }) {
                           <h3 className="font-semibold">{desk.name || desk.desk_name || `Desk ${desk.id}`}</h3>
                           <p className="text-sm text-muted-foreground">Location: {desk.location || "Building A"}</p>
                         </div>
-                        <Button onClick={() => makeReservation(desk.id)}>Reserve</Button>
+                        <Button variant="outline" onClick={() => makeReservation(desk.id)}>Reserve</Button>
                       </div>
                     ))}
                   </div>
@@ -599,7 +599,7 @@ export default function Reservations({ setSelectedDeskId }) {
                             setEditEndTime(formatTimeFromISO(reservation.end_time));
                           }}>Edit</Button>
 
-                          <Button variant="destructive" onClick={() => cancelReservation(reservation.id)}>Cancel</Button>
+                          <Button variant="destructive" onClick={() => cancelReservation(reservation.id)}>Delete</Button>
                         </div>
                       </div>
                     ))}
