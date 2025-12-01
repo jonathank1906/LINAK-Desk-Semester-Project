@@ -23,8 +23,9 @@ from .serializers import (
     DeskSerializer,
     ReservationSerializer,
     AdminUserListSerializer,
+    DeskLogSerializer
 )
-from .models import Desk, DeskUsageLog
+from .models import Desk, DeskUsageLog, DeskLog
 from .services.WiFi2BLEService import WiFi2BLEService
 from core.services.MQTTService import get_mqtt_service
 from core.models import Pico, SensorReading, Reservation
@@ -331,6 +332,7 @@ def desk_usage(request, desk_id):
 
         # Calculate elapsed time
         now = timezone.now()
+        fifteen_minutes = timedelta(minutes=15)
         started_at = log.started_at
         elapsed_seconds = int((now - started_at).total_seconds())
 
@@ -1084,7 +1086,9 @@ def solve_complaint(request, complaint_id: int):
 def start_hot_desk(request, desk_id):
     print(f"\n🏢 START_HOT_DESK CALLED - Desk ID: {desk_id}")
     print(f"   User: {request.user.username}")
+
     
+
     try:
         desk = Desk.objects.get(id=desk_id)
         
@@ -1105,6 +1109,7 @@ def start_hot_desk(request, desk_id):
                     {"error": "Desk is already pending your confirmation"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+        
         
         # Check if desk is available
         if desk.current_status not in ["available", "Normal"]:
@@ -1290,42 +1295,111 @@ def hotdesk_status(request):
     date = timezone.datetime.strptime(date_str, "%Y-%m-%d").date()
     desks = Desk.objects.all()
     result = []
+    now = timezone.now()
 
     for desk in desks:
+        # Check active usage/check-in session
+        if desk.current_user:
+            active_session = (
+                DeskUsageLog.objects.filter(
+                    desk=desk,
+                    ended_at__isnull=True
+                )
+                .order_by("-started_at")
+                .first()
+            )
+            reserved_time_iso = (
+                active_session.started_at.isoformat() if active_session else now.isoformat()
+            )
+
+            result.append({
+                "id": desk.id,
+                "desk_name": desk.name,
+                "reserved": True,
+                "reserved_by": desk.current_user.id,
+                "reserved_time": reserved_time_iso,
+                "reserved_start_time": reserved_time_iso,
+                "reserved_end_time": None,
+                "occupied": True,
+                "current_status": desk.current_status,
+                "locked_for_checkin": desk.current_status in [
+                    "pending_verification",
+                    "occupied",
+                ],
+            })
+            continue
+
+        # Check next reservation for given date
         reservation = (
             Reservation.objects.filter(
-                desk=desk, start_time__date=date, status__in=["confirmed", "active"]
+                desk=desk,
+                start_time__date=date,
+                status__in=["confirmed", "active"],
             )
             .order_by("start_time")
             .first()
         )
+
         if reservation:
-            result.append(
-                {
-                    "id": desk.id,
-                    "desk_name": desk.name,  # added
-                    "reserved": True,
-                    "reserved_time": reservation.start_time.strftime("%H:%M"),
-                }
+            start_time = reservation.start_time
+            end_time = reservation.end_time
+            reserved_by = reservation.user.id
+
+            # Lock the desk starting 30 minutes before the reservation
+            is_locked = (
+                now >= start_time - timedelta(minutes=30)
+                and now <= end_time
             )
+
+            result.append({
+                "id": desk.id,
+                "desk_name": desk.name,
+                "reserved": True,
+                "reserved_by": reserved_by,
+                "reserved_time": start_time.isoformat(),
+                "reserved_start_time": start_time.isoformat(),
+                "reserved_end_time": end_time.isoformat(),
+                "locked_for_checkin": is_locked,
+                "occupied": False,
+            })
         else:
-            result.append(
-                {"id": desk.id, "desk_name": desk.name, "reserved": False}  # added
-            )
+            result.append({
+                "id": desk.id,
+                "desk_name": desk.name,
+                "reserved": False,
+                "locked_for_checkin": False,
+            })
 
     return Response(result)
 
 
-# ---------------- RESERVATION ENDPOINTS ----------------
 
+# ---------------- RESERVATION ENDPOINTS ----------------
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def list_user_reservations(request):
-    reservations = Reservation.objects.filter(user=request.user).order_by("-start_time")
+    user = request.user
+    date_str = request.GET.get("date")
+
+    reservations = Reservation.objects.filter(user=user)
+
+    if date_str:
+        try:
+            date = timezone.datetime.strptime(date_str, "%Y-%m-%d").date()
+            start_dt = timezone.make_aware(timezone.datetime.combine(date, timezone.datetime.min.time()))
+            end_dt = timezone.make_aware(timezone.datetime.combine(date, timezone.datetime.max.time()))
+
+            reservations = reservations.filter(
+                start_time__lt=end_dt,
+                end_time__gt=start_dt
+            )
+        except ValueError:
+            return Response({"error": "Invalid date format"}, status=400)
+
+    reservations = reservations.order_by("-start_time")
     serializer = ReservationSerializer(reservations, many=True)
     return Response(serializer.data)
-
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -1344,15 +1418,26 @@ def create_reservation(request):
 def check_in_reservation(request, reservation_id):
     try:
         reservation = Reservation.objects.get(id=reservation_id, user=request.user)
+        now = timezone.now()
+
         if reservation.status != "confirmed":
             return Response(
                 {"error": "Reservation not confirmed or already active"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Allow check-in within 30 minutes before and 10 minutes after start time
+        allowed_window_start = reservation.start_time - timedelta(minutes=30)
+        allowed_window_end = reservation.start_time + timedelta(minutes=10)
+
+        if not (allowed_window_start <= now <= allowed_window_end):
+            return Response({
+                "error": f"You can only check in 30 minutes before or up to 10 minutes after your reservation starts. Check-in available from {allowed_window_start.strftime('%H:%M')}."
+            }, status=status.HTTP_403_FORBIDDEN)
+
         # Mark reservation as active
         reservation.status = "active"
-        reservation.checked_in_at = timezone.now()
+        reservation.checked_in_at = now
         reservation.save()
 
         # Mark desk as occupied
@@ -1365,14 +1450,17 @@ def check_in_reservation(request, reservation_id):
         DeskUsageLog.objects.create(
             user=request.user,
             desk=desk,
-            started_at=timezone.now(),
+            started_at=now,
             source="reservation",
         )
+
         return Response({"success": True})
+
     except Reservation.DoesNotExist:
         return Response(
             {"error": "Reservation not found"}, status=status.HTTP_404_NOT_FOUND
         )
+
 
 
 @api_view(["POST"])
@@ -1411,22 +1499,88 @@ def check_out_reservation(request, reservation_id):
         return Response(
             {"error": "Reservation not found"}, status=status.HTTP_404_NOT_FOUND
         )
+    
+    
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def cancel_reservation(request, reservation_id):
+    try:
+        reservation = Reservation.objects.get(id=reservation_id, user=request.user)
+
+        if reservation.status in ["cancelled", "completed"]:
+            return Response(
+                {"error": "Reservation already finished or cancelled"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Mark as cancelled
+        reservation.status = "cancelled"
+        reservation.cancelled_at = timezone.now()
+        reservation.cancelled_by = request.user
+        reservation.save()
+
+        return Response({"success": True, "message": "Reservation cancelled successfully"})
+
+    except Reservation.DoesNotExist:
+        return Response({"error": "Reservation not found"}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def edit_reservation(request, reservation_id):
+    try:
+        reservation = Reservation.objects.get(id=reservation_id, user=request.user)
+
+        if reservation.status != "confirmed":
+            return Response({"error": "Only confirmed reservations can be edited."}, status=400)
+
+        new_start = request.data.get("start_time")
+        new_end = request.data.get("end_time")
+
+        if new_start and new_end:
+            reservation.start_time = new_start
+            reservation.end_time = new_end
+            reservation.save()
+            return Response({"success": True})
+
+        return Response({"error": "Missing start or end time."}, status=400)
+
+    except Reservation.DoesNotExist:
+        return Response({"error": "Reservation not found."}, status=404)
 
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def available_desks_for_date(request):
     date_str = request.GET.get("date")
-    if not date_str:
-        return Response({"error": "Date parameter required"}, status=400)
-    date = timezone.datetime.strptime(date_str, "%Y-%m-%d").date()
-    # Get desks not reserved for this date
+    start_time = request.GET.get("start_time")
+    end_time = request.GET.get("end_time")
+
+    if not date_str or not start_time or not end_time:
+        return Response({"error": "Date, start_time, and end_time required"}, status=400)
+
+    # Build datetime ranges
+    try:
+        date = timezone.datetime.strptime(date_str, "%Y-%m-%d").date()
+        start_dt = timezone.make_aware(
+            timezone.datetime.strptime(f"{date_str} {start_time}", "%Y-%m-%d %H:%M")
+        )
+        end_dt = timezone.make_aware(
+            timezone.datetime.strptime(f"{date_str} {end_time}", "%Y-%m-%d %H:%M")
+        )
+    except ValueError:
+        return Response({"error": "Invalid date or time format"}, status=400)
+
+    # Find conflicting reservations
     reserved_desks = Reservation.objects.filter(
-        start_time__date=date, status__in=["confirmed", "active"]
+        status__in=["confirmed", "active"],
+        start_time__lt=end_dt,
+        end_time__gt=start_dt
     ).values_list("desk_id", flat=True)
+
     desks = Desk.objects.exclude(id__in=reserved_desks)
     serializer = DeskSerializer(desks, many=True)
     return Response(serializer.data)
+
 
 
 @api_view(["POST"])
@@ -1481,3 +1635,69 @@ def release_desk(request, desk_id):
         
     except Desk.DoesNotExist:
         return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)
+    
+    # ---- LOGS ----
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def submit_desk_report(request, desk_id):
+    try:
+        message = request.data.get("message")
+
+        if not message:
+            return Response({"error": "Message is required"}, status=400)
+
+        desk = Desk.objects.get(id=desk_id)
+
+        report = DeskReport.objects.create(
+            desk=desk,
+            user=request.user,
+            message=message
+        )
+
+        # 🔥 Add a log entry as well
+        DeskLog.objects.create(
+            desk=desk,
+            user=request.user,
+            action="desk_report_submitted"
+        )
+
+        return Response({"success": True, "message": "Report submitted"})
+    except Desk.DoesNotExist:
+        return Response({"error": "Desk not found"}, status=404)
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_all_reports(request):
+    reports = DeskReport.objects.order_by("-created_at")
+    print("REPORTS:", reports)
+    data = [{
+        "id": r.id,
+        "desk": r.desk.name,
+        "desk_id": r.desk.id,
+        "user": r.user.email if r.user else "Unknown",
+        "message": r.message,
+        "resolved": r.resolved,
+        "created_at": r.created_at.strftime("%Y-%m-%d %H:%M"),
+    } for r in reports]
+
+    return Response(data)
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_all_logs(request):
+    logs = DeskLog.objects.select_related("desk", "user").order_by("-timestamp")
+    serializer = DeskLogSerializer(logs, many=True)
+    return Response(serializer.data)
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def delete_report(request, report_id):
+    try:
+        report = DeskReport.objects.get(id=report_id)
+        report.delete()
+        return Response({"success": True})
+    except DeskReport.DoesNotExist:
+        return Response({"error": "Report not found"}, status=404)
+
+

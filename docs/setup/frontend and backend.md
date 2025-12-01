@@ -1,22 +1,20 @@
-# Setup Guide for Running Locally
+# Setup Guide for Local Dev
 
 ## Prerequisites
-
 - Python
 - Node.js & npm
 - PostgreSQL
 
-See the [prerequisites](prerequisites.md) page for detailed instructions.
 
-## Steps
-### Frontend Setup
-Install dependencies in the frontend folder:
+## 1. Frontend Setup
+Install frontend dependencies:
 ```sh
 cd frontend
 npm install
 ```
 
-### Create the PostgreSQL database
+## 2. Database Setup
+Create the PostgreSQL database:
 ```sh
 psql -U postgres
 ```
@@ -30,8 +28,8 @@ ALTER USER "user" WITH SUPERUSER;
 ```
 Type \q or exit to quit.
 
-### Backend Setup
-In root directory, a create virtual environment.
+## 3. Backend Setup
+In root directory, create a python virtual environment:
 ```sh
 py -m venv env
 ```
@@ -40,8 +38,9 @@ Install backend dependencies:
 env\Scripts\activate
 pip install -r requirements.txt
 ```
-Navigate to the backend folder and apply migrations:
+Apply database migrations:
 ```sh
+env/Scripts/activate
 cd backend
 py manage.py makemigrations
 py manage.py migrate
