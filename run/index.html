@@ -186,6 +186,10 @@
               <ul class="nav flex-column">
               </ul>
             </li>
+            <li class="nav-item" data-bs-level="2"><a href="#run-django-tests" class="nav-link">Run Django Tests</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
               </ul>
             </li>
         </ul>
@@ -217,6 +221,19 @@ py simulator/main.py --port 8001
 <pre><code class="language-sh">env\Scripts\activate
 cd backend
 py manage.py mqtt_listener
+</code></pre>
+<h2 id="run-django-tests">Run Django Tests</h2>
+<pre><code class="language-sh">env\Scripts\activate
+cd backend
+
+# Run all tests
+py manage.py test
+
+# Run specific test class
+py manage.py test core.tests.test_models.DeskModelTest
+
+# Run with verbosity (more detailed output)
+py manage.py test -v 2
 </code></pre></div>
             </div>
         </div>
