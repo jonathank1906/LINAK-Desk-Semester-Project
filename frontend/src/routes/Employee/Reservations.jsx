@@ -562,7 +562,6 @@ export default function Reservations({ setSelectedDeskId }) {
                       <div key={desk.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors">
                         <div>
                           <h3 className="font-semibold">{desk.name || desk.desk_name || `Desk ${desk.id}`}</h3>
-                          <p className="text-sm text-muted-foreground">Location: {desk.location || "Building A"}</p>
                         </div>
                         <Button variant="outline" onClick={() => makeReservation(desk.id)}>Reserve</Button>
                       </div>
