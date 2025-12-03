@@ -4,13 +4,13 @@ ENV PYTHONUNBUFFERED 1
 
 COPY ./requirements.txt /requirements.txt
 
+# Install system dependencies first
+RUN apk add --update --upgrade --no-cache postgresql-client postgresql-libs postgresql-dev build-base
+
+# Now create the venv and install Python packages
 RUN python -m venv /py && \
     /py/bin/pip install --upgrade pip && \
-    apk add --update --upgrade --no-cache postgresql-client && \
-    apk add --update --upgrade --no-cache --virtual .tmp \
-        build-base postgresql-dev
-    
-RUN /py/bin/pip install -r /requirements.txt && apk del .tmp
+    /py/bin/pip install -r /requirements.txt
 
 COPY ./backend /backend
 WORKDIR /backend
