@@ -45,3 +45,15 @@ py manage.py test core.tests.test_models.DeskModelTest
 # Run with verbosity (more detailed output)
 py manage.py test -v 2
 ```
+
+# Running the Project with Docker
+## For Windows Users
+Prereqs:
+- Installed WSL2
+
+1. Start up Docker Desktop
+
+```sh
+docker-compose up --build
+```
+
