@@ -40,6 +40,12 @@ jobs:
         cd backend
         pip install -r ../requirements.txt
         pip install coverage
+
+    - name: Start WiFi2BLE Simulator
+      run: |
+        cd wifi2ble-box-simulator
+        nohup python simulator/main.py --port 8001 &
+        cd ..
     
     - name: Run Django tests
       env:
