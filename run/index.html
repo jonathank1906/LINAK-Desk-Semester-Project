@@ -186,6 +186,10 @@
               <ul class="nav flex-column">
               </ul>
             </li>
+            <li class="nav-item" data-bs-level="2"><a href="#run-react-tests" class="nav-link">Run React Tests</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
             <li class="nav-item" data-bs-level="2"><a href="#run-django-tests" class="nav-link">Run Django Tests</a>
               <ul class="nav flex-column">
               </ul>
@@ -231,6 +235,11 @@ py simulator/main.py --port 8001
 cd backend
 py manage.py mqtt_listener
 </code></pre>
+<h2 id="run-react-tests">Run React Tests</h2>
+<pre><code class="language-sh">cd frontend
+npm test
+</code></pre>
+<p>Press q to quit.</p>
 <h2 id="run-django-tests">Run Django Tests</h2>
 <pre><code class="language-sh">env\Scripts\activate
 cd backend
@@ -246,13 +255,19 @@ py manage.py test -v 2
 </code></pre>
 <h1 id="running-the-project-with-docker">Running the Project with Docker</h1>
 <h2 id="for-windows-users">For Windows Users</h2>
-<p>Prerequisites:
-- Installed WSL2</p>
-<ol>
-<li>Start up Docker Desktop</li>
-</ol>
+<p>Prerequisites:</p>
+<ul>
+<li>
+<p>Installed WSL2</p>
+</li>
+<li>
+<p>Start up Docker Desktop.</p>
+</li>
+<li>Build and start the containers:</li>
+</ul>
 <pre><code class="language-sh">docker-compose up --build
-</code></pre></div>
+</code></pre>
+<p>To stop the containers, press <code>Ctrl+C</code> in the terminal.</p></div>
             </div>
         </div>
 
