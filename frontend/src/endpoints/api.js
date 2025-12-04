@@ -5,7 +5,6 @@ const BASE_URL = 'http://localhost:8000/api/'
 const LOGIN_URL = `${BASE_URL}login/`
 const REGISTER_URL = `${BASE_URL}register/`
 const LOGOUT_URL = `${BASE_URL}logout/`
-const NOTES_URL = `${BASE_URL}todos/`
 const AUTHENTICATED_URL = `${BASE_URL}authenticated/`
 const REFRESH_URL = `${BASE_URL}token/refresh/`
 
@@ -123,10 +122,6 @@ export const login = async (email, password) => {
     }
 };
 
-export const get_notes = async () => {
-    const response = await axios.get(NOTES_URL, { withCredentials: true });
-    return response.data;
-};
 
 export const logout = async () => {
     // Stop token refresh on logout
