@@ -9,7 +9,9 @@ import { NavUser } from "@/components/nav-user";
 import { useAuth } from "@/contexts/useAuth";
 import { useState, useEffect } from "react";
 import UserManagement from "./UserManagement";
-import AnalyticsPage from "./AnalyticsPage"
+import AnalyticsPage from "./AnalyticsPage";
+import Automate from "./Automate";
+import DeskManagement from "./DeskManagement";
 import axios from "axios"; 
 import LogsViewer from "./LogsViewer";
 import ReportModal from "@/components/ReportModal";
@@ -189,6 +191,10 @@ useEffect(() => {
         return <AnalyticsPage />;
       case "logs":
         return <LogsViewer />;
+      case "automate":
+        return <Automate />;
+      case "desks":
+        return <DeskManagement />;
       case "dashboard":
       default:
         return (

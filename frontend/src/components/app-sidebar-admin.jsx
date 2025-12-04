@@ -16,6 +16,7 @@ import {
   IconSettings,
   IconLogs,
   IconUsers,
+  IconDesk,
   IconLayoutDashboardFilled,
 } from "@tabler/icons-react"
 
@@ -69,18 +70,19 @@ export function AppSidebar({
       onClick: () => onSectionSelect?.("logs"),
       active: activeSection === "logs",
     },
-  ];
-
-  const documents = [
     {
-      name: "Data Library",
+      title: "Automate",
       url: "#",
-      icon: IconDatabase,
+      icon: IconSettings,
+      onClick: () => onSectionSelect?.("automate"),
+      active: activeSection === "automate",
     },
     {
-      name: "Reports",
+      title: "Desks",
       url: "#",
-      icon: IconReport,
+      icon: IconDesk,
+      onClick: () => onSectionSelect?.("desks"),
+      active: activeSection === "desks",
     },
   ];
 
@@ -108,7 +110,6 @@ export function AppSidebar({
             className: item.active ? "bg-accent text-primary font-bold" : "",
           }))}
         />
-        <NavDocuments items={documents} />
       </SidebarContent>
     </Sidebar>
   );
