@@ -17,8 +17,6 @@ jobs:
           POSTGRES_DB: db
           POSTGRES_USER: user
           POSTGRES_PASSWORD: localdevpw
-          POSTGRES_HOST: localhost
-          POSTGRES_PORT: 5432
         ports:
           - 5432:5432
         options: >-
@@ -37,27 +35,100 @@ jobs:
     
     - name: Install dependencies
       run: |
-        cd backend
-        pip install -r ../requirements.txt
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
         pip install coverage
 
     - name: Start WiFi2BLE Simulator
       run: |
         cd wifi2ble-box-simulator
-        nohup python simulator/main.py --port 8001 &
-        cd ..
+        nohup python simulator/main.py --port 8001 > simulator.log 2>&1 &
+        sleep 3
+        echo "Simulator started"
+        ps aux | grep simulator || true
     
     - name: Run Django tests
       env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        POSTGRES_NAME: db
+        POSTGRES_USER: user
+        POSTGRES_PASSWORD: localdevpw
+        POSTGRES_HOST: localhost
+        POSTGRES_PORT: 5432
       run: |
         cd backend
-        coverage run --source='.' manage.py test core
-        coverage report
+        python manage.py test core --verbosity=2
+    
+    - name: Run tests with coverage
+      env:
+        POSTGRES_NAME: db
+        POSTGRES_USER: user
+        POSTGRES_PASSWORD: localdevpw
+        POSTGRES_HOST: localhost
+        POSTGRES_PORT: 5432
+      run: |
+        cd backend
+        coverage run --source='core' manage.py test core
+        coverage report -m
         coverage xml
+    
+    - name: Show simulator log if tests failed
+      if: failure()
+      run: |
+        echo "=== Simulator Log ==="
+        cat wifi2ble-box-simulator/simulator.log || echo "No simulator log found"
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
         file: ./backend/coverage.xml
         flags: backend
+      if: github.event_name == 'push'
+    
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v3
+      with:
+        name: backend-coverage-report
+        path: backend/htmlcov/
+      if: always()
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm ci
+    
+    - name: Run tests
+      run: |
+        cd frontend
+        npm run test:run
+    
+    - name: Run tests with coverage
+      run: |
+        cd frontend
+        npm run test:coverage
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./frontend/coverage/coverage-final.json
+        flags: frontend
+      if: github.event_name == 'push'
+    
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v3
+      with:
+        name: frontend-coverage-report
+        path: frontend/coverage/
+      if: always()
