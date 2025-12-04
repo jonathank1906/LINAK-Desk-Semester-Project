@@ -519,7 +519,7 @@ export default function EmployeeDashboard() {
                                 <div>
                                     {!selectedDeskId ? (
                                         <Button
-                                            onClick={goToReservations}    
+                                            onClick={goToReservations}
                                             aria-label="Select a Desk"
                                         >
                                             Select a Desk
@@ -685,7 +685,10 @@ export default function EmployeeDashboard() {
                     <NavUser user={user} />
                 </div>
             </div>
-            <AppSidebar onSectionSelect={setSelectedSection} />
+            <AppSidebar
+                onSectionSelect={setSelectedSection}
+                activeSection={selectedSection}
+            />
             <SidebarInset>
                 <header className="relative flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
                     <div className="flex items-center gap-2 px-4">

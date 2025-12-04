@@ -4,6 +4,7 @@ import axios from "axios";
 import { toast } from "sonner";
 import { Pill, PillIndicator } from '@/components/ui/shadcn-io/pill';
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -29,7 +30,7 @@ export default function MyDesk({ selectedDeskId }) {
   const [reportModal, setReportModal] = useState(false);
   const [reportMessage, setReportMessage] = useState("");
   const [reportCategory, setReportCategory] = useState("other");
-  
+
   // Use ref to store polling interval
   const pollingIntervalRef = useRef(null);
 
@@ -63,7 +64,7 @@ export default function MyDesk({ selectedDeskId }) {
         };
 
         const [statusRes, usageRes] = await Promise.all([
-          axios.get(`http://localhost:8000/api/desks/${deskId}/status/`, config), 
+          axios.get(`http://localhost:8000/api/desks/${deskId}/status/`, config),
           axios.get(`http://localhost:8000/api/desks/${deskId}/usage/`, config),
         ]);
 
@@ -128,19 +129,19 @@ export default function MyDesk({ selectedDeskId }) {
 
 
   const submitReport = async () => {
-  try {
-    const config = { headers: { Authorization: `Bearer ${user.token}` }};
-    await axios.post(`http://localhost:8000/api/desks/${selectedDeskId}/report/`, 
-    { message: reportMessage, category: reportCategory }, config);
+    try {
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      await axios.post(`http://localhost:8000/api/desks/${selectedDeskId}/report/`,
+        { message: reportMessage, category: reportCategory }, config);
 
-    toast.success("Report submitted");
-    setReportMessage("");
-    setReportCategory("other");
-    setReportModal(false);
-  } catch (err) {
-    toast.error("Failed", { description: err.response?.data });
-  }
-};
+      toast.success("Report submitted");
+      setReportMessage("");
+      setReportCategory("other");
+      setReportModal(false);
+    } catch (err) {
+      toast.error("Failed", { description: err.response?.data });
+    }
+  };
 
   // ✅ NEW: Stop polling
   const stopMovementPolling = () => {
@@ -264,9 +265,9 @@ export default function MyDesk({ selectedDeskId }) {
                 {deskStatus?.name || `Desk #${selectedDeskId}`}
               </CardTitle>
               <Pill>
-                <PillIndicator 
-                  pulse 
-                  variant={isMoving ? 'warning' : 'success'} 
+                <PillIndicator
+                  pulse
+                  variant={isMoving ? 'warning' : 'success'}
                 />
                 {isMoving ? 'Moving' : 'Connected'}
               </Pill>
@@ -292,8 +293,13 @@ export default function MyDesk({ selectedDeskId }) {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-center">
-                <div className="text-3xl font-bold text-blue-600">
-                  {currentHeight != null ? `${currentHeight}cm` : "--"}
+                <div className="text-5xl font-bold">
+                  {currentHeight != null ? (
+                    <>
+                      {currentHeight}
+                      <span className="text-4xl align-bottom">cm</span>
+                    </>
+                  ) : "--"}
                 </div>
                 <div className="text-sm text-gray-500">Current Height</div>
               </div>
@@ -320,14 +326,14 @@ export default function MyDesk({ selectedDeskId }) {
         <div className="space-y-4">
           <Drawer>
             <DrawerTrigger asChild>
-              <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              <Button className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isMoving}>
-                {isMoving ? 'Desk Moving...' : 'Manual Height Controls'}
-              </button>
+                {isMoving ? 'Desk Moving...' : 'Height Controls'}
+              </Button>
             </DrawerTrigger>
             <DrawerContent>
               <DrawerHeader>
-                <DrawerTitle>Manual Height Control</DrawerTitle>
+                <DrawerTitle>Height Controls</DrawerTitle>
               </DrawerHeader>
               <div className="p-4 space-y-4">
                 {loading ? (
@@ -357,9 +363,8 @@ export default function MyDesk({ selectedDeskId }) {
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
-                          className={`h-2 rounded-full transition-all duration-300 ${
-                            isMoving ? 'bg-yellow-500 animate-pulse' : 'bg-blue-500'
-                          }`}
+                          className={`h-2 rounded-full transition-all duration-300 ${isMoving ? 'bg-yellow-500 animate-pulse' : 'bg-blue-500'
+                            }`}
                           style={{ width: `${heightPercentage}%` }}
                         ></div>
                       </div>
@@ -372,14 +377,14 @@ export default function MyDesk({ selectedDeskId }) {
                         disabled={isControlling || isMoving || currentHeight >= maxHeight}
                         className="bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                       >
-                        {isControlling || isMoving ? '...' : '↑ Up'}
+                        {isControlling || isMoving ? '...' : 'Up'}
                       </button>
                       <button
                         onClick={moveDown}
                         disabled={isControlling || isMoving || currentHeight <= minHeight}
                         className="bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                       >
-                        {isControlling || isMoving ? '...' : '↓ Down'}
+                        {isControlling || isMoving ? '...' : 'Down'}
                       </button>
                     </div>
 
@@ -389,13 +394,13 @@ export default function MyDesk({ selectedDeskId }) {
                       disabled={!isMoving}
                       className="w-full bg-red-500 text-white p-3 rounded-lg hover:bg-red-600 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
-                      🛑 EMERGENCY STOP
+                      Stop
                     </button>
 
                     {isMoving && (
                       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
                         <p className="text-sm text-yellow-800 font-medium">
-                          ⚠️ Desk is moving... Tracking height in real-time
+                          Desk is moving... Tracking height in real-time
                         </p>
                       </div>
                     )}
@@ -407,7 +412,7 @@ export default function MyDesk({ selectedDeskId }) {
 
           <Drawer>
             <DrawerTrigger asChild>
-              <button 
+              <button
                 className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isMoving}
               >
@@ -436,7 +441,7 @@ export default function MyDesk({ selectedDeskId }) {
                         <div className="font-medium text-green-800">Sitting Position</div>
                         <div className="text-sm text-green-600">72cm</div>
                       </div>
-                      <div className="text-green-600">{isControlling || isMoving ? '...' : 'Go →'}</div>
+                      <div className="text-green-600">{isControlling || isMoving ? '...' : 'Go'}</div>
                     </button>
 
                     <button
@@ -448,19 +453,7 @@ export default function MyDesk({ selectedDeskId }) {
                         <div className="font-medium text-blue-800">Standing Position</div>
                         <div className="text-sm text-blue-600">110cm</div>
                       </div>
-                      <div className="text-blue-600">{isControlling || isMoving ? '...' : 'Go →'}</div>
-                    </button>
-
-                    <button
-                      onClick={() => controlDeskHeight(95)}
-                      disabled={isControlling || isMoving}
-                      className="flex justify-between items-center p-4 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <div>
-                        <div className="font-medium text-purple-800">Meeting Height</div>
-                        <div className="text-sm text-purple-600">95cm</div>
-                      </div>
-                      <div className="text-purple-600">{isControlling || isMoving ? '...' : 'Go →'}</div>
+                      <div className="text-blue-600">{isControlling || isMoving ? '...' : 'Go'}</div>
                     </button>
                   </div>
                 )}
@@ -518,62 +511,62 @@ export default function MyDesk({ selectedDeskId }) {
               )}
             </CardContent>
           </Card>
-            <button 
-          onClick={() => setReportModal(true)}
-          className="w-full bg-red-600 text-white py-4 rounded-lg hover:bg-red-700"
-        >
-          Report Issue ⚠️
-        </button>
-        {reportModal && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
-            <div className="bg-white dark:bg-slate-950 p-6 rounded-lg w-[400px] space-y-4 border border-gray-200 dark:border-gray-800">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Report a Problem</h3>
+          <button
+            onClick={() => setReportModal(true)}
+            className="w-full bg-red-600 text-white py-4 rounded-lg hover:bg-red-700"
+          >
+            Report Issue
+          </button>
+          {reportModal && (
+            <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
+              <div className="bg-white dark:bg-slate-950 p-6 rounded-lg w-[400px] space-y-4 border border-gray-200 dark:border-gray-800">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Report a Problem</h3>
 
-              <textarea 
-                value={reportMessage}
-                onChange={(e) => setReportMessage(e.target.value)}
-                className="w-full border border-gray-300 dark:border-gray-600 rounded p-3 bg-white dark:bg-slate-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
-                rows="4"
-                placeholder="Describe the problem here..."
-              />
+                <textarea
+                  value={reportMessage}
+                  onChange={(e) => setReportMessage(e.target.value)}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded p-3 bg-white dark:bg-slate-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                  rows="4"
+                  placeholder="Describe the problem here..."
+                />
 
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Category
-                </label>
-                <select 
-                  value={reportCategory}
-                  onChange={(e) => setReportCategory(e.target.value)}
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded p-2 bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
-                >
-                  <option value="desk_doesnt_move">Desk doesn't move</option>
-                  <option value="desk_uncleaned">Desk uncleaned</option>
-                  <option value="desk_is_broken">Desk is broken</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Category
+                  </label>
+                  <select
+                    value={reportCategory}
+                    onChange={(e) => setReportCategory(e.target.value)}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded p-2 bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                  >
+                    <option value="desk_doesnt_move">Desk doesn't move</option>
+                    <option value="desk_uncleaned">Desk uncleaned</option>
+                    <option value="desk_is_broken">Desk is broken</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
 
-              <div className="flex justify-end gap-2">
-                <button 
-                  onClick={() => {
-                    setReportModal(false);
-                    setReportMessage("");
-                    setReportCategory("other");
-                  }} 
-                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={submitReport} 
-                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 transition-colors"
-                >
-                  Submit
-                </button>
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => {
+                      setReportModal(false);
+                      setReportMessage("");
+                      setReportCategory("other");
+                    }}
+                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={submitReport}
+                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 transition-colors"
+                  >
+                    Submit
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
         </div>
       </div>

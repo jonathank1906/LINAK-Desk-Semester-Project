@@ -44,45 +44,45 @@ export function AppSidebar({
   const navMain = [
     {
       title: "Dashboard",
+      section: "dashboard",
       url: "#",
       icon: IconLayoutDashboardFilled,
       onClick: () => onSectionSelect?.("dashboard"),
-      active: activeSection === "dashboard",
     },
     {
       title: "Analytics",
+      section: "analytics",
       url: "#",
       icon: IconChartBar,
       onClick: () => onSectionSelect?.("analytics"),
-      active: activeSection === "analytics",
     },
     {
       title: "Users",
+      section: "users",
       url: "#",
       icon: IconUsers,
       onClick: () => onSectionSelect?.("users"),
-      active: activeSection === "users",
     },
     {
       title: "Logs",
+      section: "logs",
       url: "#",
       icon: IconLogs,
       onClick: () => onSectionSelect?.("logs"),
-      active: activeSection === "logs",
     },
     {
       title: "Automate",
+      section: "automate",
       url: "#",
       icon: IconSettings,
       onClick: () => onSectionSelect?.("automate"),
-      active: activeSection === "automate",
     },
     {
       title: "Desks",
+      section: "desks",
       url: "#",
       icon: IconDesk,
       onClick: () => onSectionSelect?.("desks"),
-      active: activeSection === "desks",
     },
   ];
 
@@ -104,12 +104,7 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain
-          items={navMain.map((item) => ({
-            ...item,
-            className: item.active ? "bg-accent text-primary font-bold" : "",
-          }))}
-        />
+        <NavMain items={navMain} activeSection={activeSection} />
       </SidebarContent>
     </Sidebar>
   );

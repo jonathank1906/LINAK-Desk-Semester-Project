@@ -1,24 +1,9 @@
 import * as React from "react"
 import {
-  IconCamera,
   IconChartBar,
-  IconDashboard,
-  IconDatabase,
-  IconFileAi,
-  IconFileDescription,
-  IconFileWord,
-  IconFolder,
-  IconHelp,
-  IconInnerShadowTop,
-  IconListDetails,
-  IconReport,
-  IconSearch,
-  IconSettings,
-  IconUsers,
   IconCalendarWeek,
   IconDesk,
   IconLayoutDashboardFilled,
-  IconAtom,
 } from "@tabler/icons-react"
 
 import Logo from "../assets/Logo.svg";
@@ -36,29 +21,34 @@ import {
 
 export function AppSidebar({
   onSectionSelect,
+  activeSection = "dashboard",
   ...props
 }) {
   const navMain = [
     {
       title: "Dashboard",
+      section: "dashboard",
       url: "#",
       icon: IconLayoutDashboardFilled,
       onClick: () => onSectionSelect?.("dashboard"),
     },
     {
       title: "My Desk",
+      section: "mydesk",
       url: "#",
       icon: IconDesk,
       onClick: () => onSectionSelect?.("mydesk"),
     },
     {
       title: "Reservations",
+      section: "reservations",
       url: "#",
       icon: IconCalendarWeek,
       onClick: () => onSectionSelect?.("reservations"),
     },
     {
       title: "Metrics",
+      section: "metrics",
       url: "#",
       icon: IconChartBar,
       onClick: () => onSectionSelect?.("metrics"),
@@ -84,7 +74,7 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navMain} />
+        <NavMain items={navMain} activeSection={activeSection} />
       </SidebarContent>
     </Sidebar>
   );
