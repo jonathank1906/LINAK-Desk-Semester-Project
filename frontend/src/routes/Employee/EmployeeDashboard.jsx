@@ -6,7 +6,6 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/useAuth";
 import MyDesk from "./MyDesk";
 import Reservations from "./Reservations";
-import PicoLab from "./PicoLab";
 import Metrics from "./Metrics";
 import { formatLocalYYYYMMDD, formatNiceDate, formatTimeFromISO } from "@/utils/date";
 import { Button } from "@/components/ui/button";
@@ -175,7 +174,6 @@ export default function EmployeeDashboard() {
         fetchOccupiedDesk();
     }, [user]);
 
-    // 🔥 Live polling reservations every 10s
     useEffect(() => {
         if (!user) return;
 
@@ -521,15 +519,14 @@ export default function EmployeeDashboard() {
                                 <div>
                                     {!selectedDeskId ? (
                                         <Button
-                                            onClick={goToReservations}
-                                            
+                                            onClick={goToReservations}    
                                             aria-label="Select a Desk"
                                         >
                                             Select a Desk
                                         </Button>
                                     ) : (
                                         <>
-                                            <button
+                                            <Button
                                                 onClick={async () => {
                                                     if (!selectedDeskId) return;
                                                     try {
@@ -588,11 +585,11 @@ export default function EmployeeDashboard() {
                                                         }
                                                     }
                                                 }}
-                                                className="px-3 py-1 rounded-md bg-primary text-white text-sm hover:opacity-90"
+                                                className="variant-outline"
                                                 aria-label="Release desk"
                                             >
-                                                Release
-                                            </button>
+                                                Release Desk
+                                            </Button>
                                         </>
                                     )}
                                 </div>
@@ -677,8 +674,6 @@ export default function EmployeeDashboard() {
                 return <MyDesk selectedDeskId={selectedDeskId} />;
             case "metrics":
                 return <Metrics />;
-            case "pico_lab":
-                return <PicoLab picoId={1} />;
         }
     }
 

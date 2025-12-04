@@ -63,12 +63,6 @@ export function AppSidebar({
       icon: IconChartBar,
       onClick: () => onSectionSelect?.("metrics"),
     },
-    {
-      title: "Pico Lab",
-      url: "#",
-      icon: IconAtom,
-      onClick: () => onSectionSelect?.("pico_lab"),
-    },
   ];
 
 
