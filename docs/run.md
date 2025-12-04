@@ -31,6 +31,13 @@ cd backend
 py manage.py mqtt_listener
 ```
 
+## Run React Tests
+```sh
+cd frontend
+npm test
+```
+Press q to quit.
+
 ## Run Django Tests
 ```sh
 env\Scripts\activate
@@ -48,12 +55,13 @@ py manage.py test -v 2
 
 # Running the Project with Docker
 ## For Windows Users
-Prereqs:
+Prerequisites:
+
 - Installed WSL2
 
-1. Start up Docker Desktop
-
+1. Start up Docker Desktop.
+2. Build and start the containers:
 ```sh
 docker-compose up --build
 ```
-
+To stop the containers, press `Ctrl+C` in the terminal.
