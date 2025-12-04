@@ -192,6 +192,15 @@
             </li>
               </ul>
             </li>
+            
+            <li class="nav-item" data-bs-level="1"><a href="#running-the-project-with-docker" class="nav-link">Running the Project with Docker</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#for-windows-users" class="nav-link">For Windows Users</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
         </ul>
     </div>
 </div></div>
@@ -234,6 +243,15 @@ py manage.py test core.tests.test_models.DeskModelTest
 
 # Run with verbosity (more detailed output)
 py manage.py test -v 2
+</code></pre>
+<h1 id="running-the-project-with-docker">Running the Project with Docker</h1>
+<h2 id="for-windows-users">For Windows Users</h2>
+<p>Prerequisites:
+- Installed WSL2</p>
+<ol>
+<li>Start up Docker Desktop</li>
+</ol>
+<pre><code class="language-sh">docker-compose up --build
 </code></pre></div>
             </div>
         </div>
