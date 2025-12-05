@@ -1,10 +1,11 @@
 import * as React from "react"
 import {
-  IconCalendarEvent,
   IconDesk,
   IconLayoutDashboardFilled,
   IconBoltFilled,
 } from "@tabler/icons-react"
+
+import { Calendar } from "lucide-react";
 
 import Logo from "../assets/Logo.svg";
 import { NavMain } from "@/components/nav-main"
@@ -50,7 +51,7 @@ export function AppSidebar({
       title: "Reservations",
       section: "reservations",
       url: "#",
-      icon: IconCalendarEvent,
+      icon: Calendar,
       onClick: () => onSectionSelect?.("reservations"),
     },
   ];

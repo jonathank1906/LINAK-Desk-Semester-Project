@@ -110,9 +110,14 @@ export default function Reservations({ setSelectedDeskId }) {
 
   useEffect(() => {
     fetchAvailableDesks();
-    fetchUserReservations();
+    // Only fetch all reservations once, not on date/time change
     // eslint-disable-next-line
   }, [selectedDate, startTime, endTime]);
+
+  useEffect(() => {
+    fetchUserReservations();
+    // eslint-disable-next-line
+  }, []);
 
   const fetchAvailableDesks = async () => {
     setLoading(true);
@@ -134,11 +139,11 @@ export default function Reservations({ setSelectedDeskId }) {
     }
   };
 
+  // Fetch ALL user reservations (not just for selectedDate)
   const fetchUserReservations = async () => {
     try {
-      const formattedDate = formatLocalYYYYMMDD(selectedDate);
       const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
-      const response = await axios.get(`http://localhost:8000/api/reservations/?date=${formattedDate}`, config);
+      const response = await axios.get(`http://localhost:8000/api/reservations/`, config);
       setUserReservations(response.data);
     } catch (err) {
       console.error("API error:", err);
@@ -184,7 +189,8 @@ export default function Reservations({ setSelectedDeskId }) {
       return;
     }
 
-    const formattedDate = formatLocalYYYYMMDD(selectedDate);
+    // Use the reservation's date for editing
+    const reservationDate = editingReservation.start_time.split("T")[0];
 
     try {
       const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
@@ -192,8 +198,8 @@ export default function Reservations({ setSelectedDeskId }) {
       await axios.patch(
         `http://localhost:8000/api/reservations/${editingReservation.id}/edit/`,
         {
-          start_time: `${formattedDate} ${editStartTime}`,
-          end_time: `${formattedDate} ${editEndTime}`,
+          start_time: `${reservationDate} ${editStartTime}`,
+          end_time: `${reservationDate} ${editEndTime}`,
         },
         config
       );
@@ -229,7 +235,6 @@ export default function Reservations({ setSelectedDeskId }) {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      {/* Removed unnecessary Reserve button at the top */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <>
           <Card className="lg:col-span-1">
@@ -315,21 +320,23 @@ export default function Reservations({ setSelectedDeskId }) {
 
           <Card className="lg:col-span-3">
             <CardHeader>
-              <CardTitle>Your Reservations for {selectedDate?.toLocaleDateString()}</CardTitle>
-              <CardDescription>Manage your desk reservations</CardDescription>
+              <CardTitle>Your Reservations</CardTitle>
+              <CardDescription>Manage all your desk reservations</CardDescription>
             </CardHeader>
             <CardContent>
               {userReservations.length === 0 ? (
-                <p className="text-center text-muted-foreground">No reservations for this date.</p>
+                <p className="text-center text-muted-foreground">No reservations found.</p>
               ) : (
                 <div className="space-y-3">
                   {userReservations
                     .filter((r) => r.status === "confirmed" || r.status === "active")
+                    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
                     .map((reservation) => (
                       <div key={reservation.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div>
                           <h3 className="font-semibold">{reservation.desk_name || `Desk ${reservation.desk_id}`}</h3>
                           <p className="text-sm text-muted-foreground">
+                            {new Date(reservation.start_time).toLocaleDateString()}<br />
                             Reserved from {formatTimeFromISO(reservation.start_time) || "N/A"} to {formatTimeFromISO(reservation.end_time) || "N/A"}
                           </p>
                         </div>
@@ -362,7 +369,13 @@ export default function Reservations({ setSelectedDeskId }) {
                   <SelectValue placeholder="Select start time" />
                 </SelectTrigger>
                 <SelectContent>
-                  {generateSelectTimeOptions(selectedDate, "06:00", 0)}
+                  {generateSelectTimeOptions(
+                    editingReservation
+                      ? new Date(editingReservation.start_time)
+                      : selectedDate,
+                    "06:00",
+                    0
+                  )}
                 </SelectContent>
               </Select>
 
@@ -372,7 +385,13 @@ export default function Reservations({ setSelectedDeskId }) {
                   <SelectValue placeholder="Select end time" />
                 </SelectTrigger>
                 <SelectContent>
-                  {generateSelectTimeOptions(selectedDate, editStartTime, 30)}
+                  {generateSelectTimeOptions(
+                    editingReservation
+                      ? new Date(editingReservation.start_time)
+                      : selectedDate,
+                    editStartTime,
+                    30
+                  )}
                 </SelectContent>
               </Select>
             </div>

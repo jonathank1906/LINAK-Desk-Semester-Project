@@ -9,6 +9,7 @@ import Reservations from "./Reservations";
 import Hotdesk from "./Hotdesk";
 import { formatLocalYYYYMMDD, formatNiceDate, formatTimeFromISO } from "@/utils/date";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "lucide-react";
 
 import axios from "axios";
 import {
@@ -411,7 +412,12 @@ export default function EmployeeDashboard() {
                                         <div className="text-sm font-medium">
                                             {selectedDeskId
                                                 ? deskStatus?.name ?? `Desk #${selectedDeskId}`
-                                                : "No Desk Selected"}
+                                                : (
+                                                    <span className="px-3 py-1 rounded-full bg-yellow-200 text-yellow-900 font-semibold inline-block">
+                                                        No Desk Selected
+                                                    </span>
+                                                )
+                                            }
                                         </div>
                                         {selectedDeskId && sessionStartTime ? (
                                             <div className="text-xs text-muted-foreground mt-1">
@@ -502,10 +508,23 @@ export default function EmployeeDashboard() {
                             {/* Upcoming Reservations Card */}
                             <Card className="flex-1 min-w-[320px]">
                                 <CardHeader className="flex items-start justify-between">
-                                    <div>
+                                    <div className="flex items-center gap-2">
+                                        <Calendar className="w-5 h-5 text-muted-foreground" />
                                         <CardTitle>Upcoming Reservations</CardTitle>
                                     </div>
-                                    <button id="force-res-fetch" hidden></button>
+                                    <div className="flex items-center gap-2">
+                                        <button id="force-res-fetch" hidden></button>
+                                        {upcomingReservations.length > 0 && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setSelectedSection("reservations")}
+                                                aria-label="Manage Reservations"
+                                            >
+                                                Manage
+                                            </Button>
+                                        )}
+                                    </div>
                                 </CardHeader>
                                 <CardContent className="grid gap-3">
                                     {upcomingReservations.length ? (
@@ -548,13 +567,6 @@ export default function EmployeeDashboard() {
                                                             ) : (
                                                                 <span className="px-2 py-1 text-xs rounded-md bg-green-100 text-green-800">Checked in</span>
                                                             )}
-                                                            <button
-                                                                onClick={() => handleReleaseReservation(r.id)}
-                                                                className="px-3 py-1 rounded-md border text-sm hover:bg-muted/50"
-                                                                aria-label="Release reservation"
-                                                            >
-                                                                Cancel
-                                                            </button>
                                                         </>
                                                     ) : null}
                                                 </div>
@@ -581,7 +593,7 @@ export default function EmployeeDashboard() {
             case "reservations":
                 return <Reservations setSelectedDeskId={setSelectedDeskId} />;
             case "hotdesk":
-                return <Hotdesk setSelectedDeskId={setSelectedDeskId}/>;
+                return <Hotdesk setSelectedDeskId={setSelectedDeskId} />;
             case "mydesk":
                 return <MyDesk selectedDeskId={selectedDeskId} />;
         }
