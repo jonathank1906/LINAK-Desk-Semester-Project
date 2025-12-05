@@ -2,9 +2,17 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/useAuth";
 import axios from "axios";
 import { toast } from "sonner";
+import { CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useNavigate } from "react-router-dom";
 import { formatTimeFromISO } from "@/utils/date";
 import {
@@ -25,6 +33,20 @@ const formatLocalYYYYMMDD = (date) => {
   return `${year}-${month}-${day}`;
 };
 
+// Date formatting helpers for the date picker
+function formatDate(date) {
+  if (!date) return "";
+  return date.toLocaleDateString("en-US", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+function isValidDate(date) {
+  if (!date) return false;
+  return !isNaN(date.getTime());
+}
+
 export default function Reservations({ setSelectedDeskId }) {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -37,6 +59,11 @@ export default function Reservations({ setSelectedDeskId }) {
   const [editStartTime, setEditStartTime] = useState("09:00");
   const [editEndTime, setEditEndTime] = useState("17:00");
   const nav = useNavigate();
+
+  // Date picker state
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [datePickerMonth, setDatePickerMonth] = useState(selectedDate);
+  const [datePickerValue, setDatePickerValue] = useState(formatDate(selectedDate));
 
   // Helper: round up to next interval (default 30 minutes)
   function roundUpToNextInterval(date, intervalMins = 30) {
@@ -110,14 +137,9 @@ export default function Reservations({ setSelectedDeskId }) {
 
   useEffect(() => {
     fetchAvailableDesks();
-    // Only fetch all reservations once, not on date/time change
-    // eslint-disable-next-line
-  }, [selectedDate, startTime, endTime]);
-
-  useEffect(() => {
     fetchUserReservations();
     // eslint-disable-next-line
-  }, []);
+  }, [selectedDate, startTime, endTime]);
 
   const fetchAvailableDesks = async () => {
     setLoading(true);
@@ -139,9 +161,9 @@ export default function Reservations({ setSelectedDeskId }) {
     }
   };
 
-  // Fetch ALL user reservations (not just for selectedDate)
   const fetchUserReservations = async () => {
     try {
+      // Fetch ALL reservations for the user, not just for the selected date
       const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
       const response = await axios.get(`http://localhost:8000/api/reservations/`, config);
       setUserReservations(response.data);
@@ -189,8 +211,7 @@ export default function Reservations({ setSelectedDeskId }) {
       return;
     }
 
-    // Use the reservation's date for editing
-    const reservationDate = editingReservation.start_time.split("T")[0];
+    const formattedDate = formatLocalYYYYMMDD(selectedDate);
 
     try {
       const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
@@ -198,8 +219,8 @@ export default function Reservations({ setSelectedDeskId }) {
       await axios.patch(
         `http://localhost:8000/api/reservations/${editingReservation.id}/edit/`,
         {
-          start_time: `${reservationDate} ${editStartTime}`,
-          end_time: `${reservationDate} ${editEndTime}`,
+          start_time: `${formattedDate} ${editStartTime}`,
+          end_time: `${formattedDate} ${editEndTime}`,
         },
         config
       );
@@ -233,28 +254,122 @@ export default function Reservations({ setSelectedDeskId }) {
     }
   };
 
+  // Date picker change handler
+  const handleDatePickerChange = (date) => {
+    setSelectedDate(date);
+    setDatePickerMonth(date);
+    setDatePickerValue(formatDate(date));
+    const defaults = getDefaultTimesForDate(date);
+    setStartTime(defaults.start);
+    setEndTime(defaults.end);
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <>
-          <Card className="lg:col-span-1">
+      {/* My Reservations - full width */}
+      <Card className="w-full mb-6">
+        <CardHeader>
+          <CardTitle>Your Reservations</CardTitle>
+          <CardDescription>Manage all your desk reservations</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {userReservations.length === 0 ? (
+            <p className="text-center text-muted-foreground">No reservations found.</p>
+          ) : (
+            <div className="space-y-3">
+              {userReservations
+                .filter((r) => r.status === "confirmed" || r.status === "active")
+                .map((reservation) => (
+                  <div key={reservation.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <h3 className="font-semibold">{reservation.desk_name || `Desk ${reservation.desk_id}`}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(reservation.start_time).toLocaleDateString()}<br />
+                        Reserved from {formatTimeFromISO(reservation.start_time) || "N/A"} to {formatTimeFromISO(reservation.end_time) || "N/A"}
+                      </p>
+                    </div>
+                    <div className="space-x-2">
+                      <Button variant="outline" onClick={() => {
+                        setEditingReservation(reservation);
+                        setEditStartTime(formatTimeFromISO(reservation.start_time));
+                        setEditEndTime(formatTimeFromISO(reservation.end_time));
+                      }}>Edit</Button>
+                      <Button variant="destructive" onClick={() => cancelReservation(reservation.id)}>Delete</Button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Sticky Filters Card and Desk List */}
+      <div className="relative flex flex-col lg:flex-row gap-6">
+        {/* Sticky Filters Card */}
+        <div className="lg:w-1/3 w-full lg:sticky lg:top-6 z-40 h-fit">
+          <Card>
             <CardHeader>
-              <CardTitle>Select Date</CardTitle>
-              <CardDescription>Choose a day to reserve a desk</CardDescription>
+              <CardTitle>Reservation Filters</CardTitle>
+              <CardDescription>Select date and time to find available desks</CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col items-center gap-4">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => {
-                  const defaults = getDefaultTimesForDate(date);
-                  setSelectedDate(date);
-                  setStartTime(defaults.start);
-                  setEndTime(defaults.end);
-                }}
-                disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                className="rounded-md border"
-              />
+            <CardContent className="flex flex-col gap-4">
+              {/* Date Picker */}
+              <div className="flex flex-col gap-3 w-full">
+                <Label htmlFor="date" className="px-1">
+                  Reservation Date
+                </Label>
+                <div className="relative flex gap-2">
+                  <Input
+                    id="date"
+                    value={datePickerValue}
+                    placeholder="June 01, 2025"
+                    className="bg-background pr-10"
+                    onChange={(e) => {
+                      const date = new Date(e.target.value);
+                      setDatePickerValue(e.target.value);
+                      if (isValidDate(date)) {
+                        handleDatePickerChange(date);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        setDatePickerOpen(true);
+                      }
+                    }}
+                  />
+                  <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="date-picker"
+                        variant="ghost"
+                        className="absolute top-1/2 right-2 size-6 -translate-y-1/2"
+                      >
+                        <CalendarIcon className="size-3.5" />
+                        <span className="sr-only">Select date</span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className="w-auto overflow-hidden p-0"
+                      align="end"
+                      alignOffset={-8}
+                      sideOffset={10}
+                    >
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        captionLayout="dropdown"
+                        month={datePickerMonth}
+                        onMonthChange={setDatePickerMonth}
+                        onSelect={(date) => {
+                          handleDatePickerChange(date);
+                          setDatePickerOpen(false);
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
 
               <div className="flex flex-col items-start w-full">
                 <label className="text-sm font-medium mb-1">Start Time</label>
@@ -289,8 +404,11 @@ export default function Reservations({ setSelectedDeskId }) {
               </div>
             </CardContent>
           </Card>
+        </div>
 
-          <Card className="lg:col-span-2">
+        {/* Available Desks List */}
+        <div className="lg:w-2/3 w-full">
+          <Card>
             <CardHeader>
               <CardTitle>
                 Available Desks for {selectedDate?.toLocaleDateString()}
@@ -317,47 +435,10 @@ export default function Reservations({ setSelectedDeskId }) {
               )}
             </CardContent>
           </Card>
-
-          <Card className="lg:col-span-3">
-            <CardHeader>
-              <CardTitle>Your Reservations</CardTitle>
-              <CardDescription>Manage all your desk reservations</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {userReservations.length === 0 ? (
-                <p className="text-center text-muted-foreground">No reservations found.</p>
-              ) : (
-                <div className="space-y-3">
-                  {userReservations
-                    .filter((r) => r.status === "confirmed" || r.status === "active")
-                    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
-                    .map((reservation) => (
-                      <div key={reservation.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div>
-                          <h3 className="font-semibold">{reservation.desk_name || `Desk ${reservation.desk_id}`}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(reservation.start_time).toLocaleDateString()}<br />
-                            Reserved from {formatTimeFromISO(reservation.start_time) || "N/A"} to {formatTimeFromISO(reservation.end_time) || "N/A"}
-                          </p>
-                        </div>
-                        <div className="space-x-2">
-                          <Button variant="outline" onClick={() => {
-                            setEditingReservation(reservation);
-                            setEditStartTime(formatTimeFromISO(reservation.start_time));
-                            setEditEndTime(formatTimeFromISO(reservation.end_time));
-                          }}>Edit</Button>
-
-                          <Button variant="destructive" onClick={() => cancelReservation(reservation.id)}>Delete</Button>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </>
+        </div>
       </div>
 
+      {/* Edit Reservation Modal */}
       {editingReservation && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded shadow-lg w-full max-w-md space-y-4">
@@ -369,13 +450,7 @@ export default function Reservations({ setSelectedDeskId }) {
                   <SelectValue placeholder="Select start time" />
                 </SelectTrigger>
                 <SelectContent>
-                  {generateSelectTimeOptions(
-                    editingReservation
-                      ? new Date(editingReservation.start_time)
-                      : selectedDate,
-                    "06:00",
-                    0
-                  )}
+                  {generateSelectTimeOptions(selectedDate, "06:00", 0)}
                 </SelectContent>
               </Select>
 
@@ -385,13 +460,7 @@ export default function Reservations({ setSelectedDeskId }) {
                   <SelectValue placeholder="Select end time" />
                 </SelectTrigger>
                 <SelectContent>
-                  {generateSelectTimeOptions(
-                    editingReservation
-                      ? new Date(editingReservation.start_time)
-                      : selectedDate,
-                    editStartTime,
-                    30
-                  )}
+                  {generateSelectTimeOptions(selectedDate, editStartTime, 30)}
                 </SelectContent>
               </Select>
             </div>

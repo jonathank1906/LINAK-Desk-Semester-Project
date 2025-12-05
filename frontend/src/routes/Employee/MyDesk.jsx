@@ -40,7 +40,11 @@ export default function MyDesk({ selectedDeskId }) {
       <div className="flex flex-1 flex-col items-center justify-center p-8">
         <Card className="max-w-md w-full text-center">
           <CardHeader>
-            <CardTitle>No Desk Selected</CardTitle>
+            <CardTitle>
+              <span className="px-3 py-1 rounded-full bg-yellow-200 text-yellow-900 font-semibold inline-block text-sm">
+                No Desk Selected
+              </span>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground mb-4">
