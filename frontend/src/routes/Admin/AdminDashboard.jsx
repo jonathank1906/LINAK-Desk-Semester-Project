@@ -12,10 +12,17 @@ import UserManagement from "./UserManagement";
 import AnalyticsPage from "./AnalyticsPage";
 import Automate from "./Automate";
 import DeskManagement from "./DeskManagement";
-import axios from "axios"; 
+import axios from "axios";
 import LogsViewer from "./LogsViewer";
 import ReportModal from "@/components/ReportModal";
-
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 import {
   IconUsers,
@@ -59,26 +66,24 @@ export default function AdminDashboard() {
   const [reports, setReports] = useState([]);
   const [showReportModal, setShowReportModal] = useState(false);
 
-
-useEffect(() => {
-  async function fetchReports() {
-    try {
-      const config = {
-        headers: { Authorization: `Bearer ${user.token}` },
-        withCredentials: true, // 🔥 Include cookies
-      };
-      const res = await axios.get("http://localhost:8000/api/reports/", config);
-      setReports(res.data);
-    } catch (err) {
-      console.error("📛 Failed to fetch reports:", err?.response || err);
+  useEffect(() => {
+    async function fetchReports() {
+      try {
+        const config = {
+          headers: { Authorization: `Bearer ${user.token}` },
+          withCredentials: true,
+        };
+        const res = await axios.get("http://localhost:8000/api/reports/", config);
+        setReports(res.data);
+      } catch (err) {
+        console.error("Failed to fetch reports:", err?.response || err);
+      }
     }
-  }
 
-  fetchReports();
-  const interval = setInterval(fetchReports, 5000);
-  return () => clearInterval(interval);
-}, [user]);
-
+    fetchReports();
+    const interval = setInterval(fetchReports, 5000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   // Dashboard metrics and charts from backend
   const [metrics, setMetrics] = useState({
@@ -201,101 +206,150 @@ useEffect(() => {
           <div className="flex flex-1 flex-col gap-6 p-4 pt-0">
             {/* TOP ROW: SYSTEM STATUS + METRICS */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
-              <SystemStatusCard status={metrics.system_status} />
+              <Card
+                className={`animate-fade-up rounded-xl p-4 flex flex-col justify-center text-white shadow-sm transition-transform bg-gradient-to-r ${metrics.system_status === "operational"
+                    ? "from-green-500 to-green-400"
+                    : "from-red-500 to-red-400"
+                  }`}
+              >
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-white text-sm font-semibold">System Status</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xl font-bold flex items-center gap-2">
+                    {metrics.system_status === "operational" ? (
+                      <IconCheck size={20} />
+                    ) : (
+                      <IconAlertCircle size={20} />
+                    )}
+                    {metrics.system_status === "operational"
+                      ? "All systems operational"
+                      : "System issues detected"}
+                  </div>
+                </CardContent>
+              </Card>
               <div className="grid grid-cols-3 gap-4">
-                <Card
-                  title="Total Active Users"
-                  icon={<IconUsers size={32} />}
-                  value={metrics.active_users}
-                />
-                <Card
-                  title="Available Desks"
-                  icon={<IconDesk size={32} />}
-                  value={metrics.available_desks}
-                />
-                <Card
-                  title="Desks In Use Online"
-                  icon={<IconDesk size={32} />}
-                  value={metrics.desks_in_use_online}
-                />
+                <Card className="animate-fade-up">
+                  <CardHeader className="flex flex-row items-center gap-4 pb-2">
+                    <span className="text-sky-400"><IconUsers size={32} /></span>
+                    <CardTitle>Total Active Users</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <span className="text-3xl font-bold">{metrics.active_users}</span>
+                  </CardContent>
+                </Card>
+                <Card className="animate-fade-up">
+                  <CardHeader className="flex flex-row items-center gap-4 pb-2">
+                    <span className="text-green-400"><IconDesk size={32} /></span>
+                    <CardTitle>Available Desks</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <span className="text-3xl font-bold">{metrics.available_desks}</span>
+                  </CardContent>
+                </Card>
+                <Card className="animate-fade-up">
+                  <CardHeader className="flex flex-row items-center gap-4 pb-2">
+                    <span className="text-indigo-400"><IconDesk size={32} /></span>
+                    <CardTitle>Desks In Use Online</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <span className="text-3xl font-bold">{metrics.desks_in_use_online}</span>
+                  </CardContent>
+                </Card>
               </div>
             </div>
 
             {/* CHARTS ROW */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <ChartCard title="Today's Hourly Desk Utilization">
-                <Line data={hourlyUtilizationData} />
-              </ChartCard>
-
-
-              <ChartCard title="Active Users by Department">
-                <Bar data={activeUsersByDeptData} />
-              </ChartCard>
+              <Card className="animate-fade-up animation-delay-100 bg-muted/50 min-h-[250px] transition-transform">
+                <CardHeader>
+                  <CardTitle>Today's Hourly Desk Utilization</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Line data={hourlyUtilizationData} />
+                </CardContent>
+              </Card>
+              <Card className="animate-fade-up animation-delay-100 bg-muted/50 min-h-[250px] transition-transform">
+                <CardHeader>
+                  <CardTitle>Active Users by Department</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Bar data={activeUsersByDeptData} />
+                </CardContent>
+              </Card>
             </div>
 
             {/* BOTTOM ROW */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-muted/50 rounded-xl p-4 hover:scale-[1.01] transition-transform">
-                <h3 className="text-lg font-semibold mb-2">Recent Bookings</h3>
-                <ul className="text-sm space-y-2 pr-1">
-                  {recentBookings.map((b, i) => (
-                    <li key={i} className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-teal-400">●</span>
-                        <div className="flex flex-col min-w-0">
-                          <span className="truncate">{b.user} - {b.desk}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {b.type === "hotdesk" ? "Hot desk" : "Reservation"}
-                          </span>
+              <Card className="animate-fade-up animation-delay-200 bg-muted/50 rounded-xl p-4 transition-transform">
+                <CardHeader>
+                  <CardTitle>Recent Bookings</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="text-sm space-y-2 pr-1">
+                    {recentBookings.map((b, i) => (
+                      <li key={i} className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-teal-400">●</span>
+                          <div className="flex flex-col min-w-0">
+                            <span className="truncate">{b.user} - {b.desk}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {b.type === "hotdesk" ? "Hot desk" : "Reservation"}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </li>
-                  ))}
-                  {recentBookings.length === 0 && (
-                    <li className="text-sm text-muted-foreground">No recent bookings</li>
-                  )}
-                </ul>
-              </div>
+                      </li>
+                    ))}
+                    {recentBookings.length === 0 && (
+                      <li className="text-sm text-muted-foreground">No recent bookings</li>
+                    )}
+                  </ul>
+                </CardContent>
+              </Card>
 
-              <ChartCard title="Today's Booking Timeline">
-                <Bar data={todayBookingTimelineData} />
-              </ChartCard>
-                  
-              <div className="bg-muted/50 rounded-xl p-4 hover:scale-105 transition-transform">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-lg font-semibold">Desk Reports</h3>
+              <Card className="animate-fade-up animation-delay-200 bg-muted/50 min-h-[250px] transition-transform">
+                <CardHeader>
+                  <CardTitle>Today's Booking Timeline</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Bar data={todayBookingTimelineData} />
+                </CardContent>
+              </Card>
+
+              <Card className="animate-fade-up animation-delay-200 bg-muted/50 rounded-xl p-4 transition-transform">
+                <CardHeader className="flex justify-between items-center mb-2">
+                  <CardTitle>Desk Reports</CardTitle>
                   <button
                     onClick={() => setShowReportModal(true)}
                     className="text-white bg-blue-400 text-xs px-3 py-1 rounded shadow hover:bg-blue-700 transition-colors duration-200 cursor-pointer"
                   >
                     View All
                   </button>
-                </div>
-                <ul className="text-sm divide-y divide-gray-300 dark:divide-gray-700"> 
-                  {reports.slice(0, 5).length === 0 ? (
-                    <p className="text-gray-500 italic pt-2">No new reports</p>
-                  ) : (
-                    reports.slice(0, 5).map((r, i) => (
-                      <li key={i} className="py-2 first:pt-0 last:pb-0"> {/* Use padding for vertical separation */}
-                        <div className="flex flex-col">
-                          {/* Header with User and Timestamp */}
-                          <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex justify-between items-center">
-                            <span>{r.user}</span>
-                            <span className="text-gray-500 dark:text-gray-400 font-normal">
-                              {r.created_at}
-                            </span>
+                </CardHeader>
+                <CardContent>
+                  <ul className="text-sm divide-y divide-gray-300 dark:divide-gray-700">
+                    {reports.slice(0, 5).length === 0 ? (
+                      <p className="text-gray-500 italic pt-2">No new reports</p>
+                    ) : (
+                      reports.slice(0, 5).map((r, i) => (
+                        <li key={i} className="py-2 first:pt-0 last:pb-0">
+                          <div className="flex flex-col">
+                            <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex justify-between items-center">
+                              <span>{r.user}</span>
+                              <span className="text-gray-500 dark:text-gray-400 font-normal">
+                                {r.created_at}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-sm text-gray-900 dark:text-white line-clamp-2">
+                              {r.message}
+                            </p>
                           </div>
-                          {/* Report Message/Content */}
-                          <p className="mt-1 text-sm text-gray-900 dark:text-white line-clamp-2">
-                            {r.message}
-                          </p>
-                        </div>
-                      </li>
-                    ))
-                  )}
-                </ul>
-
-              </div>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </CardContent>
+              </Card>
 
               {showReportModal && (
                 <ReportModal user={user} onClose={() => setShowReportModal(false)} />
@@ -325,43 +379,5 @@ useEffect(() => {
         {renderContent()}
       </SidebarInset>
     </SidebarProvider>
-  );
-}
-
-function Card({ title, icon, value }) {
-  return (
-    <div className="bg-muted/50 p-4 rounded-xl flex items-center gap-4 shadow-sm hover:scale-[1.03] transition-transform">
-      {icon}
-      <div>
-        <div className="text-sm text-muted-foreground">{title}</div>
-        <div className="text-3xl font-bold">{value}</div>
-      </div>
-    </div>
-  );
-}
-
-function SystemStatusCard({ status = "operational" }) {
-  const isOperational = status === "operational";
-  return (
-    <div
-      className={`rounded-xl p-4 flex flex-col justify-center text-white shadow-sm hover:scale-[1.02] transition-transform ${
-        isOperational ? "bg-green-500" : "bg-red-500"
-      }`}
-    >
-      <div className="text-sm font-semibold">System Status</div>
-      <div className="text-xl font-bold flex items-center gap-2">
-        {isOperational ? <IconCheck size={20} /> : <IconAlertCircle size={20} />}
-        {isOperational ? "All systems operational" : "System issues detected"}
-      </div>
-    </div>
-  );
-}
-
-function ChartCard({ title, children }) {
-  return (
-    <div className="bg-muted/50 p-4 rounded-xl min-h-[250px] hover:scale-[1.01] transition-transform">
-      <h3 className="text-lg font-semibold mb-2">{title}</h3>
-      {children}
-    </div>
   );
 }

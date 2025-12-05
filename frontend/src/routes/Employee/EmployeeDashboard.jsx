@@ -401,7 +401,7 @@ export default function EmployeeDashboard() {
                     <div className="p-4">
                         <div className="flex flex-col gap-4 md:flex-row md:gap-6">
                             {/* My Desk Card */}
-                            <Card className="flex-1 min-w-[320px] self-start">
+                            <Card className="flex-1 min-w-[320px] self-start animate-fade-up">
                                 <CardHeader className="flex items-start justify-between">
                                     <div>
                                         <CardTitle>My Desk</CardTitle>
@@ -506,7 +506,7 @@ export default function EmployeeDashboard() {
                                 </CardContent>
                             </Card>
                             {/* Upcoming Reservations Card */}
-                            <Card className="flex-1 min-w-[320px]">
+                            <Card className="flex-1 min-w-[320px] animate-fade-up">
                                 <CardHeader className="flex items-start justify-between">
                                     <div className="flex items-center gap-2">
                                         <Calendar className="w-5 h-5 text-muted-foreground" />
