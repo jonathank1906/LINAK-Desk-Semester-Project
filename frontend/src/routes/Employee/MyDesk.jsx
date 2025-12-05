@@ -44,7 +44,7 @@ export default function MyDesk({ selectedDeskId }) {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground mb-4">
-              Please select a desk from the Reservations page to use desk controls and view information.
+              Please select a desk from the Hot Desk or Reservations page to use desk controls.
             </p>
           </CardContent>
         </Card>

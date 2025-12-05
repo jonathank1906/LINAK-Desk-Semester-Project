@@ -221,12 +221,12 @@ export default function HotDesk({ setSelectedDeskId }) {
                         </button>
                       </div>
                     ) : canUse ? (
-                      <Button variant="outline" onClick={() => startHotDesk(desk.id)} disabled={userHasActive} title={userHasActive ? 'You already have an active desk or reservation' : undefined}>Use</Button>
+                      <Button variant="outline" onClick={() => startHotDesk(desk.id)} disabled={userHasActive} title={userHasActive ? 'You already have an active desk or reservation' : undefined}>Select Desk</Button>
                     ) : (
                       <span className="text-xs text-red-500">Reserved — desk locked</span>
                     )
                   ) : (
-                    <Button variant="outline" onClick={() => startHotDesk(desk.id)} disabled={userHasActive} title={userHasActive ? 'You already have an active desk or reservation' : undefined}>Use</Button>
+                    <Button variant="outline" onClick={() => startHotDesk(desk.id)} disabled={userHasActive} title={userHasActive ? 'You already have an active desk or reservation' : undefined}>Select Desk</Button>
                   )}
                 </div>
               );

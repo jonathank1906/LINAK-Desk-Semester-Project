@@ -305,7 +305,7 @@ export default function Reservations({ setSelectedDeskId }) {
                       <div>
                         <h3 className="font-semibold">{desk.name || desk.desk_name || `Desk ${desk.id}`}</h3>
                       </div>
-                      <Button variant="outline" onClick={() => makeReservation(desk.id)}>Reserve</Button>
+                      <Button variant="outline" onClick={() => makeReservation(desk.id)}>Reserve Desk</Button>
                     </div>
                   ))}
                 </div>
