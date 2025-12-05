@@ -13,14 +13,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
-// Import shadcn Dialog components
-import {
   Dialog,
   DialogTrigger,
   DialogContent,
@@ -28,6 +20,11 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+
+import {
+  Settings2,
+  ArrowUpDown, 
+} from "lucide-react"
 
 // dont touch
 // Accept selectedDeskId as a prop
@@ -337,144 +334,134 @@ export default function MyDesk({ selectedDeskId }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-        {/* Left Column - Height Controls Drawer */}
+        {/* Left Column - Height Controls and Presets on Page */}
         <div className="space-y-4">
-          <Drawer>
-            <DrawerTrigger asChild>
-              <Button className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isMoving}>
-                {isMoving ? 'Desk Moving...' : 'Height Controls'}
-              </Button>
-            </DrawerTrigger>
-            <DrawerContent>
-              <DrawerHeader>
-                <DrawerTitle>Height Controls</DrawerTitle>
-              </DrawerHeader>
-              <div className="p-4 space-y-4">
-                {loading ? (
-                  <div className="space-y-4">
-                    <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Skeleton className="h-4 w-16" />
-                        <Skeleton className="h-6 w-16" />
-                        <Skeleton className="h-4 w-16" />
-                      </div>
-                      <Skeleton className="h-2 w-full rounded-full" />
+          {/* Height Controls */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <ArrowUpDown className="w-5 h-5" />
+                <CardTitle>Height Controls</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="space-y-4">
+                  <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Skeleton className="h-4 w-16" />
+                      <Skeleton className="h-6 w-16" />
+                      <Skeleton className="h-4 w-16" />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Skeleton className="h-12 w-full rounded-lg" />
-                      <Skeleton className="h-12 w-full rounded-lg" />
-                    </div>
+                    <Skeleton className="h-2 w-full rounded-full" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Skeleton className="h-12 w-full rounded-lg" />
                     <Skeleton className="h-12 w-full rounded-lg" />
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {/* Height Display with Visual */}
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-gray-600">Min: {minHeight}cm</span>
-                        <span className="text-lg font-bold">{currentHeight}cm</span>
-                        <span className="text-sm text-gray-600">Max: {maxHeight}cm</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className={`h-2 rounded-full transition-all duration-300 ${isMoving ? 'bg-yellow-500 animate-pulse' : 'bg-blue-500'
-                            }`}
-                          style={{ width: `${heightPercentage}%` }}
-                        ></div>
-                      </div>
+                  <Skeleton className="h-12 w-full rounded-lg" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Height Display with Visual */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-gray-600">Min: {minHeight}cm</span>
+                      <span className="text-lg font-bold">{currentHeight}cm</span>
+                      <span className="text-sm text-gray-600">Max: {maxHeight}cm</span>
                     </div>
-
-                    {/* Manual Controls */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        onClick={moveUp}
-                        disabled={isControlling || isMoving || currentHeight >= maxHeight}
-                        className="bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                      >
-                        {isControlling || isMoving ? '...' : 'Up'}
-                      </button>
-                      <button
-                        onClick={moveDown}
-                        disabled={isControlling || isMoving || currentHeight <= minHeight}
-                        className="bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                      >
-                        {isControlling || isMoving ? '...' : 'Down'}
-                      </button>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all duration-300 ${isMoving ? 'bg-yellow-500 animate-pulse' : 'bg-blue-500'
+                          }`}
+                        style={{ width: `${heightPercentage}%` }}
+                      ></div>
                     </div>
-
-                    {/* Emergency Stop */}
-                    <button
-                      onClick={emergencyStop}
-                      disabled={!isMoving}
-                      className="w-full bg-red-500 text-white p-3 rounded-lg hover:bg-red-600 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    >
-                      Stop
-                    </button>
-
-                    {isMoving && (
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
-                        <p className="text-sm text-yellow-800 font-medium">
-                          Desk is moving... Tracking height in real-time
-                        </p>
-                      </div>
-                    )}
                   </div>
-                )}
+
+                  {/* Manual Controls */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={moveUp}
+                      disabled={isControlling || isMoving || currentHeight >= maxHeight}
+                      className="bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    >
+                      {isControlling || isMoving ? '...' : 'Up'}
+                    </button>
+                    <button
+                      onClick={moveDown}
+                      disabled={isControlling || isMoving || currentHeight <= minHeight}
+                      className="bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    >
+                      {isControlling || isMoving ? '...' : 'Down'}
+                    </button>
+                  </div>
+
+                  {/* Emergency Stop */}
+                  <button
+                    onClick={emergencyStop}
+                    disabled={!isMoving}
+                    className="w-full bg-red-500 text-white p-3 rounded-lg hover:bg-red-600 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    Stop
+                  </button>
+
+                  {isMoving && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
+                      <p className="text-sm text-yellow-800 font-medium">
+                        Desk is moving... Tracking height in real-time
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Quick Presets */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Settings2 className="w-5 h-5" />
+                <CardTitle>Quick Presets</CardTitle>
               </div>
-            </DrawerContent>
-          </Drawer>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="grid grid-cols-1 gap-3">
+                  <Skeleton className="h-20 w-full rounded-lg" />
+                  <Skeleton className="h-20 w-full rounded-lg" />
+                  <Skeleton className="h-20 w-full rounded-lg" />
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-3">
+                  <button
+                    onClick={() => controlDeskHeight(72)}
+                    disabled={isControlling || isMoving}
+                    className="flex justify-between items-center p-4 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <div>
+                      <div className="font-medium text-green-800">Sitting Position</div>
+                      <div className="text-sm text-green-600">72cm</div>
+                    </div>
+                    <div className="text-green-600">{isControlling || isMoving ? '...' : 'Go'}</div>
+                  </button>
 
-          <Drawer>
-            <DrawerTrigger asChild>
-              <button
-                className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isMoving}
-              >
-                {isMoving ? 'Desk Moving...' : 'Quick Presets'}
-              </button>
-            </DrawerTrigger>
-            <DrawerContent>
-              <DrawerHeader>
-                <DrawerTitle>Quick Presets</DrawerTitle>
-              </DrawerHeader>
-              <div className="p-4 space-y-4">
-                {loading ? (
-                  <div className="grid grid-cols-1 gap-3">
-                    <Skeleton className="h-20 w-full rounded-lg" />
-                    <Skeleton className="h-20 w-full rounded-lg" />
-                    <Skeleton className="h-20 w-full rounded-lg" />
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 gap-3">
-                    <button
-                      onClick={() => controlDeskHeight(72)}
-                      disabled={isControlling || isMoving}
-                      className="flex justify-between items-center p-4 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <div>
-                        <div className="font-medium text-green-800">Sitting Position</div>
-                        <div className="text-sm text-green-600">72cm</div>
-                      </div>
-                      <div className="text-green-600">{isControlling || isMoving ? '...' : 'Go'}</div>
-                    </button>
-
-                    <button
-                      onClick={() => controlDeskHeight(110)}
-                      disabled={isControlling || isMoving}
-                      className="flex justify-between items-center p-4 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <div>
-                        <div className="font-medium text-blue-800">Standing Position</div>
-                        <div className="text-sm text-blue-600">110cm</div>
-                      </div>
-                      <div className="text-blue-600">{isControlling || isMoving ? '...' : 'Go'}</div>
-                    </button>
-                  </div>
-                )}
-              </div>
-            </DrawerContent>
-          </Drawer>
+                  <button
+                    onClick={() => controlDeskHeight(110)}
+                    disabled={isControlling || isMoving}
+                    className="flex justify-between items-center p-4 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <div>
+                      <div className="font-medium text-blue-800">Standing Position</div>
+                      <div className="text-sm text-blue-600">110cm</div>
+                    </div>
+                    <div className="text-blue-600">{isControlling || isMoving ? '...' : 'Go'}</div>
+                  </button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Right Column - Settings & Info */}
