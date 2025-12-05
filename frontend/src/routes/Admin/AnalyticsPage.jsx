@@ -1,7 +1,14 @@
 "use client";
 
 import { useAuth } from "@/contexts/useAuth";
-
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useEffect, useState } from "react";
 import { Line, Bar, Doughnut } from "react-chartjs-2";
 import {
@@ -163,114 +170,144 @@ export default function AnalyticsPage() {
 
   return (
     <div className="flex flex-col gap-6 px-6 pb-12 pt-4">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8 gap-4">
-            <h1 className="text-2xl font-bold">Analytics</h1>
-          </div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8 gap-4">
+        <h1 className="text-2xl font-bold">Analytics</h1>
+      </div>
 
-          {/* Row 1 */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Heatmap (larger) */}
-            <div className="lg:col-span-2 bg-muted/50 p-4 rounded-xl hover:scale-[1.01] transition-transform">
-              <h2 className="text-lg font-semibold mb-3">Desk Usage Heatmap</h2>
-              <div className="overflow-x-auto">
-                <table className="text-sm">
-                  <thead>
-                    <tr>
-                      <th className="p-2"></th>
-                      {heatmapHours.map((h) => (
-                        <th key={h} className="p-2 text-center">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {heatmapData.map((row, dayIdx) => (
-                      <tr key={dayIdx}>
-                        <td className="p-2 font-semibold">{heatmapDates[dayIdx]}</td>
-                        {row.map((value, colIdx) => (
-                          <td key={colIdx} className="p-1">
-                            <div
-                              className="h-6 w-6 text-center text-xs rounded-sm"
-                              style={{
-                                backgroundColor: `rgba(59,130,246,${value / 100})`,
-                                color: value > 0 ? "var(--foreground)" : "var(--muted-foreground)",
-                                lineHeight: "1.5rem",
-                              }}
-                            >
-                              {value}
-                            </div>
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Right stacked */}
-            <div className="flex flex-col gap-6">
-              <ChartCard title="Desk Usage This Week">
-                <Line data={deskUsageWeek} />
-              </ChartCard>
-              <ChartCard title="Desk Usage by Department">
-                <Bar data={deskUsageByDept} />
-              </ChartCard>
-            </div>
-          </div>
-
-          {/* Row 2 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <ChartCard title="Used Desks Count">
-              <Bar data={usedDesks} />
-            </ChartCard>
-            <ChartCard title="System Health Timeline">
-              <Line data={systemHealth} />
-            </ChartCard>
-          </div>
-
-          {/* Row 3 */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <ChartCard title="Booking Type Distribution">
-              <div className="max-h-[260px]">
-                <Doughnut data={bookingTypes} />
-              </div>
-            </ChartCard>
-
-            <ChartCard title="Booking Cancellation Rate">
-              <Bar data={cancellationRate} />
-            </ChartCard>
-
-            <ChartCard title="Power Users Leaderboard">
-              <table className="w-full text-sm">
+      {/* Row 1 */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Heatmap (larger) */}
+        <Card className="animate-fade-up lg:col-span-2 bg-muted/50 p-4 rounded-xl min-h-[250px] h-[580px]">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold mb-3">Desk Usage Heatmap</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="text-sm">
                 <thead>
-                  <tr className="text-left text-muted-foreground">
-                    <th className="py-2">User</th>
-                    <th>Bookings</th>
-                    <th>Hours</th>
+                  <tr>
+                    <th className="p-2"></th>
+                    {heatmapHours.map((h) => (
+                      <th key={h} className="p-2 text-center">{h}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {leaderboard.map((u, i) => (
-                    <tr key={i} className="border-t border-border">
-                      <td className="py-2">{u.name}</td>
-                      <td>{u.bookings}</td>
-                      <td>{u.hours}</td>
+                  {heatmapData.map((row, dayIdx) => (
+                    <tr key={dayIdx}>
+                      <td className="p-2 font-semibold">{heatmapDates[dayIdx]}</td>
+                      {row.map((value, colIdx) => (
+                        <td key={colIdx} className="p-1">
+                          <div
+                            className="h-6 w-6 text-center text-xs rounded-sm"
+                            style={{
+                              backgroundColor: `rgba(59,130,246,${value / 100})`,
+                              color: value > 0 ? "var(--foreground)" : "var(--muted-foreground)",
+                              lineHeight: "1.5rem",
+                            }}
+                          >
+                            {value}
+                          </div>
+                        </td>
+                      ))}
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </ChartCard>
-          </div>
-    </div>
-  );
-}
+            </div>
+          </CardContent>
+        </Card>
 
-function ChartCard({ title, children }) {
-  return (
-    <div className="bg-muted/50 p-4 rounded-xl min-h-[250px] hover:scale-[1.01] transition-transform">
-      <h2 className="text-lg font-semibold mb-2">{title}</h2>
-      {children}
+        {/* Right stacked */}
+        <div className="flex flex-col gap-6">
+          <Card className="animate-fade-up bg-muted/50 p-4 rounded-xl min-h-[250px]">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold mb-2">Desk Usage This Week</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Line data={deskUsageWeek} />
+            </CardContent>
+          </Card>
+          <Card className="animate-fade-up animation-delay-100 bg-muted/50 p-4 rounded-xl min-h-[250px]">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold mb-2">Desk Usage by Department</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Bar data={deskUsageByDept} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Row 2 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="animate-fade-up animation-delay-200 bg-muted/50 p-4 rounded-xl min-h-[250px]">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold mb-2">Used Desks Count</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Bar data={usedDesks} />
+          </CardContent>
+        </Card>
+        <Card className="animate-fade-up animation-delay-200 bg-muted/50 p-4 rounded-xl min-h-[250px]">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold mb-2">System Health Timeline</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Line data={systemHealth} />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Row 3 */}
+      <div className="animate-fade-up animation-delay-300 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="bg-muted/50 p-4 rounded-xl min-h-[250px]">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold mb-2">Booking Type Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="max-h-[260px]">
+              <Doughnut data={bookingTypes} />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="animate-fade-up animation-delay-300 bg-muted/50 p-4 rounded-xl min-h-[250px]">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold mb-2">Booking Cancellation Rate</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Bar data={cancellationRate} />
+          </CardContent>
+        </Card>
+
+        <Card className="animate-fade-up animation-delay-300 bg-muted/50 p-4 rounded-xl min-h-[250px]">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold mb-2">Power Users Leaderboard</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-muted-foreground">
+                  <th className="py-2">User</th>
+                  <th>Bookings</th>
+                  <th>Hours</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leaderboard.map((u, i) => (
+                  <tr key={i} className="border-t border-border">
+                    <td className="py-2">{u.name}</td>
+                    <td>{u.bookings}</td>
+                    <td>{u.hours}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

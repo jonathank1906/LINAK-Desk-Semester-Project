@@ -23,7 +23,7 @@ export default function LogsViewer() {
   }, [user]);
 
   return (
-    <div className="bg-white dark:bg-slate-950 p-4 rounded-lg shadow space-y-3">
+    <div className="p-4 space-y-3">
       <h2 className="text-xl font-semibold text-gray-900 dark:text-white">System Logs</h2>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
