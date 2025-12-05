@@ -334,7 +334,7 @@ export default function MyDesk({ selectedDeskId }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-        {/* Left Column - Height Controls and Presets on Page */}
+        {/* Left Column - Height Controls only */}
         <div className="space-y-4">
           {/* Height Controls */}
           <Card>
@@ -367,7 +367,6 @@ export default function MyDesk({ selectedDeskId }) {
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm text-gray-600">Min: {minHeight}cm</span>
-                      <span className="text-lg font-bold">{currentHeight}cm</span>
                       <span className="text-sm text-gray-600">Max: {maxHeight}cm</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
@@ -417,7 +416,10 @@ export default function MyDesk({ selectedDeskId }) {
               )}
             </CardContent>
           </Card>
+        </div>
 
+        {/* Right Column - Quick Presets, Desk Info at bottom */}
+        <div className="space-y-4 flex flex-col h-full">
           {/* Quick Presets */}
           <Card>
             <CardHeader>
@@ -462,118 +464,120 @@ export default function MyDesk({ selectedDeskId }) {
               )}
             </CardContent>
           </Card>
-        </div>
 
-        {/* Right Column - Settings & Info */}
-        <div className="space-y-4">
-          {/* Desk Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Desk Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="space-y-3">
-                  {[...Array(6)].map((_, i) => (
-                    <div key={i} className="flex justify-between">
-                      <Skeleton className="h-4 w-32" />
-                      <Skeleton className="h-4 w-20" />
+          {/* Desk Information (with Report Problem button in top right) */}
+          <div className="flex-grow flex flex-col justify-end">
+            <Card className="relative">
+              {/* Report Problem Button - Top Right of Desk Info Card */}
+              <div className="absolute top-4 right-4 z-10">
+                <Dialog open={reportModal} onOpenChange={setReportModal}>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="destructive"
+                      onClick={() => setReportModal(true)}
+                      size="sm"
+                    >
+                      Report Problem
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Report a Problem</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <textarea
+                        value={reportMessage}
+                        onChange={(e) => setReportMessage(e.target.value)}
+                        className="w-full border border-gray-300 dark:border-gray-600 rounded p-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2"
+                        rows="4"
+                        placeholder="Describe the problem here..."
+                      />
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Category
+                        </label>
+                        <Select
+                          value={reportCategory}
+                          onValueChange={setReportCategory}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="desk_doesnt_move">Desk doesn't move</SelectItem>
+                            <SelectItem value="desk_uncleaned">Desk uncleaned</SelectItem>
+                            <SelectItem value="desk_is_broken">Desk is broken</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Desk ID:</span>
-                    <span className="font-medium">#{deskStatus?.desk_id || selectedDeskId}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Name:</span>
-                    <span className="font-medium">{deskStatus?.name || "Unknown"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Status:</span>
-                    <span className={`font-medium ${isMoving ? 'text-yellow-600' : ''}`}>
-                      {isMoving ? "Moving" : (deskStatus?.status || "Idle")}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Speed:</span>
-                    <span className="font-medium">{deskStatus?.speed || 0} mm/s</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Total Activations:</span>
-                    <span className="font-medium">{usageStats?.total_activations || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Sit/Stand Counter:</span>
-                    <span className="font-medium">{usageStats?.sit_stand_counter || 0}</span>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          {/* Report Issue Button as shadcn Dialog */}
-          <Dialog open={reportModal} onOpenChange={setReportModal}>
-            <DialogTrigger asChild>
-              <Button
-                variant="destructive"
-                onClick={() => setReportModal(true)}
-              >
-                Report Problem
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Report a Problem</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <textarea
-                  value={reportMessage}
-                  onChange={(e) => setReportMessage(e.target.value)}
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded p-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
-                  rows="4"
-                  placeholder="Describe the problem here..."
-                />
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Category
-                  </label>
-                  <Select
-                    value={reportCategory}
-                    onValueChange={setReportCategory}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="desk_doesnt_move">Desk doesn't move</SelectItem>
-                      <SelectItem value="desk_uncleaned">Desk uncleaned</SelectItem>
-                      <SelectItem value="desk_is_broken">Desk is broken</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setReportModal(false);
+                          setReportMessage("");
+                          setReportCategory("other");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={submitReport}
+                      >
+                        Submit
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setReportModal(false);
-                    setReportMessage("");
-                    setReportCategory("other");
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={submitReport}
-                >
-                  Submit
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              <CardHeader>
+                <CardTitle>Desk Information</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="space-y-3">
+                    {[...Array(6)].map((_, i) => (
+                      <div key={i} className="flex justify-between">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-4 w-20" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Desk ID:</span>
+                      <span className="font-medium">#{deskStatus?.desk_id || selectedDeskId}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Name:</span>
+                      <span className="font-medium">{deskStatus?.name || "Unknown"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Status:</span>
+                      <span className={`font-medium ${isMoving ? 'text-yellow-600' : ''}`}>
+                        {isMoving ? "Moving" : (deskStatus?.status || "Idle")}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Speed:</span>
+                      <span className="font-medium">{deskStatus?.speed || 0} mm/s</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Total Activations:</span>
+                      <span className="font-medium">{usageStats?.total_activations || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Sit/Stand Counter:</span>
+                      <span className="font-medium">{usageStats?.sit_stand_counter || 0}</span>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>
