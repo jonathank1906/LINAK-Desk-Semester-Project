@@ -23,8 +23,15 @@ import {
 
 import {
   Settings2,
-  ArrowUpDown, 
+  ArrowUpDown,
+  CircleArrowUp,
+  CircleArrowDown,
 } from "lucide-react"
+
+import {
+  IconArrowBigUpFilled,
+  IconArrowBigDownFilled,
+} from "@tabler/icons-react"
 
 // dont touch
 // Accept selectedDeskId as a prop
@@ -305,17 +312,6 @@ export default function MyDesk({ selectedDeskId }) {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-center">
-                <div className="text-5xl font-bold">
-                  {currentHeight != null ? (
-                    <>
-                      {currentHeight}
-                      <span className="text-4xl align-bottom">cm</span>
-                    </>
-                  ) : "--"}
-                </div>
-                <div className="text-sm text-gray-500">Current Height</div>
-              </div>
-              <div className="text-center">
                 <div className="text-lg font-semibold text-gray-700">
                   {isMoving ? "Moving" : (deskStatus?.status || "Idle")}
                 </div>
@@ -333,7 +329,6 @@ export default function MyDesk({ selectedDeskId }) {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
         {/* Left Column - Height Controls only */}
         <div className="space-y-4">
           {/* Height Controls */}
@@ -363,47 +358,46 @@ export default function MyDesk({ selectedDeskId }) {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {/* Height Display with Visual */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-gray-600">Min: {minHeight}cm</span>
-                      <span className="text-sm text-gray-600">Max: {maxHeight}cm</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full transition-all duration-300 ${isMoving ? 'bg-yellow-500 animate-pulse' : 'bg-blue-500'
-                          }`}
-                        style={{ width: `${heightPercentage}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
                   {/* Manual Controls */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
+                  <div className="flex flex-col items-center gap-1">
+                    <Button
+                      className="h-12 w-12"
+                      variant="outline"
+                      size="lg"
                       onClick={moveUp}
                       disabled={isControlling || isMoving || currentHeight >= maxHeight}
-                      className="bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
-                      {isControlling || isMoving ? '...' : 'Up'}
-                    </button>
-                    <button
+                      <IconArrowBigUpFilled style={{ width: "30px", height: "30px" }} />
+                    </Button>
+                    {/* Current Height moved between arrows */}
+                    <div className="text-4xl font-bold my-2">
+                      {currentHeight != null ? (
+                        <>
+                          {currentHeight}
+                          <span className="text-xl align-bottom">cm</span>
+                        </>
+                      ) : "--"}
+                    </div>
+                    <Button
+                      className="h-12 w-12"
+                      variant="outline"
+                      size="lg"
                       onClick={moveDown}
                       disabled={isControlling || isMoving || currentHeight <= minHeight}
-                      className="bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
-                      {isControlling || isMoving ? '...' : 'Down'}
-                    </button>
+                      <IconArrowBigDownFilled style={{ width: "30px", height: "30px" }} />
+                    </Button>
                   </div>
 
                   {/* Emergency Stop */}
-                  <button
+                  <Button
                     onClick={emergencyStop}
                     disabled={!isMoving}
-                    className="w-full bg-red-500 text-white p-3 rounded-lg hover:bg-red-600 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    variant="destructive"
+                    className="p-3 hover:bg-red-600 transition-colors font-semibold disabled:cursor-not-allowed"
                   >
                     Stop
-                  </button>
+                  </Button>
 
                   {isMoving && (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
