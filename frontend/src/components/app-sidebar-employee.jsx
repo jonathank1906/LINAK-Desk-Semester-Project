@@ -1,9 +1,9 @@
 import * as React from "react"
 import {
-  IconChartBar,
-  IconCalendarWeek,
+  IconCalendarEvent,
   IconDesk,
   IconLayoutDashboardFilled,
+  IconBoltFilled,
 } from "@tabler/icons-react"
 
 import Logo from "../assets/Logo.svg";
@@ -40,18 +40,18 @@ export function AppSidebar({
       onClick: () => onSectionSelect?.("mydesk"),
     },
     {
+      title: "Hot Desk",
+      section: "hotdesk",
+      url: "#",
+      icon: IconBoltFilled,
+      onClick: () => onSectionSelect?.("hotdesk"),
+    },
+    {
       title: "Reservations",
       section: "reservations",
       url: "#",
-      icon: IconCalendarWeek,
+      icon: IconCalendarEvent,
       onClick: () => onSectionSelect?.("reservations"),
-    },
-    {
-      title: "Metrics",
-      section: "metrics",
-      url: "#",
-      icon: IconChartBar,
-      onClick: () => onSectionSelect?.("metrics"),
     },
   ];
 

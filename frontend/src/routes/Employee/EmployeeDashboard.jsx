@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/useAuth";
 import MyDesk from "./MyDesk";
 import Reservations from "./Reservations";
-import Metrics from "./Metrics";
+import Hotdesk from "./Hotdesk";
 import { formatLocalYYYYMMDD, formatNiceDate, formatTimeFromISO } from "@/utils/date";
 import { Button } from "@/components/ui/button";
 
@@ -466,8 +466,8 @@ export default function EmployeeDashboard() {
         setSelectedSection("mydesk");
     }
 
-    function goToReservations() {
-        setSelectedSection("reservations");
+    function goToHotDesk() {
+        setSelectedSection("hotdesk");
     }
 
     // Format seconds to minutes
@@ -519,10 +519,10 @@ export default function EmployeeDashboard() {
                                 <div>
                                     {!selectedDeskId ? (
                                         <Button
-                                            onClick={goToReservations}
+                                            onClick={goToHotDesk}
                                             aria-label="Select a Desk"
                                         >
-                                            Select a Desk
+                                            Hot Desk Now
                                         </Button>
                                     ) : (
                                         <>
@@ -662,7 +662,17 @@ export default function EmployeeDashboard() {
                                         </div>
                                     ))
                                 ) : (
-                                    <div className="text-sm text-muted-foreground">No upcoming reservations</div>
+                                    <div className="flex items-center justify-between">
+                                        <div className="text-sm text-muted-foreground">
+                                            No upcoming reservations
+                                        </div>
+                                        <Button
+                                            onClick={() => setSelectedSection("reservations")}
+                                            aria-label="Reserve a Desk"
+                                        >
+                                            Reserve a Desk
+                                        </Button>
+                                    </div>
                                 )}
                             </CardContent>
                         </Card>
@@ -670,10 +680,10 @@ export default function EmployeeDashboard() {
                 );
             case "reservations":
                 return <Reservations setSelectedDeskId={setSelectedDeskId} />;
+            case "hotdesk":
+                return <Hotdesk setSelectedDeskId={setSelectedDeskId}/>;
             case "mydesk":
                 return <MyDesk selectedDeskId={selectedDeskId} />;
-            case "metrics":
-                return <Metrics />;
         }
     }
 
