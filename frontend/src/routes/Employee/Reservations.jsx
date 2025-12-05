@@ -22,6 +22,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 // Helper to get YYYY-MM-DD in LOCAL time
 const formatLocalYYYYMMDD = (date) => {
@@ -58,6 +66,7 @@ export default function Reservations({ setSelectedDeskId }) {
   const [editingReservation, setEditingReservation] = useState(null);
   const [editStartTime, setEditStartTime] = useState("09:00");
   const [editEndTime, setEditEndTime] = useState("17:00");
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const nav = useNavigate();
 
   // Date picker state
@@ -227,6 +236,7 @@ export default function Reservations({ setSelectedDeskId }) {
 
       toast.success("Reservation updated!");
       setEditingReservation(null);
+      setEditDialogOpen(false);
       fetchUserReservations();
       fetchAvailableDesks();
       window.dispatchEvent(new Event("reservation-updated"));
@@ -289,11 +299,57 @@ export default function Reservations({ setSelectedDeskId }) {
                       </p>
                     </div>
                     <div className="space-x-2">
-                      <Button variant="outline" onClick={() => {
-                        setEditingReservation(reservation);
-                        setEditStartTime(formatTimeFromISO(reservation.start_time));
-                        setEditEndTime(formatTimeFromISO(reservation.end_time));
-                      }}>Edit</Button>
+                      <Dialog open={editingReservation?.id === reservation.id && editDialogOpen} onOpenChange={(open) => {
+                        if (!open) {
+                          setEditingReservation(null);
+                          setEditDialogOpen(false);
+                        }
+                      }}>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" onClick={() => {
+                            setEditingReservation(reservation);
+                            setEditStartTime(formatTimeFromISO(reservation.start_time));
+                            setEditEndTime(formatTimeFromISO(reservation.end_time));
+                            setEditDialogOpen(true);
+                          }}>Edit</Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-md">
+                          <DialogHeader>
+                            <DialogTitle>Edit Reservation</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <label className="block text-sm font-medium">Start Time</label>
+                              <Select value={editStartTime} onValueChange={setEditStartTime}>
+                                <SelectTrigger className="w-full border rounded px-2 py-1">
+                                  <SelectValue placeholder="Select start time" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {generateSelectTimeOptions(selectedDate, "06:00", 0)}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <label className="block text-sm font-medium">End Time</label>
+                              <Select value={editEndTime} onValueChange={setEditEndTime}>
+                                <SelectTrigger className="w-full border rounded px-2 py-1">
+                                  <SelectValue placeholder="Select end time" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {generateSelectTimeOptions(selectedDate, editStartTime, 30)}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <DialogFooter>
+                            <Button variant="outline" onClick={() => {
+                              setEditingReservation(null);
+                              setEditDialogOpen(false);
+                            }}>Cancel</Button>
+                            <Button onClick={handleEditReservation}>Save</Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
                       <Button variant="destructive" onClick={() => cancelReservation(reservation.id)}>Delete</Button>
                     </div>
                   </div>
@@ -437,40 +493,6 @@ export default function Reservations({ setSelectedDeskId }) {
           </Card>
         </div>
       </div>
-
-      {/* Edit Reservation Modal */}
-      {editingReservation && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded shadow-lg w-full max-w-md space-y-4">
-            <h3 className="text-lg font-bold">Edit Reservation</h3>
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">Start Time</label>
-              <Select value={editStartTime} onValueChange={setEditStartTime}>
-                <SelectTrigger className="w-full border rounded px-2 py-1">
-                  <SelectValue placeholder="Select start time" />
-                </SelectTrigger>
-                <SelectContent>
-                  {generateSelectTimeOptions(selectedDate, "06:00", 0)}
-                </SelectContent>
-              </Select>
-
-              <label className="block text-sm font-medium">End Time</label>
-              <Select value={editEndTime} onValueChange={setEditEndTime}>
-                <SelectTrigger className="w-full border rounded px-2 py-1">
-                  <SelectValue placeholder="Select end time" />
-                </SelectTrigger>
-                <SelectContent>
-                  {generateSelectTimeOptions(selectedDate, editStartTime, 30)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setEditingReservation(null)}>Cancel</Button>
-              <Button onClick={() => handleEditReservation()}>Save</Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
