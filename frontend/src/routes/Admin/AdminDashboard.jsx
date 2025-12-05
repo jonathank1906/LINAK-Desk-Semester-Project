@@ -208,8 +208,8 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
               <Card
                 className={`animate-fade-up rounded-xl p-4 flex flex-col justify-center text-white shadow-sm transition-transform bg-gradient-to-r ${metrics.system_status === "operational"
-                    ? "from-green-500 to-green-400"
-                    : "from-red-500 to-red-400"
+                  ? "from-green-500 to-green-400"
+                  : "from-red-500 to-red-400"
                   }`}
               >
                 <CardHeader className="pb-2">
@@ -230,29 +230,29 @@ export default function AdminDashboard() {
               </Card>
               <div className="grid grid-cols-3 gap-4">
                 <Card className="animate-fade-up">
-                  <CardHeader className="flex flex-row items-center gap-4 pb-2">
-                    <span className="text-sky-400"><IconUsers size={32} /></span>
+                  <CardHeader className="flex flex-row items-center gap-4">
+                    <span><IconUsers size={32} /></span>
                     <CardTitle>Total Active Users</CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="flex items-center justify-center min-h-[30px]">
                     <span className="text-3xl font-bold">{metrics.active_users}</span>
                   </CardContent>
                 </Card>
                 <Card className="animate-fade-up">
-                  <CardHeader className="flex flex-row items-center gap-4 pb-2">
-                    <span className="text-green-400"><IconDesk size={32} /></span>
+                  <CardHeader className="flex flex-row items-center gap-4">
+                    <span><IconDesk size={32} /></span>
                     <CardTitle>Available Desks</CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="flex items-center justify-center min-h-[30px]">
                     <span className="text-3xl font-bold">{metrics.available_desks}</span>
                   </CardContent>
                 </Card>
                 <Card className="animate-fade-up">
-                  <CardHeader className="flex flex-row items-center gap-4 pb-2">
-                    <span className="text-indigo-400"><IconDesk size={32} /></span>
+                  <CardHeader className="flex flex-row items-center gap-4">
+                    <span><IconDesk size={32} /></span>
                     <CardTitle>Desks In Use Online</CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="flex items-center justify-center min-h-[30px]">
                     <span className="text-3xl font-bold">{metrics.desks_in_use_online}</span>
                   </CardContent>
                 </Card>
