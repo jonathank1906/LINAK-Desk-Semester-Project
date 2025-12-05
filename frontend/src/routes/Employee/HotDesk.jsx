@@ -159,7 +159,7 @@ export default function HotDesk({ setSelectedDeskId }) {
     <Card className="lg:col-span-3">
       <CardHeader>
         <CardTitle>Hot Desk Status</CardTitle>
-        <CardDescription>See which desks are free right now.</CardDescription>
+        <CardDescription>See which desks are free right now</CardDescription>
       </CardHeader>
       <CardContent>
         {loading ? (
