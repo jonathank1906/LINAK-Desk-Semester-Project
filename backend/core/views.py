@@ -1613,7 +1613,14 @@ def available_desks_for_date(request):
 
     desks = Desk.objects.exclude(id__in=reserved_desks)
     serializer = DeskSerializer(desks, many=True)
-    return Response(serializer.data)
+    desk_data = serializer.data
+
+    # Add requires_confirmation to each desk
+    for desk in desk_data:
+        desk_obj = Desk.objects.get(id=desk["id"])
+        desk["requires_confirmation"] = Pico.objects.filter(desk=desk_obj).exists()
+
+    return Response(desk_data)
 
 
 

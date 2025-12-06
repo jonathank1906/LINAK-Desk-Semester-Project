@@ -487,8 +487,15 @@ export default function Reservations({ setSelectedDeskId }) {
                 <div className="space-y-3">
                   {availableDesks.map((desk) => (
                     <div key={desk.id} className="flex items-center justify-between p-4 border rounded-lg transition-colors" style={{ minHeight: deskCardHeight, height: deskCardHeight }}>
-                      <div>
-                        <h3 className="font-semibold">{desk.name || desk.desk_name || `Desk ${desk.id}`}</h3>
+                      <div className="flex flex-col justify-center h-full">
+                        <h3 className="font-semibold flex items-center">
+                          {desk.name || desk.desk_name || `Desk ${desk.id}`}
+                          {desk.requires_confirmation && (
+                            <span className="ml-2 px-3 py-1 rounded-full bg-[#C91E4A] text-white font-semibold inline-block text-sm">
+                              Pico
+                            </span>
+                          )}
+                        </h3>
                       </div>
                       <Button variant="outline" onClick={() => makeReservation(desk.id)}>Reserve Desk</Button>
                     </div>
