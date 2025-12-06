@@ -186,6 +186,12 @@ export default function HotDesk({ setSelectedDeskId }) {
     );
   };
 
+  // Check if any desk is occupied
+  const anyDeskOccupied = hotdeskStatus.some(desk => !!desk.occupied || (!!desk.current_status && desk.current_status === "occupied"));
+
+  // Fixed height for desk card content
+  const deskCardHeight = "80px"; // Adjust as needed for your design
+
   return (
     <div className="p-4 md:p-6 w-full">
       <Card className="lg:col-span-3">
@@ -231,6 +237,7 @@ export default function HotDesk({ setSelectedDeskId }) {
                   <div
                     key={desk.id}
                     className={`flex items-center justify-between p-4 border rounded-lg`}
+                    style={{ minHeight: deskCardHeight, height: deskCardHeight }}
                   >
                     <div>
                       <h3 className="font-semibold">{desk.name || desk.desk_name || `Desk ${desk.id}`}</h3>
@@ -243,37 +250,34 @@ export default function HotDesk({ setSelectedDeskId }) {
                       ) : null}
                     </div>
 
-                    {isOccupied ? (
-                      <span className="text-xs text-red-500">Desk is being used</span>
-                    ) : isReserved ? (
-                      isReserver ? (
-                        <div>
-                          <button className="px-3 py-1 rounded-md border text-sm text-muted-foreground" disabled>
+                    <div style={{ minWidth: "140px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {isOccupied ? (
+                        <span className="px-3 py-1 rounded-full bg-yellow-200 text-yellow-900 font-semibold inline-block text-sm">Desk is being used</span>
+                      ) : isReserved ? (
+                        isReserver ? (
+                          <button className="px-3 py-1 rounded-md border text-sm text-muted-foreground" disabled style={{ width: "120px" }}>
                             Please check in 30 minutes before your reserve time starts
                           </button>
-                        </div>
-                      ) : canUse ? (
-                        <Button
-                          variant="outline"
-                          onClick={() => startHotDesk(desk.id)}
-                          disabled={userHasActive || selectingAnyDesk}
-                          title={userHasActive ? 'You already have an active desk or reservation' : undefined}
-                        >
-                          {renderButtonContent(desk.id)}
-                        </Button>
+                        ) : (
+                          <span className="text-xs text-red-500" style={{ width: "120px", textAlign: "center" }}>Reserved — desk locked</span>
+                        )
                       ) : (
-                        <span className="text-xs text-red-500">Reserved — desk locked</span>
-                      )
-                    ) : (
-                      <Button
-                        variant="outline"
-                        onClick={() => startHotDesk(desk.id)}
-                        disabled={userHasActive || selectingAnyDesk}
-                        title={userHasActive ? 'You already have an active desk or reservation' : undefined}
-                      >
-                        {renderButtonContent(desk.id)}
-                      </Button>
-                    )}
+                        // Hide Select Desk button if any desk is occupied
+                        anyDeskOccupied ? (
+                          <span style={{ width: "120px", display: "inline-block" }}></span>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            onClick={() => startHotDesk(desk.id)}
+                            disabled={userHasActive || selectingAnyDesk}
+                            title={userHasActive ? 'You already have an active desk or reservation' : undefined}
+                            style={{ width: "120px" }}
+                          >
+                            {renderButtonContent(desk.id)}
+                          </Button>
+                        )
+                      )}
+                    </div>
                   </div>
                 );
               })}

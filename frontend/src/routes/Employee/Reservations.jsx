@@ -279,6 +279,9 @@ export default function Reservations({ setSelectedDeskId }) {
     (r) => r.status === "confirmed" || r.status === "active"
   );
 
+  // Fixed height for desk card content (same as HotDesk)
+  const deskCardHeight = "80px";
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* My Reservations - full width */}
@@ -293,7 +296,7 @@ export default function Reservations({ setSelectedDeskId }) {
           ) : (
             <div className="space-y-3">
               {filteredReservations.map((reservation) => (
-                <div key={reservation.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div key={reservation.id} className="flex items-center justify-between p-4 border rounded-lg" style={{ minHeight: deskCardHeight, height: deskCardHeight }}>
                   <div>
                     <h3 className="font-semibold">{reservation.desk_name || `Desk ${reservation.desk_id}`}</h3>
                     <p className="text-sm text-muted-foreground">
@@ -483,7 +486,7 @@ export default function Reservations({ setSelectedDeskId }) {
               ) : (
                 <div className="space-y-3">
                   {availableDesks.map((desk) => (
-                    <div key={desk.id} className="flex items-center justify-between p-4 border rounded-lg transition-colors">
+                    <div key={desk.id} className="flex items-center justify-between p-4 border rounded-lg transition-colors" style={{ minHeight: deskCardHeight, height: deskCardHeight }}>
                       <div>
                         <h3 className="font-semibold">{desk.name || desk.desk_name || `Desk ${desk.id}`}</h3>
                       </div>
