@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import PendingVerificationModal from "@/components/pending-verification-modal";
 import { formatTimeFromISO } from "@/utils/date";
+import { Spinner } from '@/components/ui/shadcn-io/spinner';
 
 // Helper to get YYYY-MM-DD in LOCAL time
 const formatLocalYYYYMMDD = (date) => {
@@ -25,6 +26,8 @@ export default function HotDesk({ setSelectedDeskId }) {
   const [verificationModalOpen, setVerificationModalOpen] = useState(false);
   const [pendingDeskId, setPendingDeskId] = useState(null);
   const [polling, setPolling] = useState(false);
+  const [selectingDeskId, setSelectingDeskId] = useState(null);
+  const [selectingAnyDesk, setSelectingAnyDesk] = useState(false);
 
   useEffect(() => {
     fetchHotdeskStatus();
@@ -103,11 +106,15 @@ export default function HotDesk({ setSelectedDeskId }) {
   }, [user]);
 
   const startHotDesk = async (deskId) => {
+    setSelectingDeskId(deskId);
+    setSelectingAnyDesk(true);
     try {
       const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
 
       if (userHasActive) {
         toast.error('You already have an active desk or reservation. Release it before starting another.');
+        setSelectingDeskId(null);
+        setSelectingAnyDesk(false);
         return;
       }
 
@@ -117,6 +124,8 @@ export default function HotDesk({ setSelectedDeskId }) {
         if (existingDesk) {
           setUserHasActive(true);
           toast.error('You already have an active desk. Release it before starting another.');
+          setSelectingDeskId(null);
+          setSelectingAnyDesk(false);
           return;
         }
       } catch (err) {
@@ -129,6 +138,8 @@ export default function HotDesk({ setSelectedDeskId }) {
         if (hasActiveReservation) {
           setUserHasActive(true);
           toast.error('You have an active reservation. Release or cancel it before starting a hotdesk.');
+          setSelectingDeskId(null);
+          setSelectingAnyDesk(false);
           return;
         }
       } catch (err) {
@@ -152,7 +163,27 @@ export default function HotDesk({ setSelectedDeskId }) {
       }
     } catch (err) {
       toast.error("Failed to start hot desk", { description: err.response?.data?.error || err.message });
+    } finally {
+      setSelectingDeskId(null);
+      setSelectingAnyDesk(false);
     }
+  };
+
+  // Button content helper to keep button width fixed
+  const renderButtonContent = (deskId) => {
+    const buttonText = "Select Desk";
+    if (selectingDeskId === deskId && selectingAnyDesk) {
+      return (
+        <span style={{ display: "inline-block", width: `${buttonText.length * 0.6}em`, textAlign: "center" }}>
+          <Spinner variant="circle" className="h-4 w-4 mx-auto" />
+        </span>
+      );
+    }
+    return (
+      <span style={{ display: "inline-block", width: `${buttonText.length * 0.6}em`, textAlign: "center" }}>
+        {buttonText}
+      </span>
+    );
   };
 
   return (
@@ -222,12 +253,26 @@ export default function HotDesk({ setSelectedDeskId }) {
                           </button>
                         </div>
                       ) : canUse ? (
-                        <Button variant="outline" onClick={() => startHotDesk(desk.id)} disabled={userHasActive} title={userHasActive ? 'You already have an active desk or reservation' : undefined}>Select Desk</Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => startHotDesk(desk.id)}
+                          disabled={userHasActive || selectingAnyDesk}
+                          title={userHasActive ? 'You already have an active desk or reservation' : undefined}
+                        >
+                          {renderButtonContent(desk.id)}
+                        </Button>
                       ) : (
                         <span className="text-xs text-red-500">Reserved — desk locked</span>
                       )
                     ) : (
-                      <Button variant="outline" onClick={() => startHotDesk(desk.id)} disabled={userHasActive} title={userHasActive ? 'You already have an active desk or reservation' : undefined}>Select Desk</Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => startHotDesk(desk.id)}
+                        disabled={userHasActive || selectingAnyDesk}
+                        title={userHasActive ? 'You already have an active desk or reservation' : undefined}
+                      >
+                        {renderButtonContent(desk.id)}
+                      </Button>
                     )}
                   </div>
                 );
