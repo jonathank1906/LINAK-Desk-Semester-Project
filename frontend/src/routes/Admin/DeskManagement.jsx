@@ -12,6 +12,17 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { IconPlus, IconEdit, IconTrash, IconRefresh, IconAlertCircle, IconEye, IconX } from "@tabler/icons-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 const mockDesks = [
   {
@@ -56,14 +67,14 @@ export default function DeskManagement() {
     <div className="container mx-auto py-8 space-y-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">Desk Management</h2>
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogTrigger asChild>
-            <Button variant="primary" onClick={() => setShowCreateDialog(true)}>
-              <IconPlus className="mr-2 h-5 w-5" /> New Desk
+        <AlertDialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+          <AlertDialogTrigger asChild>
+            <Button onClick={() => setShowCreateDialog(true)}>
+              <IconPlus className="h-5 w-5" /> New Desk
             </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogTitle>Create New Desk</DialogTitle>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogTitle>Create New Desk</AlertDialogTitle>
             <div className="space-y-4 mt-4">
               <Input placeholder="Desk Name" />
               <Input placeholder="Location" />
@@ -77,10 +88,15 @@ export default function DeskManagement() {
                   <SelectItem value="out_of_service">Out of Service</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="primary">Create</Button>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+                  Cancel
+                </Button>
+                <Button>Create</Button>
+              </div>
             </div>
-          </DialogContent>
-        </Dialog>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       <Card>
@@ -112,8 +128,8 @@ export default function DeskManagement() {
                         desk.status === "available"
                           ? "default"
                           : desk.status === "occupied"
-                          ? "secondary"
-                          : "destructive"
+                            ? "secondary"
+                            : "destructive"
                       }>
                         {desk.status.replace(/_/g, " ")}
                       </Badge>
@@ -174,9 +190,9 @@ export default function DeskManagement() {
       </Card>
 
       {/* Edit Desk Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent>
-          <DialogTitle>Edit Desk</DialogTitle>
+      <AlertDialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <AlertDialogContent>
+          <AlertDialogTitle>Edit Desk</AlertDialogTitle>
           <div className="space-y-4 mt-4">
             <Input placeholder="Desk Name" defaultValue={selectedDesk?.name} />
             <Input placeholder="Location" defaultValue={selectedDesk?.location} />
@@ -190,10 +206,15 @@ export default function DeskManagement() {
                 <SelectItem value="out_of_service">Out of Service</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="primary">Save Changes</Button>
+            <div className="flex justify-end gap-2 pt-2">
+              <AlertDialogCancel asChild>
+                <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
+              </AlertDialogCancel>
+              <Button>Save</Button>
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -21,6 +21,17 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { IconPlus, IconEdit, IconTrash } from "@tabler/icons-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 const mockSchedules = [
   {
@@ -49,23 +60,28 @@ export default function Automate() {
     <div className="container mx-auto py-8 space-y-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">Automation: Cleaning Schedules</h2>
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogTrigger asChild>
-            <Button variant="primary" onClick={() => setShowCreateDialog(true)}>
-              <IconPlus className="mr-2 h-5 w-5" /> New Schedule
+        <AlertDialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+          <AlertDialogTrigger asChild>
+            <Button onClick={() => setShowCreateDialog(true)}>
+              <IconPlus className="h-5 w-5"/> New Schedule
             </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogTitle>Create Cleaning Schedule</DialogTitle>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogTitle>Create Cleaning Schedule</AlertDialogTitle>
             <div className="space-y-4 mt-4">
               <Input placeholder="Schedule Name" />
               <Input placeholder="Time (e.g. 07:00)" />
               <Input placeholder="Days (e.g. Mon,Wed,Fri)" />
               <Input placeholder="Target Height (cm)" type="number" />
-              <Button variant="primary">Create</Button>
             </div>
-          </DialogContent>
-        </Dialog>
+            <div className="flex justify-end gap-2 mt-6">
+              <AlertDialogCancel asChild>
+                <Button variant="outline" onClick={() => setShowCreateDialog(false)}>Cancel</Button>
+              </AlertDialogCancel>
+              <Button>Create</Button>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       <Card>
@@ -122,18 +138,23 @@ export default function Automate() {
       </Card>
 
       {/* Edit Schedule Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent>
-          <DialogTitle>Edit Cleaning Schedule</DialogTitle>
+      <AlertDialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <AlertDialogContent>
+          <AlertDialogTitle>Edit Cleaning Schedule</AlertDialogTitle>
           <div className="space-y-4 mt-4">
             <Input placeholder="Schedule Name" defaultValue={selectedSchedule?.name} />
             <Input placeholder="Time (e.g. 07:00)" defaultValue={selectedSchedule?.time} />
             <Input placeholder="Days (e.g. Mon,Wed,Fri)" defaultValue={selectedSchedule?.days?.join(",")} />
             <Input placeholder="Target Height (cm)" type="number" defaultValue={selectedSchedule?.targetHeight} />
-            <Button variant="primary">Save Changes</Button>
           </div>
-        </DialogContent>
-      </Dialog>
+          <div className="flex justify-end gap-2 mt-6">
+            <AlertDialogCancel asChild>
+              <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
+            </AlertDialogCancel>
+            <Button>Save</Button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

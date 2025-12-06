@@ -14,6 +14,17 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 import { UserProfileDialog } from "@/components/UserProfileDialog";
 import { IconPlus, IconFilterX } from "@tabler/icons-react";
@@ -38,18 +49,23 @@ export default function UserManagement() {
   const [filterLastLoginAfter, setFilterLastLoginAfter] = useState("");
   const [filterDesk, setFilterDesk] = useState("");
 
+  // Alert dialog state for "no users selected"
+  const [noUsersAlertOpen, setNoUsersAlertOpen] = useState(false);
+  
+  // State for bulk action confirmation
+  const [pendingBulkAction, setPendingBulkAction] = useState(null);
+
   // Fetch users from backend
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         const res = await fetch("http://localhost:8000/api/users/", {
-          credentials: "include", // send cookies if using JWT or session auth
+          credentials: "include",
         });
         if (!res.ok) throw new Error("Failed to fetch users");
 
         const data = await res.json();
 
-        // Map backend format to frontend table fields
         const formatted = data.map((user) => ({
           id: user.id,
           name: `${user.first_name} ${user.last_name}`,
@@ -60,8 +76,8 @@ export default function UserManagement() {
             ? new Date(user.last_login).toLocaleString()
             : "Never",
           deskUsage: user.total_usage_hours ?? 50,
-          favoriteDesk: "Desk XXXX", // placeholder
-          deskUsageHistory: user.is_admin ? [1,1] : [2,2], // placeholder
+          favoriteDesk: "Desk XXXX",
+          deskUsageHistory: user.is_admin ? [1,1] : [2,2],
           status: user.is_active ? "Active" : "Disabled",
           created: new Date(user.created_at).toLocaleDateString(),
         }));
@@ -99,7 +115,6 @@ export default function UserManagement() {
       const deskMatch = filterDesk
         ? (user.favoriteDesk || "").toLowerCase().includes(filterDesk.toLowerCase())
         : true;
-
 
       return (
         nameMatch &&
@@ -140,21 +155,22 @@ export default function UserManagement() {
     setFilterDesk("");
   };
 
-  // Bulk actions
+  // Handle bulk action button click
   const handleBulkAction = (action) => {
     if (!selectedUsers.length) {
-      alert("Please select at least one user first.");
+      setNoUsersAlertOpen(true);
       return;
     }
+    setPendingBulkAction(action);
+  };
 
-    const selectedNames = selectedUsers.map((u) => u.name).join(", ");
-    if (!confirm(`Are you sure you want to ${action} ${selectedNames}?`)) return;
-
-    if (action === "delete") {
+  // Execute the bulk action after confirmation
+  const executeBulkAction = () => {
+    if (pendingBulkAction === "delete") {
       setUsersData((prev) =>
         prev.filter((u) => !selectedUsers.find((s) => s.id === u.id))
       );
-    } else if (action === "disable") {
+    } else if (pendingBulkAction === "disable") {
       setUsersData((prev) =>
         prev.map((u) =>
           selectedUsers.find((s) => s.id === u.id)
@@ -162,7 +178,7 @@ export default function UserManagement() {
             : u
         )
       );
-    } else if (action === "activate") {
+    } else if (pendingBulkAction === "activate") {
       setUsersData((prev) =>
         prev.map((u) =>
           selectedUsers.find((s) => s.id === u.id)
@@ -171,10 +187,12 @@ export default function UserManagement() {
         )
       );
     }
+    
     setSelectedUsers([]);
+    setPendingBulkAction(null);
   };
 
-  // Loading and error handling as suggested
+  // Loading and error handling
   if (loading) return <div className="p-6 text-muted-foreground">Loading users...</div>;
   if (error) return <div className="p-6 text-red-500">{error}</div>;
 
@@ -271,7 +289,7 @@ export default function UserManagement() {
             <IconFilterX className="mr-2 h-4 w-4" /> Reset Filters
           </Button>
 
-          {/* Bulk Actions Dropdown (Always Visible) */}
+          {/* Bulk Actions Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="secondary">Bulk Actions</Button>
@@ -289,7 +307,7 @@ export default function UserManagement() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-           <Dialog>
+          <Dialog>
             <DialogTrigger asChild>
               <Button className="btn btn-primary flex items-center gap-2 px-4 py-2">
                 <IconPlus className="w-5 h-5" /> Create Employee Account
@@ -339,6 +357,53 @@ export default function UserManagement() {
             </DialogContent>
           </Dialog>
         )}
+
+        {/* No Users Selected Alert Dialog */}
+        <AlertDialog open={noUsersAlertOpen} onOpenChange={setNoUsersAlertOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>No Users Selected</AlertDialogTitle>
+              <AlertDialogDescription>
+                Please select at least one user first.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogAction onClick={() => setNoUsersAlertOpen(false)}>
+                OK
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Bulk Action Confirmation Dialog */}
+        <AlertDialog open={!!pendingBulkAction} onOpenChange={() => setPendingBulkAction(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {pendingBulkAction === "delete" && "Delete Users"}
+                {pendingBulkAction === "disable" && "Disable Users"}
+                {pendingBulkAction === "activate" && "Activate Users"}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {pendingBulkAction === "delete" && 
+                  `Are you sure you want to delete ${selectedUsers.map((u) => u.name).join(", ")}? This action cannot be undone.`
+                }
+                {pendingBulkAction === "disable" && 
+                  `Are you sure you want to disable ${selectedUsers.map((u) => u.name).join(", ")}?`
+                }
+                {pendingBulkAction === "activate" && 
+                  `Are you sure you want to activate ${selectedUsers.map((u) => u.name).join(", ")}?`
+                }
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={executeBulkAction}>
+                Continue
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
       </div>
     </SidebarInset>
