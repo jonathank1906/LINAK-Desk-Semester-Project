@@ -1311,6 +1311,9 @@ def hotdesk_status(request):
     now = timezone.now()
 
     for desk in desks:
+        # Check if desk has a Pico (requires confirmation)
+        requires_confirmation = Pico.objects.filter(desk_id=desk.id).exists()
+        
         # Check active usage/check-in session
         if desk.current_user:
             active_session = (
@@ -1339,6 +1342,7 @@ def hotdesk_status(request):
                     "pending_verification",
                     "occupied",
                 ],
+                "requires_confirmation": requires_confirmation,
             })
             continue
 
@@ -1374,6 +1378,7 @@ def hotdesk_status(request):
                 "reserved_end_time": end_time.isoformat(),
                 "locked_for_checkin": is_locked,
                 "occupied": False,
+                "requires_confirmation": requires_confirmation,
             })
         else:
             result.append({
@@ -1381,6 +1386,7 @@ def hotdesk_status(request):
                 "desk_name": desk.name,
                 "reserved": False,
                 "locked_for_checkin": False,
+                "requires_confirmation": requires_confirmation,
             })
 
     return Response(result)

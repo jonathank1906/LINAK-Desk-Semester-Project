@@ -240,7 +240,14 @@ export default function HotDesk({ setSelectedDeskId }) {
                     style={{ minHeight: deskCardHeight, height: deskCardHeight }}
                   >
                     <div>
-                      <h3 className="font-semibold">{desk.name || desk.desk_name || `Desk ${desk.id}`}</h3>
+                      <h3 className="font-semibold">
+                        {desk.name || desk.desk_name || `Desk ${desk.id}`}
+                        {desk.requires_confirmation && (
+                          <span className="ml-2 px-3 py-1 rounded-full bg-[#C91E4A] text-white font-semibold inline-block text-sm">
+                            Pico
+                          </span>
+                        )}
+                      </h3>
                       {desk.reserved ? (
                         isReserver ? (
                           <p className="text-sm text-blue-700 dark:text-blue-200">You have reserved this desk at {formatTimeFromISO(desk.reserved_time)}</p>
