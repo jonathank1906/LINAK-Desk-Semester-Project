@@ -2,6 +2,17 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 export default function PendingVerificationModal({ open, deskId, onClose }) {
   // Cancel handler
@@ -18,8 +29,8 @@ export default function PendingVerificationModal({ open, deskId, onClose }) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleCancel}>
-      <DialogContent>
+    <AlertDialog open={open} onOpenChange={handleCancel}>
+      <AlertDialogContent>
         <div className="text-center space-y-4">
           <h2 className="text-lg font-bold">Confirm Desk Usage</h2>
           <p>
@@ -32,7 +43,7 @@ export default function PendingVerificationModal({ open, deskId, onClose }) {
             Cancel
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
