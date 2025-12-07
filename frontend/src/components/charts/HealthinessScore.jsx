@@ -44,10 +44,10 @@ export default function HealthinessScore({ data, isDarkMode }) {
   const strokeDashoffset = circumference - (score / 100) * circumference;
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl">
       <div className="flex items-center gap-2 mb-6">
         <IconHeart className={`w-5 h-5 ${colors.text}`} />
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white" title="Score based on standing time, position changes, and consistency">
           Healthiness Score
         </h3>
       </div>
@@ -104,7 +104,7 @@ export default function HealthinessScore({ data, isDarkMode }) {
               Key Metrics
             </h4>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3" title="Optimal range: 40-60%">
               <IconTrendingUp className="w-4 h-4 text-gray-500" />
               <div className="flex-1">
                 <div className="flex justify-between text-xs mb-1">
@@ -122,7 +122,7 @@ export default function HealthinessScore({ data, isDarkMode }) {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3" title="Frequency of position changes (1+ per hour is ideal)">
               <IconActivity className="w-4 h-4 text-gray-500" />
               <div className="flex-1">
                 <div className="flex justify-between text-xs">
@@ -134,7 +134,7 @@ export default function HealthinessScore({ data, isDarkMode }) {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3" title="How regularly you use your desk">
               <IconCalendar className="w-4 h-4 text-gray-500" />
               <div className="flex-1">
                 <div className="flex justify-between text-xs">
@@ -150,7 +150,7 @@ export default function HealthinessScore({ data, isDarkMode }) {
           {/* Recommendations */}
           <div className={`p-4 ${colors.bg} rounded-lg border ${colors.border}`}>
             <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              💡 Recommendations
+              Recommendations
             </h4>
             <ul className="space-y-2">
               {recommendations.map((rec, index) => (

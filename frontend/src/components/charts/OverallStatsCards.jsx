@@ -2,10 +2,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { IconClock, IconActivity, IconArrowsVertical, IconChartBar } from "@tabler/icons-react";
 
 export function OverallStatsCards({ stats }) {
+  // Calculate standing time in hours
+  const standingHours = stats?.total_hours && stats?.standing_percentage 
+    ? ((stats.total_hours * stats.standing_percentage) / 100).toFixed(1)
+    : 0;
+
   const statCards = [
     {
       title: "Total Sessions",
       value: stats?.total_sessions || 0,
+      subtitle: "Desk usage count",
       icon: IconChartBar,
       color: "text-blue-500",
       bgColor: "bg-blue-500/10",
@@ -13,6 +19,7 @@ export function OverallStatsCards({ stats }) {
     {
       title: "Total Hours",
       value: `${stats?.total_hours || 0}h`,
+      subtitle: "Time at desk",
       icon: IconClock,
       color: "text-green-500",
       bgColor: "bg-green-500/10",
@@ -20,6 +27,7 @@ export function OverallStatsCards({ stats }) {
     {
       title: "Standing Time",
       value: `${stats?.standing_percentage || 0}%`,
+      subtitle: `${standingHours}h total`,
       icon: IconActivity,
       color: "text-purple-500",
       bgColor: "bg-purple-500/10",
@@ -27,6 +35,7 @@ export function OverallStatsCards({ stats }) {
     {
       title: "Position Changes",
       value: stats?.total_position_changes || 0,
+      subtitle: "Sit-stand switches",
       icon: IconArrowsVertical,
       color: "text-orange-500",
       bgColor: "bg-orange-500/10",
@@ -38,17 +47,26 @@ export function OverallStatsCards({ stats }) {
       {statCards.map((stat, index) => {
         const Icon = stat.icon;
         return (
-          <Card key={index}>
+          <Card 
+            key={index}
+            className="transition-all duration-300 hover:scale-105 hover:shadow-lg cursor-pointer"
+            title={stat.subtitle}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
                 {stat.title}
               </CardTitle>
-              <div className={`${stat.bgColor} p-2 rounded-lg`}>
+              <div className={`${stat.bgColor} p-2 rounded-lg transition-transform duration-300 hover:rotate-12`}>
                 <Icon className={`h-4 w-4 ${stat.color}`} />
               </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stat.value}</div>
+              {stat.subtitle && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {stat.subtitle}
+                </p>
+              )}
             </CardContent>
           </Card>
         );

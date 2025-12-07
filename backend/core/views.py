@@ -1886,7 +1886,6 @@ def user_metrics(request):
     
     # ===== No Show Table =====
     # Find reservations where user didn't check in despite confirmation
-    from django.utils import timezone
     now = timezone.now()
     
     no_shows = (
@@ -1915,12 +1914,12 @@ def user_metrics(request):
         })
     
     # ===== Healthiness Score =====
-    # Calculate based on sitting/standing ratio, position changes, and consistency
-    standing_pct = overall_stats['standing_percentage']
-    position_changes = overall_stats['total_position_changes']
-    sessions = overall_stats['total_sessions']
+    # Calculate 
+    standing_pct = float(overall_stats['standing_percentage'])
+    position_changes = int(overall_stats['total_position_changes'])
+    sessions = int(overall_stats['total_sessions'])
     
-    # Base score from standing percentage (optimal: 40-60%)
+    # Base score from standing percentage 
     if 40 <= standing_pct <= 60:
         base_score = 100  # Optimal range
     elif 30 <= standing_pct < 40 or 60 < standing_pct <= 70:
@@ -1990,7 +1989,7 @@ def user_metrics(request):
     elif standing_pct > 70:
         healthiness['recommendations'].append('You\'re standing a lot! Consider more sitting breaks for balance')
     
-    if position_changes < (total_mins / 120):  # Less than 1 change per 2 hours
+    if position_changes < (total_mins / 120):  
         healthiness['recommendations'].append('Change positions more frequently - try switching every hour')
     
     if sessions < (days_in_period * 0.5):

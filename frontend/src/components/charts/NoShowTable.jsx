@@ -4,7 +4,7 @@ import { IconAlertTriangle } from '@tabler/icons-react';
 export default function NoShowTable({ data, isDarkMode }) {
   if (!data || data.length === 0) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl">
         <div className="flex items-center gap-2 mb-4">
           <IconAlertTriangle className="w-5 h-5 text-yellow-500" />
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -12,20 +12,23 @@ export default function NoShowTable({ data, isDarkMode }) {
           </h3>
         </div>
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          <p>✅ No missed reservations! Great job!</p>
+          <p> No missed reservations! Great job!</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl">
       <div className="flex items-center gap-2 mb-4">
         <IconAlertTriangle className="w-5 h-5 text-red-500" />
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white" title="Reservations you confirmed but didn't check in">
           No Show History
         </h3>
-        <span className="ml-auto bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 text-xs font-medium px-2.5 py-0.5 rounded">
+        <span 
+          className="ml-auto bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 text-xs font-medium px-2.5 py-0.5 rounded"
+          title="Total missed reservations"
+        >
           {data.length} {data.length === 1 ? 'miss' : 'misses'}
         </span>
       </div>
@@ -72,7 +75,7 @@ export default function NoShowTable({ data, isDarkMode }) {
 
       <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
         <p className="text-xs text-yellow-800 dark:text-yellow-300">
-          💡 <strong>Tip:</strong> Missed reservations affect other employees who might need a desk. 
+          <strong>Tip:</strong> Missed reservations affect other employees who might need a desk. 
           Please cancel reservations you can't use.
         </p>
       </div>
