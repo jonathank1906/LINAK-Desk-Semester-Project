@@ -16,7 +16,7 @@ class MQTTService:
         self.client = mqtt.Client()
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
-        self.client.on_disconnect = self.on_disconnect  # ✅ Add disconnect handler
+        self.client.on_disconnect = self.on_disconnect
         self.connected = False
         
     def on_connect(self, client, userdata, flags, rc):
@@ -24,10 +24,9 @@ class MQTTService:
         if rc == 0:
             logger.info("✅ Connected to MQTT broker")
             self.connected = True
-            # Subscribe to all pico topics and desk confirmations
-            client.subscribe("/#")  # Subscribe to all topics
-            client.subscribe("/desk/+/confirm")  # Explicitly subscribe to desk confirmations
-            logger.info("Subscribed to all topics and /desk/+/confirm")
+            # Subscribe to all topics including MAC-prefixed desk confirmations
+            client.subscribe("#")  # Subscribe to ALL topics (includes MAC-prefixed)
+            logger.info("Subscribed to # (all topics)")
         else:
             logger.error(f"❌ Failed to connect to MQTT broker: {rc}")
             self.connected = False
@@ -44,26 +43,39 @@ class MQTTService:
     def on_message(self, client, userdata, msg):
         """Callback when message received from MQTT"""
         try:
-            print(f"MQTT DEBUG: Received topic={msg.topic}, payload={msg.payload.decode()}")
             topic = msg.topic
             payload = msg.payload.decode()
             
+            print(f"🔵 MQTT: topic={topic}, payload={payload}")
             logger.info(f"Received: {topic} = {payload}")
 
             # --- Desk confirmation handler ---
+            # Handle both formats:
+            # /desk/1/confirm (direct)
+            # /2C:CF:67:DC:07:73/desk/1/confirm (with MAC prefix)
             parts = topic.split('/')
-            if len(parts) >= 5 and parts[2] == "desk" and parts[4] == "confirm":
+            
+            # Check for confirmation message
+            if "confirm" in parts:
                 try:
-                    desk_id = int(parts[3])
-                    data = json.loads(payload)
-                    if data.get("action") == "confirm_button":
-                        self.handle_desk_confirm(desk_id)
-                except Exception as e:
-                    logger.error(f"Error handling desk confirmation: {e}")
+                    # Find desk_id - it's right before "confirm"
+                    confirm_idx = parts.index("confirm")
+                    
+                    if confirm_idx > 0:
+                        desk_id = int(parts[confirm_idx - 1])
+                        data = json.loads(payload)
+                        
+                        if data.get("action") == "confirm_button":
+                            print(f"🔵 MQTT: Calling handle_desk_confirm({desk_id})")
+                            logger.info(f"🔵 Desk confirmation received for desk {desk_id}")
+                            self.handle_desk_confirm(desk_id)
+                            print(f"🔵 MQTT: handle_desk_confirm returned")
+                            
+                except (ValueError, IndexError) as e:
+                    logger.error(f"Error parsing desk confirmation topic: {e}")
                 return
 
             # --- Existing device topic handling ---
-            parts = topic.split('/')
             if len(parts) >= 3:
                 device_id = parts[1]  # e.g., "picof24d"
                 sensor_type = parts[2]
@@ -77,21 +89,80 @@ class MQTTService:
                     
         except Exception as e:
             logger.error(f"Error processing MQTT message: {e}")
+            import traceback
+            traceback.print_exc()
             
     def handle_desk_confirm(self, desk_id):
         """Mark desk as occupied when confirmation is received"""
+        logger.error(f"🔥🔥🔥 ENTERED handle_desk_confirm FOR DESK {desk_id}")
+        print(f"🔥🔥🔥 ENTERED handle_desk_confirm FOR DESK {desk_id}")
+        
         try:
+            from core.models import Reservation, DeskUsageLog, DeskLog
+            from django.utils import timezone
+            
+            logger.error(f"🔥 Fetching desk {desk_id}")
             desk = Desk.objects.get(id=desk_id)
+            logger.error(f"🔥 Found desk: status={desk.current_status}, user={desk.current_user}")
+            
             if desk.current_status == "pending_verification":
+                logger.error(f"🔥 Desk is pending_verification, changing to occupied")
                 desk.current_status = "occupied"
                 desk.save()
-                logger.info(f"✅ Desk {desk_id} confirmed via MQTT and marked as occupied.")
+                logger.error(f"🔥 Desk {desk_id} saved as OCCUPIED")
+                
+                # Check if this is a reservation that needs to be activated
+                if desk.current_user:
+                    logger.error(f"🔥 Desk has current_user: {desk.current_user.id}")
+                    
+                    pending_reservation = Reservation.objects.filter(
+                        desk=desk,
+                        user=desk.current_user,
+                        status="pending_confirmation"
+                    ).first()
+                    
+                    logger.error(f"🔥 Found pending_reservation: {pending_reservation}")
+
+                    if pending_reservation:
+                        logger.error(f"🔥 Activating reservation {pending_reservation.id}")
+                        
+                        # This is a reservation check-in - complete it now
+                        pending_reservation.status = "active"
+                        pending_reservation.save()
+                        logger.error(f"🔥 Reservation saved as ACTIVE")
+
+                        # Create usage log for reservation
+                        usage_log = DeskUsageLog.objects.create(
+                            user=desk.current_user,
+                            desk=desk,
+                            started_at=timezone.now(),
+                            source="reservation",
+                        )
+                        logger.error(f"🔥 Created usage log: {usage_log.id}")
+
+                        # Desk log entry
+                        DeskLog.objects.create(
+                            desk=desk,
+                            user=desk.current_user,
+                            action="reservation_confirmed_via_mqtt"
+                        )
+                        logger.error(f"🔥 Created desk log")
+                    else:
+                        logger.error(f"🔥 No pending reservation (must be hotdesk)")
+                else:
+                    logger.error(f"🔥 No current_user on desk")
+                
             else:
-                logger.warning(f"⚠️ Desk {desk_id} confirm ignored: not pending_verification")
+                logger.error(f"🔥 Desk status is {desk.current_status}, NOT pending_verification")
+                
+            logger.error(f"🔥🔥🔥 EXITING handle_desk_confirm FOR DESK {desk_id}")
+                
         except Desk.DoesNotExist:
-            logger.error(f"❌ Desk {desk_id} not found for confirmation")
+            logger.error(f"🔥 Desk {desk_id} NOT FOUND")
         except Exception as e:
-            logger.error(f"Error in handle_desk_confirm: {e}")
+            logger.error(f"🔥 Exception in handle_desk_confirm: {e}")
+            import traceback
+            traceback.print_exc()
 
     def handle_temperature(self, device_id, temperature):
         """Store temperature reading, keeping max 10 per Pico device"""

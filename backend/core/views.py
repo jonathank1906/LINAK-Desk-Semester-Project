@@ -1454,33 +1454,73 @@ def check_in_reservation(request, reservation_id):
                 "error": f"You can only check in 30 minutes before or up to 10 minutes after your reservation starts. Check-in available from {allowed_window_start.strftime('%H:%M')}."
             }, status=status.HTTP_403_FORBIDDEN)
 
-        # Mark reservation as active
-        reservation.status = "active"
-        reservation.checked_in_at = now
-        reservation.save()
-
-        # Mark desk as occupied
+        # Check if desk has a Pico (requires physical confirmation)
         desk = reservation.desk
-        desk.current_user = request.user
-        desk.current_status = "occupied"
-        desk.save()
+        has_pico = Pico.objects.filter(desk_id=desk.id).exists()
 
-        # Create usage log
-        DeskUsageLog.objects.create(
-            user=request.user,
-            desk=desk,
-            started_at=now,
-            source="reservation",
-        )
+        if has_pico:
+            # For desks requiring confirmation, mark reservation as "pending_confirmation"
+            # and set desk to pending_verification, but DON'T create usage log yet
+            reservation.status = "pending_confirmation"
+            reservation.checked_in_at = now
+            reservation.save()
 
-        #  desk log entry for tracking check-in
-        DeskLog.objects.create(
-            desk=desk,
-            user=request.user,
-            action="reservation_checked_in"
-        )
+            desk.current_user = request.user
+            desk.current_status = "pending_verification"
+            desk.save()
 
-        return Response({"success": True})
+            # Notify Pico to show confirmation prompt
+            mqtt_service = get_mqtt_service()
+            
+            # Wait for MQTT connection
+            import time
+            max_wait = 3
+            wait_interval = 0.1
+            elapsed = 0
+            
+            while not mqtt_service.connected and elapsed < max_wait:
+                time.sleep(wait_interval)
+                elapsed += wait_interval
+            
+            if mqtt_service.connected:
+                topic = f"/desk/{desk.id}/display"
+                message = {
+                    "action": "show_confirm_button",
+                    "desk_id": desk.id,
+                    "desk_name": desk.name,
+                    "user": request.user.get_full_name() or request.user.username,
+                }
+                mqtt_service.publish(topic, json.dumps(message))
+                print(f"✅ Published show_confirm_button for reservation to {topic}")
+        else:
+            # For desks without Pico, complete check-in immediately
+            reservation.status = "active"
+            reservation.checked_in_at = now
+            reservation.save()
+
+            desk.current_user = request.user
+            desk.current_status = "occupied"
+            desk.save()
+
+            # Create usage log
+            DeskUsageLog.objects.create(
+                user=request.user,
+                desk=desk,
+                started_at=now,
+                source="reservation",
+            )
+
+            # Desk log entry for tracking check-in
+            DeskLog.objects.create(
+                desk=desk,
+                user=request.user,
+                action="reservation_checked_in"
+            )
+
+        return Response({
+            "success": True,
+            "requires_confirmation": has_pico
+        })
 
     except Reservation.DoesNotExist:
         return Response(

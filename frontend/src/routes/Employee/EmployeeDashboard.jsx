@@ -307,6 +307,47 @@ export default function EmployeeDashboard() {
         setUpcomingReservations((prev) => prev.filter((r) => r.id !== id));
     }
 
+     // Poll for desk status changes when modal is open
+    useEffect(() => {
+        if (!verificationModalOpen || !pendingDeskId || !user) {
+            console.log("⏸️ Polling disabled: modal open =", verificationModalOpen, "pendingDeskId =", pendingDeskId, "user =", !!user);
+            return;
+        }
+        
+        console.log("🔄 Starting polling for desk", pendingDeskId);
+        
+        const pollInterval = setInterval(async () => {
+            try {
+                console.log("📡 Polling desk status for desk", pendingDeskId);
+                const config = {
+                    headers: { Authorization: `Bearer ${user.token}` },
+                    withCredentials: true,
+                };
+                const res = await axios.get(`http://localhost:8000/api/desks/${pendingDeskId}/`, config);
+                
+                console.log("📡 Desk status response:", res.data.current_status, "user:", res.data.current_user);
+                
+                // If desk status changed to occupied, close modal
+                if (res.data.current_status === "occupied") {
+                    console.log("✅ Desk confirmed via MQTT - closing modal");
+                    setSelectedDeskId(pendingDeskId);
+                    toast.success("Checked in successfully");
+                    setVerificationModalOpen(false);
+                    setPendingDeskId(null);
+                } else {
+                    console.log("⏳ Still waiting... status:", res.data.current_status);
+                }
+            } catch (err) {
+                console.warn("❌ Error polling desk status:", err);
+            }
+        }, 1000); // Poll every second
+        
+        return () => {
+            console.log("🛑 Stopping polling for desk", pendingDeskId);
+            clearInterval(pollInterval);
+        };
+    }, [verificationModalOpen, pendingDeskId, user]);
+
     async function handleCheckInReservation(reservationId) {
         setCheckingInReservation(prev => ({ ...prev, [reservationId]: true }));
         try {
@@ -363,6 +404,13 @@ export default function EmployeeDashboard() {
                 setSelectedDeskId(deskId);
             }
 
+            // Update UI state
+            setUpcomingReservations((prev) =>
+                prev.map((r) =>
+                    r.id === reservationId ? { ...r, checkedIn: true } : r
+                )
+            );
+
             console.log('🔍 About to check modal condition - deskId:', deskId, 'requiresConfirmation:', requiresConfirmation);
 
             // Only show modal if desk actually requires confirmation
@@ -371,9 +419,13 @@ export default function EmployeeDashboard() {
                 setPendingDeskId(deskId);
                 setVerificationModalOpen(true);
                 // Don't show success toast yet - wait for confirmation
+                // Don't set selectedDeskId yet - wait for confirmation
             } else {
                 console.log('❌ Skipping verification modal, showing success toast');
-                // No confirmation needed - show success immediately
+                // No confirmation needed - show success immediately and set desk
+                if (deskId) {
+                    setSelectedDeskId(deskId);
+                }
                 toast.success("Checked in successfully");
             }
 
@@ -536,6 +588,7 @@ export default function EmployeeDashboard() {
                                                             setBaseSittingSeconds(0);
                                                             setBaseStandingSeconds(0);
                                                             setLastFetchTime(null);
+                                                            toast.success("Desk released successfully");
                                                         } catch (err) {
                                                             console.error("API error:", err);
                                                             console.error("Error releasing desk:", err);
