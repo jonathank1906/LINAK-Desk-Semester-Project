@@ -23,9 +23,10 @@ from .serializers import (
     DeskSerializer,
     ReservationSerializer,
     AdminUserListSerializer,
-    DeskLogSerializer
+    DeskLogSerializer,
+    ComplaintSerializer
 )
-from .models import Desk, DeskUsageLog, DeskLog, DeskReport
+from .models import Desk, DeskUsageLog, DeskLog, DeskReport, Reservation
 from .services.WiFi2BLEService import WiFi2BLEService
 from core.services.MQTTService import get_mqtt_service
 from core.models import Pico, SensorReading, Reservation
@@ -1817,5 +1818,271 @@ def delete_report(request, report_id):
         return Response({"success": True})
     except DeskReport.DoesNotExist:
         return Response({"error": "Report not found"}, status=404)
+
+
+# ================= USER METRICS API =================
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def user_metrics(request):
+    """Get comprehensive user metrics for employee dashboard"""
+    user = request.user
+    now = timezone.now()
+    
+    # Get time range from query params (default last 7 days)
+    days = int(request.GET.get('days', 7))
+    since = now - timedelta(days=days)
+    
+    # ===== Standing/Sitting Time Tracking =====
+    usage_logs = DeskUsageLog.objects.filter(
+        user=user,
+        started_at__gte=since
+    ).order_by('started_at')
+    
+    # Daily breakdown
+    daily_stats = {}
+    for log in usage_logs:
+        date_key = log.started_at.date()
+        if date_key not in daily_stats:
+            daily_stats[date_key] = {'sitting': 0, 'standing': 0, 'changes': 0}
+        
+        daily_stats[date_key]['sitting'] += log.sitting_time
+        daily_stats[date_key]['standing'] += log.standing_time
+        daily_stats[date_key]['changes'] += log.position_changes
+    
+    # Format for frontend
+    dates = []
+    sitting_times = []
+    standing_times = []
+    
+    for i in range(days):
+        date = (now - timedelta(days=days-1-i)).date()
+        dates.append(date.strftime('%b %d'))
+        stats = daily_stats.get(date, {'sitting': 0, 'standing': 0})
+        sitting_times.append(round(stats['sitting'] / 60, 1))  # Convert to minutes
+        standing_times.append(round(stats['standing'] / 60, 1))
+    
+    # ===== Standing/Sitting Leaderboard =====
+    User = get_user_model()
+    leaderboard_data = (
+        DeskUsageLog.objects
+        .filter(started_at__gte=since)
+        .values('user__id', 'user__first_name', 'user__last_name', 'user__email')
+        .annotate(
+            total_sitting=Sum('sitting_time'),
+            total_standing=Sum('standing_time'),
+            total_changes=Sum('position_changes')
+        )
+    )
+    
+    leaderboard = []
+    for entry in leaderboard_data:
+        total_time = (entry['total_sitting'] or 0) + (entry['total_standing'] or 0)
+        if total_time > 0:
+            standing_percentage = (entry['total_standing'] or 0) / total_time * 100
+            name = f"{entry['user__first_name']} {entry['user__last_name']}".strip()
+            if not name:
+                name = entry['user__email'].split('@')[0]
+            
+            leaderboard.append({
+                'user_id': entry['user__id'],
+                'name': name,
+                'standing_percentage': round(standing_percentage, 1),
+                'standing_minutes': round((entry['total_standing'] or 0) / 60, 1),
+                'sitting_minutes': round((entry['total_sitting'] or 0) / 60, 1),
+                'total_minutes': round(total_time / 60, 1),
+                'is_current_user': entry['user__id'] == user.id
+            })
+    
+    # Sort by standing percentage (descending)
+    leaderboard.sort(key=lambda x: x['standing_percentage'], reverse=True)
+    
+    # ===== Most Used Desks =====
+    desk_usage = (
+        DeskUsageLog.objects
+        .filter(user=user, started_at__gte=since)
+        .values('desk__name', 'desk__id')
+        .annotate(
+            session_count=Count('id'),
+            total_time=Sum('sitting_time') + Sum('standing_time')
+        )
+        .order_by('-session_count')[:5]
+    )
+    
+    most_used_desks = []
+    for entry in desk_usage:
+        most_used_desks.append({
+            'desk_name': entry['desk__name'],
+            'desk_id': entry['desk__id'],
+            'sessions': entry['session_count'],
+            'total_hours': round((entry['total_time'] or 0) / 3600, 1)
+        })
+    
+    # ===== Weekly Desk Usage Overview =====
+    # Group by week day
+    weekly_usage = {i: {'sitting': 0, 'standing': 0, 'sessions': 0} for i in range(7)}
+    
+    for log in usage_logs:
+        weekday = log.started_at.weekday()  # Monday=0, Sunday=6
+        weekly_usage[weekday]['sitting'] += log.sitting_time
+        weekly_usage[weekday]['standing'] += log.standing_time
+        weekly_usage[weekday]['sessions'] += 1
+    
+    weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    weekly_sitting = []
+    weekly_standing = []
+    weekly_sessions = []
+    
+    for i in range(7):
+        weekly_sitting.append(round(weekly_usage[i]['sitting'] / 60, 1))
+        weekly_standing.append(round(weekly_usage[i]['standing'] / 60, 1))
+        weekly_sessions.append(weekly_usage[i]['sessions'])
+    
+    # ===== Overall Stats =====
+    total_sitting_mins = sum(sitting_times)
+    total_standing_mins = sum(standing_times)
+    total_mins = total_sitting_mins + total_standing_mins
+    
+    overall_stats = {
+        'total_sessions': usage_logs.count(),
+        'total_hours': round(total_mins / 60, 1),
+        'sitting_percentage': round((total_sitting_mins / total_mins * 100) if total_mins > 0 else 0, 1),
+        'standing_percentage': round((total_standing_mins / total_mins * 100) if total_mins > 0 else 0, 1),
+        'avg_session_duration': round((total_mins / usage_logs.count()) if usage_logs.count() > 0 else 0, 1),
+        'total_position_changes': sum([log.position_changes for log in usage_logs])
+    }
+    
+    # ===== No Show Table =====
+    # Find reservations where user didn't check in despite confirmation
+    now = timezone.now()
+    
+    no_shows = (
+        Reservation.objects
+        .filter(
+            user=user,
+            status='confirmed',
+            checked_in_at__isnull=True,
+            start_time__lt=now,
+            start_time__gte=since
+        )
+        .select_related('desk')
+        .order_by('-start_time')
+    )
+    
+    no_show_list = []
+    for reservation in no_shows:
+        no_show_list.append({
+            'id': reservation.id,
+            'desk_name': reservation.desk.name,
+            'desk_id': reservation.desk.id,
+            'date': reservation.start_time.date().isoformat(),
+            'start_time': reservation.start_time.strftime('%H:%M'),
+            'end_time': reservation.end_time.strftime('%H:%M'),
+            'days_ago': (now.date() - reservation.start_time.date()).days
+        })
+    
+    # ===== Healthiness Score =====
+    # Calculate 
+    standing_pct = float(overall_stats['standing_percentage'])
+    position_changes = int(overall_stats['total_position_changes'])
+    sessions = int(overall_stats['total_sessions'])
+    
+    # Base score from standing percentage 
+    if 40 <= standing_pct <= 60:
+        base_score = 100  # Optimal range
+    elif 30 <= standing_pct < 40 or 60 < standing_pct <= 70:
+        base_score = 80 + (20 * (1 - abs(standing_pct - 50) / 20))  # 80-100 range
+    elif 20 <= standing_pct < 30 or 70 < standing_pct <= 80:
+        base_score = 60 + (20 * (1 - abs(standing_pct - 50) / 30))  # 60-80 range
+    else:
+        base_score = max(40, 60 - abs(standing_pct - 50))  # Below 60
+    
+    # Position changes bonus (more frequent changes = better)
+    # Average 1 change per hour is good, more is better
+    if total_mins > 0:
+        changes_per_hour = (position_changes / (total_mins / 60))
+        if changes_per_hour >= 1:
+            change_bonus = min(10, changes_per_hour * 5)  # Up to 10 points
+        else:
+            change_bonus = changes_per_hour * 5  # Proportional for less than 1/hour
+    else:
+        change_bonus = 0
+    
+    # Consistency bonus (using desk regularly)
+    days_in_period = min(days, (timezone.now().date() - since.date()).days + 1)
+    if days_in_period > 0:
+        usage_ratio = sessions / days_in_period
+        if usage_ratio >= 0.8:  # Used desk 80%+ of days
+            consistency_bonus = 10
+        elif usage_ratio >= 0.5:  # Used desk 50%+ of days
+            consistency_bonus = 5
+        else:
+            consistency_bonus = usage_ratio * 10
+    else:
+        consistency_bonus = 0
+    
+    # Calculate final score (capped at 100)
+    health_score = min(100, base_score + change_bonus + consistency_bonus)
+    
+    # Determine rating
+    if health_score >= 90:
+        rating = 'Excellent'
+        color = 'green'
+    elif health_score >= 75:
+        rating = 'Good'
+        color = 'blue'
+    elif health_score >= 60:
+        rating = 'Fair'
+        color = 'yellow'
+    else:
+        rating = 'Needs Improvement'
+        color = 'red'
+    
+    healthiness = {
+        'score': round(health_score, 1),
+        'rating': rating,
+        'color': color,
+        'breakdown': {
+            'standing_percentage': standing_pct,
+            'position_changes': position_changes,
+            'changes_per_hour': round((position_changes / (total_mins / 60)) if total_mins > 0 else 0, 2),
+            'usage_consistency': round((sessions / days_in_period * 100) if days_in_period > 0 else 0, 1)
+        },
+        'recommendations': []
+    }
+    
+    # Add personalized recommendations
+    if standing_pct < 30:
+        healthiness['recommendations'].append('Try to stand more often - aim for 30-40% of your desk time')
+    elif standing_pct > 70:
+        healthiness['recommendations'].append('You\'re standing a lot! Consider more sitting breaks for balance')
+    
+    if position_changes < (total_mins / 120):  
+        healthiness['recommendations'].append('Change positions more frequently - try switching every hour')
+    
+    if sessions < (days_in_period * 0.5):
+        healthiness['recommendations'].append('Use your desk more consistently for better health habits')
+    
+    if not healthiness['recommendations']:
+        healthiness['recommendations'].append('Great job! Keep maintaining your healthy desk habits')
+    
+    return Response({
+        'standing_sitting_chart': {
+            'labels': dates,
+            'sitting': sitting_times,
+            'standing': standing_times
+        },
+        'leaderboard': leaderboard[:10],  # Top 10
+        'most_used_desks': most_used_desks,
+        'weekly_usage': {
+            'labels': weekdays,
+            'sitting': weekly_sitting,
+            'standing': weekly_standing,
+            'sessions': weekly_sessions
+        },
+        'overall_stats': overall_stats,
+        'no_shows': no_show_list,
+        'healthiness': healthiness
+    })
 
 
