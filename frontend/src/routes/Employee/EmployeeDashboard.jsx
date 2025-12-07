@@ -10,6 +10,7 @@ import Hotdesk from "./Hotdesk";
 import { formatLocalYYYYMMDD, formatNiceDate, formatTimeFromISO } from "@/utils/date";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "lucide-react";
+import { Spinner } from '@/components/ui/shadcn-io/spinner';
 
 import axios from "axios";
 import {
@@ -57,6 +58,9 @@ export default function EmployeeDashboard() {
 
     const [verificationModalOpen, setVerificationModalOpen] = useState(false);
     const [pendingDeskId, setPendingDeskId] = useState(null);
+
+    const [releasingDesk, setReleasingDesk] = useState(false);
+    const [checkingInReservation, setCheckingInReservation] = useState({});
 
     // HELPER: Safely parse Django ISO format date strings
     const parseDateSafe = (dateString) => {
@@ -304,6 +308,7 @@ export default function EmployeeDashboard() {
     }
 
     async function handleCheckInReservation(reservationId) {
+        setCheckingInReservation(prev => ({ ...prev, [reservationId]: true }));
         try {
             const config = {
                 headers: { Authorization: `Bearer ${user?.token}` },
@@ -376,6 +381,9 @@ export default function EmployeeDashboard() {
             toast.error("Failed to check in", {
                 description: err.response?.data?.error || err.message,
             });
+        }
+        finally {
+            setCheckingInReservation(prev => ({ ...prev, [reservationId]: false }));
         }
     }
 
@@ -489,6 +497,7 @@ export default function EmployeeDashboard() {
                                                 <Button
                                                     onClick={async () => {
                                                         if (!selectedDeskId) return;
+                                                        setReleasingDesk(true);
                                                         try {
                                                             const config = {
                                                                 headers: { Authorization: `Bearer ${user.token}` },
@@ -533,12 +542,23 @@ export default function EmployeeDashboard() {
                                                             if (err?.response?.status === 403) {
                                                                 toast.error('Not authorized to release this desk (403)');
                                                             }
+                                                        } finally {
+                                                            setReleasingDesk(false);
                                                         }
                                                     }}
                                                     className="variant-outline"
                                                     aria-label="Release desk"
+                                                    disabled={releasingDesk}
                                                 >
-                                                    Release Desk
+                                                    {releasingDesk ? (
+                                                        <span style={{ display: "inline-block", width: "7em", textAlign: "center" }}>
+                                                            <Spinner variant="circle" className="h-4 w-4 mx-auto" />
+                                                        </span>
+                                                    ) : (
+                                                        <span style={{ display: "inline-block", width: "7em", textAlign: "center" }}>
+                                                            Release Desk
+                                                        </span>
+                                                    )}
                                                 </Button>
                                             </>
                                         )}
@@ -596,8 +616,17 @@ export default function EmployeeDashboard() {
                                                                     ) : (
                                                                         <Button
                                                                             onClick={() => handleCheckInReservation(r.id)}
+                                                                            disabled={!!checkingInReservation[r.id]}
                                                                         >
-                                                                            Check in
+                                                                            {checkingInReservation[r.id] ? (
+                                                                                <span style={{ display: "inline-block", width: "4em", textAlign: "center" }}>
+                                                                                    <Spinner variant="circle" className="h-4 w-4 mx-auto" />
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span style={{ display: "inline-block", width: "4em", textAlign: "center" }}>
+                                                                                    Check in
+                                                                                </span>
+                                                                            )}
                                                                         </Button>
                                                                     )
                                                                 ) : (
