@@ -633,7 +633,7 @@ export default function EmployeeDashboard() {
                                                                     <span className="text-xs text-muted-foreground">Check-in available 30 mins before</span>
                                                                 )
                                                             ) : (
-                                                                <span className="px-2 py-1 text-xs rounded-md bg-green-100 text-green-800">Checked in</span>
+                                                                <span className="px-3 py-1 text-xs rounded-full bg-green-100 text-green-800 font-semibold inline-block">Checked in</span>
                                                             )}
                                                         </>
                                                     ) : null}
