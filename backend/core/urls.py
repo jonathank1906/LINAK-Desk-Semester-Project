@@ -23,7 +23,6 @@ from .views import (
     admin_full_analytics,
     complaints_view,
     solve_complaint,
-    user_metrics,
 )
 
 urlpatterns = [
@@ -46,9 +45,6 @@ urlpatterns = [
     path('admin/analytics/', admin_full_analytics, name='admin_full_analytics'),
     path('complaints/', complaints_view, name='complaints'),
     path('admin/complaints/<int:complaint_id>/solve/', solve_complaint, name='solve_complaint'),
-    
-    # USER METRICS
-    path('user/metrics/', user_metrics, name='user_metrics'),
     
     # DESKS
     path('desks/', get_user_desks, name='get_desks'),
