@@ -1255,6 +1255,21 @@ def cancel_pending_verification(request, desk_id):
             desk.current_user = None
             desk.current_status = "available"
             desk.save()
+
+            # Notify Pico that pending verification is cancelled
+            from core.services.MQTTService import get_mqtt_service
+            mqtt_service = get_mqtt_service()
+            has_pico = Pico.objects.filter(desk_id=desk.id).exists()
+            if has_pico:
+                # Send a message to clear pending verification state
+                topic = f"/desk/{desk.id}/display"
+                message = {
+                    "action": "cancel_pending_verification",
+                    "desk_id": desk.id
+                }
+                mqtt_service.publish(topic, json.dumps(message))
+                print(f"✅ Notified Pico: Cancelled pending verification for Desk {desk.id}")
+
             return Response({"success": True})
         return Response(
             {"error": "Desk not pending verification"},
