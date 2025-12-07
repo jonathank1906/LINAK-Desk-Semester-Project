@@ -1884,6 +1884,121 @@ def user_metrics(request):
         'total_position_changes': sum([log.position_changes for log in usage_logs])
     }
     
+    # ===== No Show Table =====
+    # Find reservations where user didn't check in despite confirmation
+    from django.utils import timezone
+    now = timezone.now()
+    
+    no_shows = (
+        Reservation.objects
+        .filter(
+            user=user,
+            status='confirmed',
+            checked_in_at__isnull=True,
+            start_time__lt=now,
+            start_time__gte=since
+        )
+        .select_related('desk')
+        .order_by('-start_time')
+    )
+    
+    no_show_list = []
+    for reservation in no_shows:
+        no_show_list.append({
+            'id': reservation.id,
+            'desk_name': reservation.desk.name,
+            'desk_id': reservation.desk.id,
+            'date': reservation.start_time.date().isoformat(),
+            'start_time': reservation.start_time.strftime('%H:%M'),
+            'end_time': reservation.end_time.strftime('%H:%M'),
+            'days_ago': (now.date() - reservation.start_time.date()).days
+        })
+    
+    # ===== Healthiness Score =====
+    # Calculate based on sitting/standing ratio, position changes, and consistency
+    standing_pct = overall_stats['standing_percentage']
+    position_changes = overall_stats['total_position_changes']
+    sessions = overall_stats['total_sessions']
+    
+    # Base score from standing percentage (optimal: 40-60%)
+    if 40 <= standing_pct <= 60:
+        base_score = 100  # Optimal range
+    elif 30 <= standing_pct < 40 or 60 < standing_pct <= 70:
+        base_score = 80 + (20 * (1 - abs(standing_pct - 50) / 20))  # 80-100 range
+    elif 20 <= standing_pct < 30 or 70 < standing_pct <= 80:
+        base_score = 60 + (20 * (1 - abs(standing_pct - 50) / 30))  # 60-80 range
+    else:
+        base_score = max(40, 60 - abs(standing_pct - 50))  # Below 60
+    
+    # Position changes bonus (more frequent changes = better)
+    # Average 1 change per hour is good, more is better
+    if total_mins > 0:
+        changes_per_hour = (position_changes / (total_mins / 60))
+        if changes_per_hour >= 1:
+            change_bonus = min(10, changes_per_hour * 5)  # Up to 10 points
+        else:
+            change_bonus = changes_per_hour * 5  # Proportional for less than 1/hour
+    else:
+        change_bonus = 0
+    
+    # Consistency bonus (using desk regularly)
+    days_in_period = min(days, (timezone.now().date() - since.date()).days + 1)
+    if days_in_period > 0:
+        usage_ratio = sessions / days_in_period
+        if usage_ratio >= 0.8:  # Used desk 80%+ of days
+            consistency_bonus = 10
+        elif usage_ratio >= 0.5:  # Used desk 50%+ of days
+            consistency_bonus = 5
+        else:
+            consistency_bonus = usage_ratio * 10
+    else:
+        consistency_bonus = 0
+    
+    # Calculate final score (capped at 100)
+    health_score = min(100, base_score + change_bonus + consistency_bonus)
+    
+    # Determine rating
+    if health_score >= 90:
+        rating = 'Excellent'
+        color = 'green'
+    elif health_score >= 75:
+        rating = 'Good'
+        color = 'blue'
+    elif health_score >= 60:
+        rating = 'Fair'
+        color = 'yellow'
+    else:
+        rating = 'Needs Improvement'
+        color = 'red'
+    
+    healthiness = {
+        'score': round(health_score, 1),
+        'rating': rating,
+        'color': color,
+        'breakdown': {
+            'standing_percentage': standing_pct,
+            'position_changes': position_changes,
+            'changes_per_hour': round((position_changes / (total_mins / 60)) if total_mins > 0 else 0, 2),
+            'usage_consistency': round((sessions / days_in_period * 100) if days_in_period > 0 else 0, 1)
+        },
+        'recommendations': []
+    }
+    
+    # Add personalized recommendations
+    if standing_pct < 30:
+        healthiness['recommendations'].append('Try to stand more often - aim for 30-40% of your desk time')
+    elif standing_pct > 70:
+        healthiness['recommendations'].append('You\'re standing a lot! Consider more sitting breaks for balance')
+    
+    if position_changes < (total_mins / 120):  # Less than 1 change per 2 hours
+        healthiness['recommendations'].append('Change positions more frequently - try switching every hour')
+    
+    if sessions < (days_in_period * 0.5):
+        healthiness['recommendations'].append('Use your desk more consistently for better health habits')
+    
+    if not healthiness['recommendations']:
+        healthiness['recommendations'].append('Great job! Keep maintaining your healthy desk habits')
+    
     return Response({
         'standing_sitting_chart': {
             'labels': dates,
@@ -1898,7 +2013,9 @@ def user_metrics(request):
             'standing': weekly_standing,
             'sessions': weekly_sessions
         },
-        'overall_stats': overall_stats
+        'overall_stats': overall_stats,
+        'no_shows': no_show_list,
+        'healthiness': healthiness
     })
 
 

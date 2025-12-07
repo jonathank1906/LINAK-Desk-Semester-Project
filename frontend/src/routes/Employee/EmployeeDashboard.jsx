@@ -25,6 +25,8 @@ import { StandingLeaderboard } from "@/components/charts/StandingLeaderboard";
 import { MostUsedDesksChart } from "@/components/charts/MostUsedDesksChart";
 import { WeeklyUsageChart } from "@/components/charts/WeeklyUsageChart";
 import { OverallStatsCards } from "@/components/charts/OverallStatsCards";
+import NoShowTable from "@/components/charts/NoShowTable";
+import HealthinessScore from "@/components/charts/HealthinessScore";
 
 import axios from "axios";
 import {
@@ -676,6 +678,18 @@ export default function EmployeeDashboard() {
                                 <>
                                     {/* Overall Stats Cards */}
                                     <OverallStatsCards stats={metricsData.overall_stats} />
+
+                                    {/* Healthiness Score & No Show Table */}
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                        <HealthinessScore 
+                                            data={metricsData.healthiness}
+                                            isDarkMode={document.documentElement.classList.contains('dark')}
+                                        />
+                                        <NoShowTable 
+                                            data={metricsData.no_shows}
+                                            isDarkMode={document.documentElement.classList.contains('dark')}
+                                        />
+                                    </div>
 
                                     {/* Charts Grid */}
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
