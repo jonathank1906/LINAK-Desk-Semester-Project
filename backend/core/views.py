@@ -1252,6 +1252,19 @@ def cancel_pending_verification(request, desk_id):
     try:
         desk = Desk.objects.get(id=desk_id)
         if desk.current_status == "pending_verification":
+            # Revert any reservation that was pending confirmation for this desk
+            pending_reservation = Reservation.objects.filter(
+                desk=desk,
+                user=request.user,
+                status="pending_confirmation"
+            ).first()
+            
+            if pending_reservation:
+                pending_reservation.status = "confirmed"
+                pending_reservation.checked_in_at = None
+                pending_reservation.save()
+                print(f"✅ Reverted reservation {pending_reservation.id} from pending_confirmation to confirmed")
+            
             desk.current_user = None
             desk.current_status = "available"
             desk.save()

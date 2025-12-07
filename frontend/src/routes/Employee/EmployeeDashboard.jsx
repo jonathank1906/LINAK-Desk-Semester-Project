@@ -153,7 +153,7 @@ export default function EmployeeDashboard() {
     }, [user]);
 
     // --- FIX: Preserve pendingConfirmation state even when API fetches reservations ---
-     useEffect(() => {
+    useEffect(() => {
         if (!user) return;
         const fetchReservations = async () => {
             try {
@@ -171,13 +171,13 @@ export default function EmployeeDashboard() {
                             if (!parsedStartTime || !parsedEndTime) return null;
                             const now = new Date();
                             const startDiffMins = (parsedStartTime.getTime() - now.getTime()) / 1000 / 60;
-                            
+
                             // Check if this reservation is currently pending in our ref
                             const isPendingInRef = !!pendingConfirmationRef.current[r.id];
-                            
+
                             // If we have it marked as pending locally, keep that state regardless of API
                             const isPending = isPendingInRef || r.status === "pending_confirmation";
-                            
+
                             return {
                                 id: r.id,
                                 date: formatNiceDate(parsedStartTime),
@@ -656,8 +656,8 @@ export default function EmployeeDashboard() {
                                                         <>
                                                             {!r.checkedIn ? (
                                                                 (r.pendingConfirmation || r.raw_status === "pending_confirmation") ? (
-                                                                    <span className="px-3 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800 font-semibold inline-block">
-                                                                        Pending confirmation...
+                                                                    <span className="px-3 py-1 text-xs rounded-full bg-yellow-200 text-yellow-900 font-semibold inline-block">
+                                                                        Pending confirmation
                                                                     </span>
                                                                 ) : canCheckIn(r) ? (
                                                                     r.loadingCheckin ? (
@@ -738,7 +738,47 @@ export default function EmployeeDashboard() {
                 <PendingVerificationModal
                     open={verificationModalOpen}
                     deskId={pendingDeskId}
-                    onClose={() => setVerificationModalOpen(false)}
+                    onClose={async () => {
+                        // Clean up pending state when modal is closed
+                        if (pendingReservationId) {
+                            pendingConfirmationRef.current[pendingReservationId] = false;
+
+                            // Fetch the current reservation status from backend
+                            try {
+                                const config = {
+                                    headers: { Authorization: `Bearer ${user?.token}` },
+                                    withCredentials: true,
+                                };
+                                const res = await axios.get(`http://localhost:8000/api/reservations/`, config);
+                                const reservation = (res.data || []).find(r => r.id === pendingReservationId);
+
+                                // If backend says it's still confirmed (not pending_confirmation anymore),
+                                // then it was cancelled - show as not checked in
+                                setUpcomingReservations((prev) =>
+                                    prev.map((r) =>
+                                        r.id === pendingReservationId
+                                            ? {
+                                                ...r,
+                                                pendingConfirmation: false,
+                                                checkedIn: reservation?.status === "active",
+                                                raw_status: reservation?.status || r.raw_status
+                                            }
+                                            : r
+                                    )
+                                );
+                            } catch (err) {
+                                // If fetch fails, just clear pending state
+                                setUpcomingReservations((prev) =>
+                                    prev.map((r) =>
+                                        r.id === pendingReservationId ? { ...r, pendingConfirmation: false, checkedIn: false } : r
+                                    )
+                                );
+                            }
+                        }
+                        setVerificationModalOpen(false);
+                        setPendingDeskId(null);
+                        setPendingReservationId(null);
+                    }}
                 />
             </SidebarInset>
         </SidebarProvider>
