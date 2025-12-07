@@ -325,8 +325,32 @@ export default function EmployeeDashboard() {
                 config
             );
             toast.success("Checked in successfully");
-            setPendingDeskId(selectedDeskId);
-            setVerificationModalOpen(true);
+
+            // Fetch desk details to check requires_confirmation
+            let deskId = null;
+            let requiresConfirmation = false;
+            try {
+                // Get reservation to find desk id
+                const res = await axios.get(`http://localhost:8000/api/reservations/`, config);
+                const reservation = (res.data || []).find(r => r.id === reservationId);
+                deskId = reservation?.desk_id || reservation?.desk;
+                if (deskId) {
+                    const deskRes = await axios.get(`http://localhost:8000/api/desks/${deskId}/`, config);
+                    requiresConfirmation = !!deskRes.data.requires_confirmation;
+                }
+            } catch (err) {
+                console.warn('Could not fetch desk confirmation status:', err);
+            }
+
+            if (deskId) {
+                setSelectedDeskId(deskId);
+            }
+
+            if (requiresConfirmation) {
+                setPendingDeskId(deskId);
+                setVerificationModalOpen(true);
+            }
+
             setUpcomingReservations((prev) =>
                 prev.map((r) =>
                     r.id === reservationId ? { ...r, checkedIn: true } : r
@@ -554,12 +578,11 @@ export default function EmployeeDashboard() {
                                                                     r.loadingCheckin ? (
                                                                         <span className="text-sm text-blue-500 animate-pulse">Loading check-in...</span>
                                                                     ) : (
-                                                                        <button
+                                                                        <Button
                                                                             onClick={() => handleCheckInReservation(r.id)}
-                                                                            className="px-3 py-1 rounded-md bg-primary text-white text-sm hover:opacity-90"
                                                                         >
                                                                             Check in
-                                                                        </button>
+                                                                        </Button>
                                                                     )
                                                                 ) : (
                                                                     <span className="text-xs text-muted-foreground">Check-in available 30 mins before</span>
