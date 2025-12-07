@@ -2,7 +2,7 @@ import { AppSidebar } from "@/components/app-sidebar-employee";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { ModeToggle } from "@/components/mode-toggle";
 import { NavUser } from "@/components/nav-user";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/useAuth";
 import MyDesk from "./MyDesk";
 import Reservations from "./Reservations";
@@ -74,6 +74,13 @@ export default function EmployeeDashboard() {
 
     const [verificationModalOpen, setVerificationModalOpen] = useState(false);
     const [pendingDeskId, setPendingDeskId] = useState(null);
+    const [pendingReservationId, setPendingReservationId] = useState(null);
+
+    const [releasingDesk, setReleasingDesk] = useState(false);
+    const [checkingInReservation, setCheckingInReservation] = useState({});
+
+    // Track pending confirmation reservations in a ref so fetchReservations can't overwrite them
+    const pendingConfirmationRef = useRef({});
 
     // User metrics state
     const [metricsData, setMetricsData] = useState(null);
@@ -166,6 +173,7 @@ export default function EmployeeDashboard() {
         fetchOccupiedDesk();
     }, [user]);
 
+    // --- FIX: Preserve pendingConfirmation state even when API fetches reservations ---
     useEffect(() => {
         if (!user) return;
         const fetchReservations = async () => {
@@ -175,28 +183,38 @@ export default function EmployeeDashboard() {
                     withCredentials: true,
                 };
                 const res = await axios.get("http://localhost:8000/api/reservations/", config);
-                const upcoming = res.data
-                    .filter(r => r.status === "confirmed" || r.status === "active")
-                    .map(r => {
-                        const parsedStartTime = parseDateSafe(r.start_time);
-                        const parsedEndTime = parseDateSafe(r.end_time);
-                        if (!parsedStartTime || !parsedEndTime) return null;
-                        const now = new Date();
-                        const startDiffMins = (parsedStartTime.getTime() - now.getTime()) / 1000 / 60;
-                        return {
-                            id: r.id,
-                            date: formatNiceDate(parsedStartTime),
-                            desk_name: r.desk_name || `Desk ${r.desk_id}`,
-                            start_time: `${String(parsedStartTime.getHours()).padStart(2, '0')}:${String(parsedStartTime.getMinutes()).padStart(2, '0')}`,
-                            end_time: `${String(parsedEndTime.getHours()).padStart(2, '0')}:${String(parsedEndTime.getMinutes()).padStart(2, '0')}`,
-                            checkedIn: r.status === "active",
-                            loadingCheckin: startDiffMins <= 15 && startDiffMins > 14.5,
-                            raw_start: r.start_time,
-                            raw_status: r.status
-                        };
-                    })
-                    .filter(Boolean);
-                setUpcomingReservations(upcoming);
+                setUpcomingReservations(prev => {
+                    const upcoming = res.data
+                        .filter(r => r.status === "confirmed" || r.status === "active" || r.status === "pending_confirmation")
+                        .map(r => {
+                            const parsedStartTime = parseDateSafe(r.start_time);
+                            const parsedEndTime = parseDateSafe(r.end_time);
+                            if (!parsedStartTime || !parsedEndTime) return null;
+                            const now = new Date();
+                            const startDiffMins = (parsedStartTime.getTime() - now.getTime()) / 1000 / 60;
+
+                            // Check if this reservation is currently pending in our ref
+                            const isPendingInRef = !!pendingConfirmationRef.current[r.id];
+
+                            // If we have it marked as pending locally, keep that state regardless of API
+                            const isPending = isPendingInRef || r.status === "pending_confirmation";
+
+                            return {
+                                id: r.id,
+                                date: formatNiceDate(parsedStartTime),
+                                desk_name: r.desk_name || `Desk ${r.desk_id}`,
+                                start_time: `${String(parsedStartTime.getHours()).padStart(2, '0')}:${String(parsedStartTime.getMinutes()).padStart(2, '0')}`,
+                                end_time: `${String(parsedEndTime.getHours()).padStart(2, '0')}:${String(parsedEndTime.getMinutes()).padStart(2, '0')}`,
+                                checkedIn: isPending ? false : r.status === "active",
+                                loadingCheckin: startDiffMins <= 15 && startDiffMins > 14.5,
+                                raw_start: r.start_time,
+                                raw_status: r.status,
+                                pendingConfirmation: isPending,
+                            };
+                        })
+                        .filter(Boolean);
+                    return upcoming;
+                });
             } catch (err) { console.error("API error:", err); }
         };
         fetchReservations();
@@ -325,7 +343,48 @@ export default function EmployeeDashboard() {
         setUpcomingReservations((prev) => prev.filter((r) => r.id !== id));
     }
 
+    // Poll for desk status changes when modal is open
+    useEffect(() => {
+        if (!verificationModalOpen || !pendingDeskId || !pendingReservationId || !user) {
+            return;
+        }
+
+        const pollInterval = setInterval(async () => {
+            try {
+                const config = {
+                    headers: { Authorization: `Bearer ${user.token}` },
+                    withCredentials: true,
+                };
+                const res = await axios.get(`http://localhost:8000/api/desks/${pendingDeskId}/`, config);
+
+                if (res.data.current_status === "occupied") {
+                    // Remove pending state from ref
+                    pendingConfirmationRef.current[pendingReservationId] = false;
+                    setUpcomingReservations((prev) =>
+                        prev.map((r) =>
+                            r.id === pendingReservationId
+                                ? { ...r, checkedIn: true, pendingConfirmation: false }
+                                : r
+                        )
+                    );
+                    setSelectedDeskId(pendingDeskId);
+                    toast.success("Checked in successfully");
+                    setVerificationModalOpen(false);
+                    setPendingDeskId(null);
+                    setPendingReservationId(null);
+                }
+            } catch (err) {
+                // Silent fail
+            }
+        }, 1000);
+
+        return () => {
+            clearInterval(pollInterval);
+        };
+    }, [verificationModalOpen, pendingDeskId, pendingReservationId, user]);
+
     async function handleCheckInReservation(reservationId) {
+        setCheckingInReservation(prev => ({ ...prev, [reservationId]: true }));
         try {
             const config = {
                 headers: { Authorization: `Bearer ${user?.token}` },
@@ -339,25 +398,62 @@ export default function EmployeeDashboard() {
                     return;
                 }
             } catch (err) {
-                console.warn('Could not verify existing desks before check-in:', err);
+                // Silent
             }
+
             await axios.post(
                 `http://localhost:8000/api/reservations/${reservationId}/check_in/`,
                 {},
                 config
             );
-            toast.success("Checked in successfully");
-            setPendingDeskId(selectedDeskId);
-            setVerificationModalOpen(true);
-            setUpcomingReservations((prev) =>
-                prev.map((r) =>
-                    r.id === reservationId ? { ...r, checkedIn: true } : r
-                )
-            );
+
+            // Fetch desk details to check requires_confirmation
+            let deskId = null;
+            let requiresConfirmation = false;
+            try {
+                // Get reservation to find desk id
+                const res = await axios.get(`http://localhost:8000/api/reservations/`, config);
+                const reservation = (res.data || []).find(r => r.id === reservationId);
+                deskId = reservation?.desk_id || reservation?.desk;
+
+                if (deskId) {
+                    const deskRes = await axios.get(`http://localhost:8000/api/desks/${deskId}/`, config);
+                    requiresConfirmation = !!deskRes.data.requires_confirmation;
+                }
+            } catch (err) {
+                // Silent
+            }
+
+            if (deskId && requiresConfirmation) {
+                // Mark as pending confirmation in both state and ref
+                pendingConfirmationRef.current[reservationId] = true;
+                setUpcomingReservations((prev) =>
+                    prev.map((r) =>
+                        r.id === reservationId ? { ...r, pendingConfirmation: true } : r
+                    )
+                );
+                setPendingDeskId(deskId);
+                setPendingReservationId(reservationId);
+                setVerificationModalOpen(true);
+            } else {
+                // No confirmation needed, mark as checked in immediately
+                pendingConfirmationRef.current[reservationId] = false;
+                setUpcomingReservations((prev) =>
+                    prev.map((r) =>
+                        r.id === reservationId ? { ...r, checkedIn: true, pendingConfirmation: false } : r
+                    )
+                );
+                if (deskId) setSelectedDeskId(deskId);
+                toast.success("Checked in successfully");
+            }
+
         } catch (err) {
             toast.error("Failed to check in", {
-                description: err.response?.data?.error || err.message,
+                description: err?.response?.data?.error || err?.message,
             });
+        }
+        finally {
+            setCheckingInReservation(prev => ({ ...prev, [reservationId]: false }));
         }
     }
 
@@ -382,9 +478,8 @@ export default function EmployeeDashboard() {
             setBaseStandingSeconds(0);
             setLastFetchTime(null);
         } catch (err) {
-            console.error("API error:", err);
             toast.error("Failed to check out", {
-                description: err.response?.data?.error || err.message,
+                description: err?.response?.data?.error || err?.message,
             });
         }
     }
@@ -399,8 +494,7 @@ export default function EmployeeDashboard() {
             setUpcomingReservations((prev) => prev.filter((r) => r.id !== id));
             toast.success('Reservation cancelled');
         } catch (err) {
-            console.error('API error cancelling reservation:', err);
-            toast.error('Failed to cancel reservation', { description: err.response?.data?.error || err.message });
+            toast.error('Failed to cancel reservation', { description: err?.response?.data?.error || err?.message });
         }
     }
 
@@ -500,6 +594,7 @@ export default function EmployeeDashboard() {
                                                 <Button
                                                     onClick={async () => {
                                                         if (!selectedDeskId) return;
+                                                        setReleasingDesk(true);
                                                         try {
                                                             const config = {
                                                                 headers: { Authorization: `Bearer ${user.token}` },
@@ -526,7 +621,6 @@ export default function EmployeeDashboard() {
                                                                     setUpcomingReservations(prev => prev.filter(rr => rr.id !== matching.id));
                                                                 }
                                                             } catch (err) {
-                                                                console.warn('Failed to auto-cancel reservation after release:', err);
                                                                 toast.error('Released desk but failed to cancel reservation', { description: err?.response?.data?.error || err?.message });
                                                             }
                                                             window.dispatchEvent(new Event('reservation-updated'));
@@ -538,18 +632,28 @@ export default function EmployeeDashboard() {
                                                             setBaseSittingSeconds(0);
                                                             setBaseStandingSeconds(0);
                                                             setLastFetchTime(null);
+                                                            toast.success("Desk released successfully");
                                                         } catch (err) {
-                                                            console.error("API error:", err);
-                                                            console.error("Error releasing desk:", err);
                                                             if (err?.response?.status === 403) {
                                                                 toast.error('Not authorized to release this desk (403)');
                                                             }
+                                                        } finally {
+                                                            setReleasingDesk(false);
                                                         }
                                                     }}
                                                     className="variant-outline"
                                                     aria-label="Release desk"
+                                                    disabled={releasingDesk}
                                                 >
-                                                    Release Desk
+                                                    {releasingDesk ? (
+                                                        <span style={{ display: "inline-block", width: "7em", textAlign: "center" }}>
+                                                            <Spinner variant="circle" className="h-4 w-4 mx-auto" />
+                                                        </span>
+                                                    ) : (
+                                                        <span style={{ display: "inline-block", width: "7em", textAlign: "center" }}>
+                                                            Release Desk
+                                                        </span>
+                                                    )}
                                                 </Button>
                                             </>
                                         )}
@@ -601,22 +705,34 @@ export default function EmployeeDashboard() {
                                                     {idx === 0 ? (
                                                         <>
                                                             {!r.checkedIn ? (
-                                                                canCheckIn(r) ? (
+                                                                (r.pendingConfirmation || r.raw_status === "pending_confirmation") ? (
+                                                                    <span className="px-3 py-1 text-xs rounded-full bg-yellow-200 text-yellow-900 font-semibold inline-block">
+                                                                        Pending confirmation
+                                                                    </span>
+                                                                ) : canCheckIn(r) ? (
                                                                     r.loadingCheckin ? (
                                                                         <span className="text-sm text-blue-500 animate-pulse">Loading check-in...</span>
                                                                     ) : (
-                                                                        <button
+                                                                        <Button
                                                                             onClick={() => handleCheckInReservation(r.id)}
-                                                                            className="px-3 py-1 rounded-md bg-primary text-white text-sm hover:opacity-90"
+                                                                            disabled={!!checkingInReservation[r.id]}
                                                                         >
-                                                                            Check in
-                                                                        </button>
+                                                                            {checkingInReservation[r.id] ? (
+                                                                                <span style={{ display: "inline-block", width: "4em", textAlign: "center" }}>
+                                                                                    <Spinner variant="circle" className="h-4 w-4 mx-auto" />
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span style={{ display: "inline-block", width: "4em", textAlign: "center" }}>
+                                                                                    Check in
+                                                                                </span>
+                                                                            )}
+                                                                        </Button>
                                                                     )
                                                                 ) : (
                                                                     <span className="text-xs text-muted-foreground">Check-in available 30 mins before</span>
                                                                 )
                                                             ) : (
-                                                                <span className="px-2 py-1 text-xs rounded-md bg-green-100 text-green-800">Checked in</span>
+                                                                <span className="px-3 py-1 text-xs rounded-full bg-green-100 text-green-800 font-semibold inline-block">Checked in</span>
                                                             )}
                                                         </>
                                                     ) : null}
@@ -761,7 +877,47 @@ export default function EmployeeDashboard() {
                 <PendingVerificationModal
                     open={verificationModalOpen}
                     deskId={pendingDeskId}
-                    onClose={() => setVerificationModalOpen(false)}
+                    onClose={async () => {
+                        // Clean up pending state when modal is closed
+                        if (pendingReservationId) {
+                            pendingConfirmationRef.current[pendingReservationId] = false;
+
+                            // Fetch the current reservation status from backend
+                            try {
+                                const config = {
+                                    headers: { Authorization: `Bearer ${user?.token}` },
+                                    withCredentials: true,
+                                };
+                                const res = await axios.get(`http://localhost:8000/api/reservations/`, config);
+                                const reservation = (res.data || []).find(r => r.id === pendingReservationId);
+
+                                // If backend says it's still confirmed (not pending_confirmation anymore),
+                                // then it was cancelled - show as not checked in
+                                setUpcomingReservations((prev) =>
+                                    prev.map((r) =>
+                                        r.id === pendingReservationId
+                                            ? {
+                                                ...r,
+                                                pendingConfirmation: false,
+                                                checkedIn: reservation?.status === "active",
+                                                raw_status: reservation?.status || r.raw_status
+                                            }
+                                            : r
+                                    )
+                                );
+                            } catch (err) {
+                                // If fetch fails, just clear pending state
+                                setUpcomingReservations((prev) =>
+                                    prev.map((r) =>
+                                        r.id === pendingReservationId ? { ...r, pendingConfirmation: false, checkedIn: false } : r
+                                    )
+                                );
+                            }
+                        }
+                        setVerificationModalOpen(false);
+                        setPendingDeskId(null);
+                        setPendingReservationId(null);
+                    }}
                 />
             </SidebarInset>
         </SidebarProvider>

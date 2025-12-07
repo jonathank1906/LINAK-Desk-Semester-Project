@@ -59,27 +59,10 @@ class UserCreateSerializer(UserCreateSerializer):
         model = User
         fields = ['id', 'email', 'name', 'password']
 
-class DeskSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Desk
-        fields = [
-            "id",
-            "wifi2ble_id",
-            "name",
-            "location",
-            "current_height",
-            "min_height",
-            "max_height",
-            "current_status",
-            "api_endpoint",
-            "last_error",
-            "error_timestamp",
-            "total_activations",
-            "sit_stand_counter",
-        ]
 
 class DeskSerializer(serializers.ModelSerializer):
     is_available_for_hot_desk = serializers.SerializerMethodField()
+    requires_confirmation = serializers.SerializerMethodField()
 
     class Meta:
         model = Desk
@@ -94,6 +77,7 @@ class DeskSerializer(serializers.ModelSerializer):
             "current_status",
             "current_user",
             "is_available_for_hot_desk",
+            "requires_confirmation",
         ]
 
     def get_is_available_for_hot_desk(self, obj):
@@ -104,6 +88,10 @@ class DeskSerializer(serializers.ModelSerializer):
             status__in=['confirmed', 'active']
         ).exists()
         return obj.current_status == 'available' and not has_active_reservation
+    
+    def get_requires_confirmation(self, obj):
+        """Returns True if desk has a Pico device attached"""
+        return obj.pico.exists()
 
 
 class ReservationSerializer(serializers.ModelSerializer):

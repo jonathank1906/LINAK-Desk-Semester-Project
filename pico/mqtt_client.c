@@ -329,6 +329,18 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
             
             printf("DEBUG: Set LED to BLUE PULSING mode\n");
         }
+        else if (strstr(state->data, "cancel_pending_verification"))
+        {
+            printf("DEBUG: Action is cancel_pending_verification\n");
+            oled_display_text("DESK #1", "Verification", "Cancelled", "");
+            set_pending_verification(false);
+
+            // Set LED to GREEN (available)
+            current_led_mode = LED_MODE_SOLID_GREEN;
+            current_buzzer_mode = BUZZER_MODE_NONE;
+
+            printf("DEBUG: Set LED to GREEN mode (cancelled)\n");
+        }
         else if (strstr(state->data, "show_in_use"))
         {
             printf("DEBUG: Action is show_in_use\n");

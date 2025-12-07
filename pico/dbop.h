@@ -5,7 +5,7 @@
 
 // Enable debug prints by uncommenting the desired line below
 #define DEBUG_INFO_Exercise_6A
-#define DEBUG_INFO_Led
+//#define DEBUG_INFO_Led
 #define DEBUG_INFO_MyApp
 //#define DEBUG_INFO_PushButton
 

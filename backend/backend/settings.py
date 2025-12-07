@@ -168,7 +168,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'Europe/Copenhagen'
+TIME_ZONE = config('TIME_ZONE', default='Europe/Copenhagen')
 
 USE_I18N = True
 

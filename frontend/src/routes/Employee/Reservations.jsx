@@ -323,8 +323,8 @@ export default function Reservations({ setSelectedDeskId }) {
                         <DialogHeader>
                           <DialogTitle>Edit Reservation</DialogTitle>
                         </DialogHeader>
-                        <div className="space-y-4">
-                          <div className="space-y-2">
+                        <div className="flex flex-row gap-4">
+                          <div className="space-y-2 w-1/2">
                             <label className="block text-sm font-medium">Start Time</label>
                             <Select value={editStartTime} onValueChange={setEditStartTime}>
                               <SelectTrigger className="w-full border rounded px-2 py-1">
@@ -335,7 +335,7 @@ export default function Reservations({ setSelectedDeskId }) {
                               </SelectContent>
                             </Select>
                           </div>
-                          <div className="space-y-2">
+                          <div className="space-y-2 w-1/2">
                             <label className="block text-sm font-medium">End Time</label>
                             <Select value={editEndTime} onValueChange={setEditEndTime}>
                               <SelectTrigger className="w-full border rounded px-2 py-1">
@@ -433,36 +433,37 @@ export default function Reservations({ setSelectedDeskId }) {
                 </div>
               </div>
 
-              <div className="flex flex-col items-start w-full">
-                <label className="text-sm font-medium mb-1">Start Time</label>
-                <Select value={startTime} onValueChange={(newStart) => {
-                  setStartTime(newStart);
-                  const [h, m] = newStart.split(":").map(Number);
-                  const endDate = new Date();
-                  endDate.setHours(h);
-                  endDate.setMinutes(m + 30);
-                  const nextEnd = `${endDate.getHours().toString().padStart(2, "0")}:${endDate.getMinutes() < 30 ? "00" : "30"}`;
-                  if (endTime <= newStart) setEndTime(nextEnd);
-                }}>
-                  <SelectTrigger className="w-full border rounded px-2 py-1">
-                    <SelectValue placeholder="Select start time" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {generateSelectTimeOptions(selectedDate)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex flex-col items-start w-full">
-                <label className="text-sm font-medium mb-1">End Time</label>
-                <Select value={endTime} onValueChange={setEndTime}>
-                  <SelectTrigger className="w-full border rounded px-2 py-1">
-                    <SelectValue placeholder="Select end time" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {generateSelectTimeOptions(selectedDate, startTime, 30)}
-                  </SelectContent>
-                </Select>
+              <div className="flex flex-row gap-4 w-full">
+                <div className="flex flex-col w-1/2 min-w-0">
+                  <label className="text-sm font-medium mb-1">Start Time</label>
+                  <Select value={startTime} onValueChange={(newStart) => {
+                    setStartTime(newStart);
+                    const [h, m] = newStart.split(":").map(Number);
+                    const endDate = new Date();
+                    endDate.setHours(h);
+                    endDate.setMinutes(m + 30);
+                    const nextEnd = `${endDate.getHours().toString().padStart(2, "0")}:${endDate.getMinutes() < 30 ? "00" : "30"}`;
+                    if (endTime <= newStart) setEndTime(nextEnd);
+                  }}>
+                    <SelectTrigger className="w-full border rounded px-2 py-1">
+                      <SelectValue placeholder="Select start time" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {generateSelectTimeOptions(selectedDate)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col w-1/2 min-w-0">
+                  <label className="text-sm font-medium mb-1">End Time</label>
+                  <Select value={endTime} onValueChange={setEndTime}>
+                    <SelectTrigger className="w-full border rounded px-2 py-1">
+                      <SelectValue placeholder="Select end time" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {generateSelectTimeOptions(selectedDate, startTime, 30)}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </CardContent>
           </Card>
