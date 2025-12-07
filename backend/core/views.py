@@ -23,9 +23,10 @@ from .serializers import (
     DeskSerializer,
     ReservationSerializer,
     AdminUserListSerializer,
-    DeskLogSerializer
+    DeskLogSerializer,
+    ComplaintSerializer
 )
-from .models import Desk, DeskUsageLog, DeskLog, DeskReport
+from .models import Desk, DeskUsageLog, DeskLog, DeskReport, Reservation
 from .services.WiFi2BLEService import WiFi2BLEService
 from core.services.MQTTService import get_mqtt_service
 from core.models import Pico, SensorReading, Reservation
@@ -1749,5 +1750,155 @@ def delete_report(request, report_id):
         return Response({"success": True})
     except DeskReport.DoesNotExist:
         return Response({"error": "Report not found"}, status=404)
+
+
+# ================= USER METRICS API =================
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def user_metrics(request):
+    """Get comprehensive user metrics for employee dashboard"""
+    user = request.user
+    now = timezone.now()
+    
+    # Get time range from query params (default last 7 days)
+    days = int(request.GET.get('days', 7))
+    since = now - timedelta(days=days)
+    
+    # ===== Standing/Sitting Time Tracking =====
+    usage_logs = DeskUsageLog.objects.filter(
+        user=user,
+        started_at__gte=since
+    ).order_by('started_at')
+    
+    # Daily breakdown
+    daily_stats = {}
+    for log in usage_logs:
+        date_key = log.started_at.date()
+        if date_key not in daily_stats:
+            daily_stats[date_key] = {'sitting': 0, 'standing': 0, 'changes': 0}
+        
+        daily_stats[date_key]['sitting'] += log.sitting_time
+        daily_stats[date_key]['standing'] += log.standing_time
+        daily_stats[date_key]['changes'] += log.position_changes
+    
+    # Format for frontend
+    dates = []
+    sitting_times = []
+    standing_times = []
+    
+    for i in range(days):
+        date = (now - timedelta(days=days-1-i)).date()
+        dates.append(date.strftime('%b %d'))
+        stats = daily_stats.get(date, {'sitting': 0, 'standing': 0})
+        sitting_times.append(round(stats['sitting'] / 60, 1))  # Convert to minutes
+        standing_times.append(round(stats['standing'] / 60, 1))
+    
+    # ===== Standing/Sitting Leaderboard =====
+    User = get_user_model()
+    leaderboard_data = (
+        DeskUsageLog.objects
+        .filter(started_at__gte=since)
+        .values('user__id', 'user__first_name', 'user__last_name', 'user__email')
+        .annotate(
+            total_sitting=Sum('sitting_time'),
+            total_standing=Sum('standing_time'),
+            total_changes=Sum('position_changes')
+        )
+    )
+    
+    leaderboard = []
+    for entry in leaderboard_data:
+        total_time = (entry['total_sitting'] or 0) + (entry['total_standing'] or 0)
+        if total_time > 0:
+            standing_percentage = (entry['total_standing'] or 0) / total_time * 100
+            name = f"{entry['user__first_name']} {entry['user__last_name']}".strip()
+            if not name:
+                name = entry['user__email'].split('@')[0]
+            
+            leaderboard.append({
+                'user_id': entry['user__id'],
+                'name': name,
+                'standing_percentage': round(standing_percentage, 1),
+                'standing_minutes': round((entry['total_standing'] or 0) / 60, 1),
+                'sitting_minutes': round((entry['total_sitting'] or 0) / 60, 1),
+                'total_minutes': round(total_time / 60, 1),
+                'is_current_user': entry['user__id'] == user.id
+            })
+    
+    # Sort by standing percentage (descending)
+    leaderboard.sort(key=lambda x: x['standing_percentage'], reverse=True)
+    
+    # ===== Most Used Desks =====
+    desk_usage = (
+        DeskUsageLog.objects
+        .filter(user=user, started_at__gte=since)
+        .values('desk__name', 'desk__id')
+        .annotate(
+            session_count=Count('id'),
+            total_time=Sum('sitting_time') + Sum('standing_time')
+        )
+        .order_by('-session_count')[:5]
+    )
+    
+    most_used_desks = []
+    for entry in desk_usage:
+        most_used_desks.append({
+            'desk_name': entry['desk__name'],
+            'desk_id': entry['desk__id'],
+            'sessions': entry['session_count'],
+            'total_hours': round((entry['total_time'] or 0) / 3600, 1)
+        })
+    
+    # ===== Weekly Desk Usage Overview =====
+    # Group by week day
+    weekly_usage = {i: {'sitting': 0, 'standing': 0, 'sessions': 0} for i in range(7)}
+    
+    for log in usage_logs:
+        weekday = log.started_at.weekday()  # Monday=0, Sunday=6
+        weekly_usage[weekday]['sitting'] += log.sitting_time
+        weekly_usage[weekday]['standing'] += log.standing_time
+        weekly_usage[weekday]['sessions'] += 1
+    
+    weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    weekly_sitting = []
+    weekly_standing = []
+    weekly_sessions = []
+    
+    for i in range(7):
+        weekly_sitting.append(round(weekly_usage[i]['sitting'] / 60, 1))
+        weekly_standing.append(round(weekly_usage[i]['standing'] / 60, 1))
+        weekly_sessions.append(weekly_usage[i]['sessions'])
+    
+    # ===== Overall Stats =====
+    total_sitting_mins = sum(sitting_times)
+    total_standing_mins = sum(standing_times)
+    total_mins = total_sitting_mins + total_standing_mins
+    
+    overall_stats = {
+        'total_sessions': usage_logs.count(),
+        'total_hours': round(total_mins / 60, 1),
+        'sitting_percentage': round((total_sitting_mins / total_mins * 100) if total_mins > 0 else 0, 1),
+        'standing_percentage': round((total_standing_mins / total_mins * 100) if total_mins > 0 else 0, 1),
+        'avg_session_duration': round((total_mins / usage_logs.count()) if usage_logs.count() > 0 else 0, 1),
+        'total_position_changes': sum([log.position_changes for log in usage_logs])
+    }
+    
+    return Response({
+        'standing_sitting_chart': {
+            'labels': dates,
+            'sitting': sitting_times,
+            'standing': standing_times
+        },
+        'leaderboard': leaderboard[:10],  # Top 10
+        'most_used_desks': most_used_desks,
+        'weekly_usage': {
+            'labels': weekdays,
+            'sitting': weekly_sitting,
+            'standing': weekly_standing,
+            'sessions': weekly_sessions
+        },
+        'overall_stats': overall_stats
+    })
 
 
