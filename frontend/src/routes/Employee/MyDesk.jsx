@@ -434,25 +434,25 @@ export default function MyDesk({ selectedDeskId }) {
                   <button
                     onClick={() => controlDeskHeight(72)}
                     disabled={isControlling || isMoving}
-                    className="flex justify-between items-center p-4 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex justify-between items-center p-4 border rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <div>
-                      <div className="font-medium text-green-800">Sitting Position</div>
-                      <div className="text-sm text-green-600">72cm</div>
+                      <div className="font-medium">Sitting Position</div>
+                      <div className="text-sm">72cm</div>
                     </div>
-                    <div className="text-green-600">{isControlling || isMoving ? '...' : 'Go'}</div>
+                    <div className="">{isControlling || isMoving ? '...' : 'Go'}</div>
                   </button>
 
                   <button
                     onClick={() => controlDeskHeight(110)}
                     disabled={isControlling || isMoving}
-                    className="flex justify-between items-center p-4 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex justify-between items-center p-4 border rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <div>
-                      <div className="font-medium text-blue-800">Standing Position</div>
-                      <div className="text-sm text-blue-600">110cm</div>
+                      <div className="font-medium">Standing Position</div>
+                      <div className="text-sm">110cm</div>
                     </div>
-                    <div className="text-blue-600">{isControlling || isMoving ? '...' : 'Go'}</div>
+                    <div className="">{isControlling || isMoving ? '...' : 'Go'}</div>
                   </button>
                 </div>
               )}
