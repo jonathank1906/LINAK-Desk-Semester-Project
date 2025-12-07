@@ -2,7 +2,7 @@ import { AppSidebar } from "@/components/app-sidebar-employee";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { ModeToggle } from "@/components/mode-toggle";
 import { NavUser } from "@/components/nav-user";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/useAuth";
 import MyDesk from "./MyDesk";
 import Reservations from "./Reservations";
@@ -58,9 +58,13 @@ export default function EmployeeDashboard() {
 
     const [verificationModalOpen, setVerificationModalOpen] = useState(false);
     const [pendingDeskId, setPendingDeskId] = useState(null);
+    const [pendingReservationId, setPendingReservationId] = useState(null);
 
     const [releasingDesk, setReleasingDesk] = useState(false);
     const [checkingInReservation, setCheckingInReservation] = useState({});
+
+    // Track pending confirmation reservations in a ref so fetchReservations can't overwrite them
+    const pendingConfirmationRef = useRef({});
 
     // HELPER: Safely parse Django ISO format date strings
     const parseDateSafe = (dateString) => {
@@ -148,7 +152,8 @@ export default function EmployeeDashboard() {
         fetchOccupiedDesk();
     }, [user]);
 
-    useEffect(() => {
+    // --- FIX: Preserve pendingConfirmation state even when API fetches reservations ---
+     useEffect(() => {
         if (!user) return;
         const fetchReservations = async () => {
             try {
@@ -157,28 +162,38 @@ export default function EmployeeDashboard() {
                     withCredentials: true,
                 };
                 const res = await axios.get("http://localhost:8000/api/reservations/", config);
-                const upcoming = res.data
-                    .filter(r => r.status === "confirmed" || r.status === "active")
-                    .map(r => {
-                        const parsedStartTime = parseDateSafe(r.start_time);
-                        const parsedEndTime = parseDateSafe(r.end_time);
-                        if (!parsedStartTime || !parsedEndTime) return null;
-                        const now = new Date();
-                        const startDiffMins = (parsedStartTime.getTime() - now.getTime()) / 1000 / 60;
-                        return {
-                            id: r.id,
-                            date: formatNiceDate(parsedStartTime),
-                            desk_name: r.desk_name || `Desk ${r.desk_id}`,
-                            start_time: `${String(parsedStartTime.getHours()).padStart(2, '0')}:${String(parsedStartTime.getMinutes()).padStart(2, '0')}`,
-                            end_time: `${String(parsedEndTime.getHours()).padStart(2, '0')}:${String(parsedEndTime.getMinutes()).padStart(2, '0')}`,
-                            checkedIn: r.status === "active",
-                            loadingCheckin: startDiffMins <= 15 && startDiffMins > 14.5,
-                            raw_start: r.start_time,
-                            raw_status: r.status
-                        };
-                    })
-                    .filter(Boolean);
-                setUpcomingReservations(upcoming);
+                setUpcomingReservations(prev => {
+                    const upcoming = res.data
+                        .filter(r => r.status === "confirmed" || r.status === "active" || r.status === "pending_confirmation")
+                        .map(r => {
+                            const parsedStartTime = parseDateSafe(r.start_time);
+                            const parsedEndTime = parseDateSafe(r.end_time);
+                            if (!parsedStartTime || !parsedEndTime) return null;
+                            const now = new Date();
+                            const startDiffMins = (parsedStartTime.getTime() - now.getTime()) / 1000 / 60;
+                            
+                            // Check if this reservation is currently pending in our ref
+                            const isPendingInRef = !!pendingConfirmationRef.current[r.id];
+                            
+                            // If we have it marked as pending locally, keep that state regardless of API
+                            const isPending = isPendingInRef || r.status === "pending_confirmation";
+                            
+                            return {
+                                id: r.id,
+                                date: formatNiceDate(parsedStartTime),
+                                desk_name: r.desk_name || `Desk ${r.desk_id}`,
+                                start_time: `${String(parsedStartTime.getHours()).padStart(2, '0')}:${String(parsedStartTime.getMinutes()).padStart(2, '0')}`,
+                                end_time: `${String(parsedEndTime.getHours()).padStart(2, '0')}:${String(parsedEndTime.getMinutes()).padStart(2, '0')}`,
+                                checkedIn: isPending ? false : r.status === "active",
+                                loadingCheckin: startDiffMins <= 15 && startDiffMins > 14.5,
+                                raw_start: r.start_time,
+                                raw_status: r.status,
+                                pendingConfirmation: isPending,
+                            };
+                        })
+                        .filter(Boolean);
+                    return upcoming;
+                });
             } catch (err) { console.error("API error:", err); }
         };
         fetchReservations();
@@ -307,46 +322,45 @@ export default function EmployeeDashboard() {
         setUpcomingReservations((prev) => prev.filter((r) => r.id !== id));
     }
 
-     // Poll for desk status changes when modal is open
+    // Poll for desk status changes when modal is open
     useEffect(() => {
-        if (!verificationModalOpen || !pendingDeskId || !user) {
-            console.log("⏸️ Polling disabled: modal open =", verificationModalOpen, "pendingDeskId =", pendingDeskId, "user =", !!user);
+        if (!verificationModalOpen || !pendingDeskId || !pendingReservationId || !user) {
             return;
         }
-        
-        console.log("🔄 Starting polling for desk", pendingDeskId);
-        
+
         const pollInterval = setInterval(async () => {
             try {
-                console.log("📡 Polling desk status for desk", pendingDeskId);
                 const config = {
                     headers: { Authorization: `Bearer ${user.token}` },
                     withCredentials: true,
                 };
                 const res = await axios.get(`http://localhost:8000/api/desks/${pendingDeskId}/`, config);
-                
-                console.log("📡 Desk status response:", res.data.current_status, "user:", res.data.current_user);
-                
-                // If desk status changed to occupied, close modal
+
                 if (res.data.current_status === "occupied") {
-                    console.log("✅ Desk confirmed via MQTT - closing modal");
+                    // Remove pending state from ref
+                    pendingConfirmationRef.current[pendingReservationId] = false;
+                    setUpcomingReservations((prev) =>
+                        prev.map((r) =>
+                            r.id === pendingReservationId
+                                ? { ...r, checkedIn: true, pendingConfirmation: false }
+                                : r
+                        )
+                    );
                     setSelectedDeskId(pendingDeskId);
                     toast.success("Checked in successfully");
                     setVerificationModalOpen(false);
                     setPendingDeskId(null);
-                } else {
-                    console.log("⏳ Still waiting... status:", res.data.current_status);
+                    setPendingReservationId(null);
                 }
             } catch (err) {
-                console.warn("❌ Error polling desk status:", err);
+                // Silent fail
             }
-        }, 1000); // Poll every second
-        
+        }, 1000);
+
         return () => {
-            console.log("🛑 Stopping polling for desk", pendingDeskId);
             clearInterval(pollInterval);
         };
-    }, [verificationModalOpen, pendingDeskId, user]);
+    }, [verificationModalOpen, pendingDeskId, pendingReservationId, user]);
 
     async function handleCheckInReservation(reservationId) {
         setCheckingInReservation(prev => ({ ...prev, [reservationId]: true }));
@@ -363,7 +377,7 @@ export default function EmployeeDashboard() {
                     return;
                 }
             } catch (err) {
-                console.warn('Could not verify existing desks before check-in:', err);
+                // Silent
             }
 
             await axios.post(
@@ -380,58 +394,41 @@ export default function EmployeeDashboard() {
                 const res = await axios.get(`http://localhost:8000/api/reservations/`, config);
                 const reservation = (res.data || []).find(r => r.id === reservationId);
                 deskId = reservation?.desk_id || reservation?.desk;
-                console.log('🔍 Found desk ID:', deskId);
 
                 if (deskId) {
                     const deskRes = await axios.get(`http://localhost:8000/api/desks/${deskId}/`, config);
-                    console.log('🔍 Desk data:', deskRes.data);
-                    console.log('🔍 requires_confirmation field:', deskRes.data.requires_confirmation);
                     requiresConfirmation = !!deskRes.data.requires_confirmation;
-                    console.log('🔍 Final requiresConfirmation value:', requiresConfirmation);
                 }
             } catch (err) {
-                console.warn('Could not fetch desk confirmation status:', err);
+                // Silent
             }
 
-            // Update UI state
-            setUpcomingReservations((prev) =>
-                prev.map((r) =>
-                    r.id === reservationId ? { ...r, checkedIn: true } : r
-                )
-            );
-
-            if (deskId && !requiresConfirmation) {
-                setSelectedDeskId(deskId);
-            }
-
-            // Update UI state
-            setUpcomingReservations((prev) =>
-                prev.map((r) =>
-                    r.id === reservationId ? { ...r, checkedIn: true } : r
-                )
-            );
-
-            console.log('🔍 About to check modal condition - deskId:', deskId, 'requiresConfirmation:', requiresConfirmation);
-
-            // Only show modal if desk actually requires confirmation
             if (deskId && requiresConfirmation) {
-                console.log('✅ Opening verification modal');
+                // Mark as pending confirmation in both state and ref
+                pendingConfirmationRef.current[reservationId] = true;
+                setUpcomingReservations((prev) =>
+                    prev.map((r) =>
+                        r.id === reservationId ? { ...r, pendingConfirmation: true } : r
+                    )
+                );
                 setPendingDeskId(deskId);
+                setPendingReservationId(reservationId);
                 setVerificationModalOpen(true);
-                // Don't show success toast yet - wait for confirmation
-                // Don't set selectedDeskId yet - wait for confirmation
             } else {
-                console.log('❌ Skipping verification modal, showing success toast');
-                // No confirmation needed - show success immediately and set desk
-                if (deskId) {
-                    setSelectedDeskId(deskId);
-                }
+                // No confirmation needed, mark as checked in immediately
+                pendingConfirmationRef.current[reservationId] = false;
+                setUpcomingReservations((prev) =>
+                    prev.map((r) =>
+                        r.id === reservationId ? { ...r, checkedIn: true, pendingConfirmation: false } : r
+                    )
+                );
+                if (deskId) setSelectedDeskId(deskId);
                 toast.success("Checked in successfully");
             }
 
         } catch (err) {
             toast.error("Failed to check in", {
-                description: err.response?.data?.error || err.message,
+                description: err?.response?.data?.error || err?.message,
             });
         }
         finally {
@@ -460,9 +457,8 @@ export default function EmployeeDashboard() {
             setBaseStandingSeconds(0);
             setLastFetchTime(null);
         } catch (err) {
-            console.error("API error:", err);
             toast.error("Failed to check out", {
-                description: err.response?.data?.error || err.message,
+                description: err?.response?.data?.error || err?.message,
             });
         }
     }
@@ -477,8 +473,7 @@ export default function EmployeeDashboard() {
             setUpcomingReservations((prev) => prev.filter((r) => r.id !== id));
             toast.success('Reservation cancelled');
         } catch (err) {
-            console.error('API error cancelling reservation:', err);
-            toast.error('Failed to cancel reservation', { description: err.response?.data?.error || err.message });
+            toast.error('Failed to cancel reservation', { description: err?.response?.data?.error || err?.message });
         }
     }
 
@@ -576,7 +571,6 @@ export default function EmployeeDashboard() {
                                                                     setUpcomingReservations(prev => prev.filter(rr => rr.id !== matching.id));
                                                                 }
                                                             } catch (err) {
-                                                                console.warn('Failed to auto-cancel reservation after release:', err);
                                                                 toast.error('Released desk but failed to cancel reservation', { description: err?.response?.data?.error || err?.message });
                                                             }
                                                             window.dispatchEvent(new Event('reservation-updated'));
@@ -590,8 +584,6 @@ export default function EmployeeDashboard() {
                                                             setLastFetchTime(null);
                                                             toast.success("Desk released successfully");
                                                         } catch (err) {
-                                                            console.error("API error:", err);
-                                                            console.error("Error releasing desk:", err);
                                                             if (err?.response?.status === 403) {
                                                                 toast.error('Not authorized to release this desk (403)');
                                                             }
@@ -663,7 +655,11 @@ export default function EmployeeDashboard() {
                                                     {idx === 0 ? (
                                                         <>
                                                             {!r.checkedIn ? (
-                                                                canCheckIn(r) ? (
+                                                                (r.pendingConfirmation || r.raw_status === "pending_confirmation") ? (
+                                                                    <span className="px-3 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800 font-semibold inline-block">
+                                                                        Pending confirmation...
+                                                                    </span>
+                                                                ) : canCheckIn(r) ? (
                                                                     r.loadingCheckin ? (
                                                                         <span className="text-sm text-blue-500 animate-pulse">Loading check-in...</span>
                                                                     ) : (
