@@ -319,12 +319,12 @@ export default function EmployeeDashboard() {
             } catch (err) {
                 console.warn('Could not verify existing desks before check-in:', err);
             }
+
             await axios.post(
                 `http://localhost:8000/api/reservations/${reservationId}/check_in/`,
                 {},
                 config
             );
-            toast.success("Checked in successfully");
 
             // Fetch desk details to check requires_confirmation
             let deskId = null;
@@ -334,28 +334,44 @@ export default function EmployeeDashboard() {
                 const res = await axios.get(`http://localhost:8000/api/reservations/`, config);
                 const reservation = (res.data || []).find(r => r.id === reservationId);
                 deskId = reservation?.desk_id || reservation?.desk;
+                console.log('🔍 Found desk ID:', deskId);
+
                 if (deskId) {
                     const deskRes = await axios.get(`http://localhost:8000/api/desks/${deskId}/`, config);
+                    console.log('🔍 Desk data:', deskRes.data);
+                    console.log('🔍 requires_confirmation field:', deskRes.data.requires_confirmation);
                     requiresConfirmation = !!deskRes.data.requires_confirmation;
+                    console.log('🔍 Final requiresConfirmation value:', requiresConfirmation);
                 }
             } catch (err) {
                 console.warn('Could not fetch desk confirmation status:', err);
             }
 
-            if (deskId) {
-                setSelectedDeskId(deskId);
-            }
-
-            if (requiresConfirmation) {
-                setPendingDeskId(deskId);
-                setVerificationModalOpen(true);
-            }
-
+            // Update UI state
             setUpcomingReservations((prev) =>
                 prev.map((r) =>
                     r.id === reservationId ? { ...r, checkedIn: true } : r
                 )
             );
+
+            if (deskId && !requiresConfirmation) {
+                setSelectedDeskId(deskId);
+            }
+
+            console.log('🔍 About to check modal condition - deskId:', deskId, 'requiresConfirmation:', requiresConfirmation);
+
+            // Only show modal if desk actually requires confirmation
+            if (deskId && requiresConfirmation) {
+                console.log('✅ Opening verification modal');
+                setPendingDeskId(deskId);
+                setVerificationModalOpen(true);
+                // Don't show success toast yet - wait for confirmation
+            } else {
+                console.log('❌ Skipping verification modal, showing success toast');
+                // No confirmation needed - show success immediately
+                toast.success("Checked in successfully");
+            }
+
         } catch (err) {
             toast.error("Failed to check in", {
                 description: err.response?.data?.error || err.message,
