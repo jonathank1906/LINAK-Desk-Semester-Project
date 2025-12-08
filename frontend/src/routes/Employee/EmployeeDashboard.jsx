@@ -779,6 +779,7 @@ export default function EmployeeDashboard() {
                                     <OverallStatsCards stats={metricsData.overall_stats} />
 
                                     {/* Healthiness Score & No Show Table */}
+                                    {/*
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                         <HealthinessScore
                                             data={metricsData.healthiness}
@@ -789,6 +790,7 @@ export default function EmployeeDashboard() {
                                             isDarkMode={document.documentElement.classList.contains('dark')}
                                         />
                                     </div>
+                                    */}
 
                                     {/* Charts Grid */}
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -799,10 +801,12 @@ export default function EmployeeDashboard() {
                                         />
 
                                         {/* Weekly Usage Chart */}
+                                        {/*
                                         <WeeklyUsageChart
                                             data={metricsData.weekly_usage}
                                             title="Weekly Usage Pattern"
                                         />
+                                        */}
 
                                         {/* Most Used Desks */}
                                         <MostUsedDesksChart
@@ -811,10 +815,12 @@ export default function EmployeeDashboard() {
                                         />
 
                                         {/* Leaderboard */}
+                                        {/*}
                                         <StandingLeaderboard
                                             leaderboard={metricsData.leaderboard}
                                             title="Standing Time Leaderboard"
                                         />
+                                        */}
                                     </div>
                                 </>
                             ) : (

@@ -1330,6 +1330,9 @@ def end_hot_desk(request, desk_id):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def hotdesk_status(request):
+    # Cleanup no-shows before listing
+    cleanup_expired_reservations()
+    
     date_str = request.GET.get("date")
     if not date_str:
         return Response({"error": "Date parameter required"}, status=400)
@@ -1423,10 +1426,34 @@ def hotdesk_status(request):
 
 
 # ---------------- RESERVATION ENDPOINTS ----------------
+def cleanup_expired_reservations():
+    """Automatically mark no-show reservations as cancelled"""
+    now = timezone.now()
+    grace_period = timedelta(minutes=10)
+    
+    no_shows = Reservation.objects.filter(
+        status='confirmed',
+        checked_in_at__isnull=True,
+        start_time__lt=now - grace_period
+    )
+    
+    count = no_shows.update(
+        status='cancelled',
+        cancelled_at=now,
+        cancelled_by=None  # System cancellation
+    )
+    
+    if count > 0:
+        print(f"🧹 Auto-cancelled {count} no-show reservation(s)")
+    
+    return count
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def list_user_reservations(request):
+    # Cleanup no-shows before listing
+    cleanup_expired_reservations()
+
     user = request.user
     date_str = request.GET.get("date")
 
@@ -1654,6 +1681,9 @@ def edit_reservation(request, reservation_id):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def available_desks_for_date(request):
+    # Cleanup no-shows before listing
+    cleanup_expired_reservations()
+
     date_str = request.GET.get("date")
     start_time = request.GET.get("start_time")
     end_time = request.GET.get("end_time")
