@@ -9,7 +9,7 @@ import Reservations from "./Reservations";
 import Hotdesk from "./Hotdesk";
 import { formatNiceDate } from "@/utils/date";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "lucide-react";
+import { Calendar, Clock } from "lucide-react";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import {
     Select,
@@ -471,7 +471,7 @@ export default function EmployeeDashboard() {
     // We use useCallback to prevent this function from being recreated on every render
     const fetchMetrics = useCallback(async () => {
         if (!user || selectedSection !== "dashboard") return;
-        
+
         try {
             setMetricsLoading(true);
             const config = {
@@ -664,17 +664,29 @@ export default function EmployeeDashboard() {
                                                 key={r.id}
                                                 className="flex items-center justify-between rounded-md border p-3"
                                             >
-                                                <div className="text-xs text-muted-foreground">
-                                                    <div>{r.date}</div>
-                                                    <div>
-                                                        {r.desk_name}
-                                                        <span className="ml-2">
-                                                            {r.start_time && r.end_time && (
-                                                                <>
-                                                                    ({r.start_time} - {r.end_time})
-                                                                </>
-                                                            )}
-                                                        </span>
+                                                <div className="flex flex-col gap-1.5">
+                                                    {/* 1. Date as the "Header" - bolder and brighter */}
+                                                    <span className="text-sm font-semibold text-foreground">
+                                                        {r.date}
+                                                    </span>
+
+                                                    {/* 2. Row of "Pills" for details */}
+                                                    <div className="flex items-center gap-2">
+
+                                                        {/* Desk Pill */}
+                                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-secondary text-secondary-foreground text-xs font-medium">
+                                                            {r.desk_name}
+                                                        </div>
+
+                                                        {/* Time Pill */}
+                                                        {r.start_time && r.end_time && (
+                                                            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md border border-border text-muted-foreground text-xs font-medium">
+                                                                <Clock className="w-3 h-3" />
+                                                                <span>
+                                                                    {r.start_time} - {r.end_time}
+                                                                </span>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2">
