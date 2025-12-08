@@ -61,19 +61,7 @@ export default function Reservations({ setSelectedDeskId }) {
   const [availableDesks, setAvailableDesks] = useState([]);
   const [userReservations, setUserReservations] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [startTime, setStartTime] = useState("09:00");
-  const [endTime, setEndTime] = useState("17:00");
-  const [editingReservation, setEditingReservation] = useState(null);
-  const [editStartTime, setEditStartTime] = useState("09:00");
-  const [editEndTime, setEditEndTime] = useState("17:00");
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const nav = useNavigate();
-
-  // Date picker state
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
-  const [datePickerMonth, setDatePickerMonth] = useState(selectedDate);
-  const [datePickerValue, setDatePickerValue] = useState(formatDate(selectedDate));
-
+  
   // Helper: round up to next interval (default 30 minutes)
   function roundUpToNextInterval(date, intervalMins = 30) {
     const d = new Date(date);
@@ -109,6 +97,39 @@ export default function Reservations({ setSelectedDeskId }) {
     }
     return { start: "09:00", end: "17:00" };
   }
+
+  // ✅ Initialize with default times immediately
+  const initialTimes = getDefaultTimesForDate(new Date());
+  const [startTime, setStartTime] = useState(initialTimes.start);
+  const [endTime, setEndTime] = useState(initialTimes.end);
+  
+  const [editingReservation, setEditingReservation] = useState(null);
+  const [editStartTime, setEditStartTime] = useState("09:00");
+  const [editEndTime, setEditEndTime] = useState("17:00");
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const nav = useNavigate();
+
+  // Date picker state
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [datePickerMonth, setDatePickerMonth] = useState(selectedDate);
+  const [datePickerValue, setDatePickerValue] = useState(formatDate(selectedDate));
+
+  // ✅ NEW: Auto-refresh times every minute to keep them current
+  useEffect(() => {
+    const updateTimes = () => {
+      const defaults = getDefaultTimesForDate(selectedDate);
+      setStartTime(defaults.start);
+      setEndTime(defaults.end);
+    };
+
+    // Update immediately
+    updateTimes();
+
+    // Then update every minute
+    const interval = setInterval(updateTimes, 60000); // 60 seconds
+
+    return () => clearInterval(interval);
+  }, [selectedDate]);
 
   // Helper to generate SelectItem components for time options
   function generateSelectTimeOptions(selectedDate, startFrom = "06:00", minInterval = 0) {
