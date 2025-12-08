@@ -2,7 +2,7 @@ import { AppSidebar } from "@/components/app-sidebar-employee";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { ModeToggle } from "@/components/mode-toggle";
 import { NavUser } from "@/components/nav-user";
-import { useState, useEffect, useRef, useCallback } from "react"; // Added useCallback
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/useAuth";
 import MyDesk from "./MyDesk";
 import Reservations from "./Reservations";
@@ -21,12 +21,8 @@ import {
 
 // Chart components
 import { StandingSittingChart } from "@/components/charts/StandingSittingChart";
-import { StandingLeaderboard } from "@/components/charts/StandingLeaderboard";
 import { MostUsedDesksChart } from "@/components/charts/MostUsedDesksChart";
-import { WeeklyUsageChart } from "@/components/charts/WeeklyUsageChart";
 import { OverallStatsCards } from "@/components/charts/OverallStatsCards";
-import NoShowTable from "@/components/charts/NoShowTable";
-import HealthinessScore from "@/components/charts/HealthinessScore";
 
 import axios from "axios";
 import {
@@ -76,9 +72,18 @@ export default function EmployeeDashboard() {
     const [metricsData, setMetricsData] = useState(null);
     const [metricsLoading, setMetricsLoading] = useState(false);
     const [metricsTimeRange, setMetricsTimeRange] = useState("7");
-    const [lastUpdated, setLastUpdated] = useState(null); // New state for timestamp
+    const [lastUpdated, setLastUpdated] = useState(null);
 
-    // HELPER: Safely parse Django ISO format date strings
+    function formatMinutes(mins) {
+        if (mins >= 60) {
+            const h = Math.floor(mins / 60);
+            const m = mins % 60;
+            return `${h}hr${h > 1 ? 's' : ''}${m > 0 ? ` ${m}m` : ''}`;
+        }
+        return `${mins}m`;
+    }
+
+    // Parse Django ISO format date strings
     const parseDateSafe = (dateString) => {
         if (!dateString || typeof dateString !== "string") return null;
         try {
@@ -164,7 +169,6 @@ export default function EmployeeDashboard() {
         fetchOccupiedDesk();
     }, [user]);
 
-    // --- FIX: Preserve pendingConfirmation state even when API fetches reservations ---
     useEffect(() => {
         if (!user) return;
         const fetchReservations = async () => {
@@ -331,7 +335,6 @@ export default function EmployeeDashboard() {
         setUpcomingReservations((prev) => prev.filter((r) => r.id !== id));
     }
 
-    // Poll for desk status changes when modal is open
     useEffect(() => {
         if (!verificationModalOpen || !pendingDeskId || !pendingReservationId || !user) {
             return;
@@ -467,7 +470,6 @@ export default function EmployeeDashboard() {
         setSelectedSection("hotdesk");
     }
 
-    // MEMOIZED FETCH FUNCTION
     // We use useCallback to prevent this function from being recreated on every render
     const fetchMetrics = useCallback(async () => {
         if (!user || selectedSection !== "dashboard") return;
@@ -494,19 +496,15 @@ export default function EmployeeDashboard() {
     }, [user, selectedSection, metricsTimeRange]);
 
 
-    // FETCH EFFECT + AUTO-REFRESH ON FOCUS
     useEffect(() => {
-        // Fetch initially
         fetchMetrics();
 
-        // Create a listener that refetches when the window gains focus
         const onFocus = () => {
             fetchMetrics();
         };
 
         window.addEventListener("focus", onFocus);
 
-        // Cleanup listener
         return () => window.removeEventListener("focus", onFocus);
     }, [fetchMetrics]);
 
@@ -551,8 +549,8 @@ export default function EmployeeDashboard() {
                                         {selectedDeskId && usageStats?.active_session ? (
                                             <div className="flex flex-col items-start gap-2 mt-2">
                                                 <div className="text-xs text-muted-foreground">
-                                                    <span className="font-semibold">{sittingMinutes}m sitting</span> |{" "}
-                                                    <span className="font-semibold">{standingMinutes}m standing</span>
+                                                    <span className="font-semibold">{formatMinutes(sittingMinutes)} sitting</span> |{" "}
+                                                    <span className="font-semibold">{formatMinutes(standingMinutes)} standing</span>
                                                 </div>
                                             </div>
                                         ) : null}
@@ -872,8 +870,6 @@ export default function EmployeeDashboard() {
                                 const res = await axios.get(`http://localhost:8000/api/reservations/`, config);
                                 const reservation = (res.data || []).find(r => r.id === pendingReservationId);
 
-                                // If backend says it's still confirmed (not pending_confirmation anymore),
-                                // then it was cancelled - show as not checked in
                                 setUpcomingReservations((prev) =>
                                     prev.map((r) =>
                                         r.id === pendingReservationId
@@ -887,7 +883,6 @@ export default function EmployeeDashboard() {
                                     )
                                 );
                             } catch (err) {
-                                // If fetch fails, just clear pending state
                                 setUpcomingReservations((prev) =>
                                     prev.map((r) =>
                                         r.id === pendingReservationId ? { ...r, pendingConfirmation: false, checkedIn: false } : r
