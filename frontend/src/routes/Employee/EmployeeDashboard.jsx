@@ -566,19 +566,23 @@ export default function EmployeeDashboard() {
                                         </div>
                                         {selectedDeskId && sessionStartTime ? (
                                             <div className="text-xs text-muted-foreground mt-1 flex gap-4 items-center">
-                                                <span>
-                                                    <span className="font-mono font-semibold text-primary">
+                                                <span className="flex items-baseline gap-2">
+                                                    <span className="text-xs font-medium text-gray-500 font-sans uppercase tracking-wide">
+                                                        ELAPSED:
+                                                    </span>
+                                                    <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
                                                         {elapsedTime}
                                                     </span>
-                                                    {" "}elapsed
                                                 </span>
                                                 {/* Show time left only for reservation sessions */}
                                                 {usageStats?.active_session && usageStats?.source === "reservation" && usageStats?.reservation_end_time && (
-                                                    <span>
-                                                        <span className="font-mono font-semibold text-primary">
+                                                    <span className="flex items-baseline gap-2">
+                                                        <span className="text-xs font-medium text-gray-500 font-sans uppercase tracking-wide">
+                                                            LEFT:
+                                                        </span>
+                                                        <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
                                                             {formatTimeLeft(usageStats.reservation_end_time)}
                                                         </span>
-                                                        {" "}remaining
                                                     </span>
                                                 )}
                                             </div>

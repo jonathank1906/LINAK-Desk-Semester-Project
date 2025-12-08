@@ -24,8 +24,6 @@ import {
 import {
   Settings2,
   ArrowUpDown,
-  CircleArrowUp,
-  CircleArrowDown,
 } from "lucide-react"
 
 import {
@@ -33,8 +31,30 @@ import {
   IconArrowBigDownFilled,
 } from "@tabler/icons-react"
 
-// dont touch
-// Accept selectedDeskId as a prop
+// Helper function to format seconds into HH:MM:SS
+const formatTime = (dateString, isDiff = false) => {
+  if (!dateString) return "00:00:00";
+  
+  const target = new Date(dateString);
+  const now = new Date();
+  // If isDiff is true (Remaining), we calculate target - now. 
+  // If false (Elapsed), we calculate now - target.
+  const diffInSeconds = isDiff 
+    ? Math.floor((target - now) / 1000) 
+    : Math.floor((now - target) / 1000);
+
+  const seconds = Math.max(0, diffInSeconds);
+  
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+};
+
+// Helper for simple minutes display
+const formatMinutes = (seconds) => Math.floor((seconds || 0) / 60);
+
 export default function MyDesk({ selectedDeskId }) {
   const { user } = useAuth();
   const [deskStatus, setDeskStatus] = useState(null);
@@ -46,24 +66,36 @@ export default function MyDesk({ selectedDeskId }) {
   const [reportMessage, setReportMessage] = useState("");
   const [reportCategory, setReportCategory] = useState("other");
 
-  // Use ref to store polling interval
   const pollingIntervalRef = useRef(null);
 
-  // If no desk is selected, show message and hide all controls
-  if (!selectedDeskId) {
+  // Check if session is active
+  function isSessionActive() {
+    if (usageStats && usageStats.reservation_end_time) {
+      const now = new Date();
+      const end = new Date(usageStats.reservation_end_time);
+      if (now > end) return false;
+    }
+    if (usageStats && usageStats.active_session === false) return false;
+    return true;
+  }
+
+  // --- No Desk Selected / Session Ended View ---
+  if (!selectedDeskId || (!loading && !isSessionActive())) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center p-8">
         <Card className="max-w-md w-full text-center">
           <CardHeader>
             <CardTitle>
               <span className="px-3 py-1 rounded-full bg-yellow-200 text-yellow-900 font-semibold inline-block text-sm">
-                No Desk Selected
+                {selectedDeskId ? "Session Ended" : "No Desk Selected"}
               </span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground mb-4">
-              Please select a desk from the Hot Desk or Reservations page to use desk controls
+              {selectedDeskId
+                ? "Your reservation or session has ended. Please select a desk to continue."
+                : "Please select a desk from the Hot Desk or Reservations page."}
             </p>
           </CardContent>
         </Card>
@@ -71,16 +103,14 @@ export default function MyDesk({ selectedDeskId }) {
     );
   }
 
+  // --- Data Fetching & Polling Logic ---
   useEffect(() => {
     if (!user || !selectedDeskId) return;
 
     const fetchDeskData = async () => {
       try {
         const deskId = selectedDeskId;
-        const config = {
-          headers: { Authorization: `Bearer ${user.token}` },
-          withCredentials: true,
-        };
+        const config = { headers: { Authorization: `Bearer ${user.token}` } };
 
         const [statusRes, usageRes] = await Promise.all([
           axios.get(`http://localhost:8000/api/desks/${deskId}/status/`, config),
@@ -97,36 +127,23 @@ export default function MyDesk({ selectedDeskId }) {
     };
 
     fetchDeskData();
-
     const interval = setInterval(fetchDeskData, 5000);
     return () => clearInterval(interval);
   }, [user, selectedDeskId]);
 
-  // ✅ NEW: Start polling when desk movement begins
   const startMovementPolling = () => {
-    // Clear any existing polling interval
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-    }
-
+    if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
     setIsMoving(true);
 
     pollingIntervalRef.current = setInterval(async () => {
       try {
-        const deskId = selectedDeskId;
-        const config = {
-          headers: { Authorization: `Bearer ${user.token}` },
-          withCredentials: true,
-        };
-
+        const config = { headers: { Authorization: `Bearer ${user.token}` } };
         const response = await axios.get(
-          `http://localhost:8000/api/desks/${deskId}/poll-movement/`,
+          `http://localhost:8000/api/desks/${selectedDeskId}/poll-movement/`,
           config
         );
-
         const data = response.data;
-
-        // Update UI with current height
+        
         setDeskStatus(prev => ({
           ...prev,
           current_height: data.height,
@@ -134,35 +151,14 @@ export default function MyDesk({ selectedDeskId }) {
           status: data.status
         }));
 
-        // ✅ Stop polling when desk stops moving
-        if (!data.is_moving) {
-          console.log('✅ Desk stopped moving');
-          stopMovementPolling();
-        }
+        if (!data.is_moving) stopMovementPolling();
       } catch (error) {
-        console.error('Movement polling error:', error);
+        console.error('Polling error:', error);
         stopMovementPolling();
       }
-    }, 500); // Poll every 500ms
+    }, 500);
   };
 
-
-  const submitReport = async () => {
-    try {
-      const config = { headers: { Authorization: `Bearer ${user.token}` } };
-      await axios.post(`http://localhost:8000/api/desks/${selectedDeskId}/report/`,
-        { message: reportMessage, category: reportCategory }, config);
-
-      toast.success("Report submitted");
-      setReportMessage("");
-      setReportCategory("other");
-      setReportModal(false);
-    } catch (err) {
-      toast.error("Failed", { description: err.response?.data });
-    }
-  };
-
-  // ✅ NEW: Stop polling
   const stopMovementPolling = () => {
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
@@ -171,52 +167,24 @@ export default function MyDesk({ selectedDeskId }) {
     setIsMoving(false);
   };
 
-  // ✅ Cleanup polling on unmount
-  useEffect(() => {
-    return () => {
-      stopMovementPolling();
-    };
-  }, []);
-
   const controlDeskHeight = async (targetHeight) => {
     setIsControlling(true);
     try {
-      const deskId = selectedDeskId;
-      const config = {
-        headers: { Authorization: `Bearer ${user.token}` },
-        withCredentials: true,
-      };
-
-      // ✅ Send height control command
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
       const response = await axios.post(
-        `http://localhost:8000/api/desks/${deskId}/control/`,
+        `http://localhost:8000/api/desks/${selectedDeskId}/control/`,
         { height: targetHeight },
         config
       );
 
-      console.log('Control response:', response.data);
-
-      // ✅ Start polling to track movement
-      if (response.data.status === 'moving') {
-        startMovementPolling();
-      }
-
-      // Update initial status
-      const statusRes = await axios.get(
-        `http://localhost:8000/api/desks/${deskId}/status/`,
-        config
-      );
-      setDeskStatus(statusRes.data);
-
-      toast.success(`Moving desk to ${targetHeight}cm`, {
-        position: "top-center"
-      });
+      if (response.data.status === 'moving') startMovementPolling();
+      
+      // Immediate update to show UI feedback
+      setDeskStatus(prev => ({ ...prev, is_moving: true }));
+      toast.success(`Moving desk to ${targetHeight}cm`);
 
     } catch (err) {
-      console.error("Error controlling desk:", err);
-      toast.error("Failed to control desk", {
-        position: "top-center"
-      });
+      toast.error("Failed to control desk");
       stopMovementPolling();
     } finally {
       setIsControlling(false);
@@ -237,134 +205,109 @@ export default function MyDesk({ selectedDeskId }) {
 
   const emergencyStop = async () => {
     try {
-      const deskId = selectedDeskId;
-      const config = {
-        headers: { Authorization: `Bearer ${user.token}` },
-        withCredentials: true,
-      };
-
-      // ✅ Stop polling immediately
       stopMovementPolling();
-
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
       await axios.post(
-        `http://localhost:8000/api/desks/${deskId}/control/`,
-        { height: deskStatus?.current_height || 85 },
+        `http://localhost:8000/api/desks/${selectedDeskId}/control/`,
+        { height: deskStatus?.current_height || 85 }, // Send current height to force stop
         config
       );
-
-      toast.error('Emergency stop activated!', {
-        position: "top-center"
-      });
+      toast.error('Emergency stop activated!');
     } catch (err) {
-      console.error("Error stopping desk:", err);
+      console.error("Error stopping:", err);
     }
   };
 
-  const currentHeight = deskStatus?.current_height || 85;
+  const submitReport = async () => {
+    try {
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      await axios.post(`http://localhost:8000/api/desks/${selectedDeskId}/report/`,
+        { message: reportMessage, category: reportCategory }, config);
+      toast.success("Report submitted");
+      setReportModal(false);
+      setReportMessage("");
+    } catch (err) {
+      toast.error("Failed to submit report");
+    }
+  };
+
+  // Derived Values
+  const currentHeight = deskStatus?.current_height || 72; // Default to sit height if null
   const minHeight = 60;
   const maxHeight = 120;
-  const heightPercentage = ((currentHeight - minHeight) / (maxHeight - minHeight)) * 100;
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+    <div className="flex flex-1 flex-col gap-4 p-4 pt-0 h-[calc(100vh-100px)]"> 
+      {/* Added fixed height calculation to ensure full screen usage if needed, or remove h-full class */}
 
-      {/* Current Desk Status Header */}
-      <Card>
-        <CardHeader>
-          {loading ? (
-            <>
-              <div className="flex items-center justify-between">
-                <Skeleton className="h-8 w-32" />
-                <Skeleton className="h-6 w-24" />
-              </div>
-            </>
-          ) : (
-            <div className="flex items-center justify-between">
+      {/* --- HEADER --- */}
+      <Card className="shrink-0">
+        <CardHeader className="py-4">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            
+            {/* Title & Connection Status */}
+            <div className="flex items-center gap-3">
               <CardTitle className="text-2xl">
                 {deskStatus?.name || `Desk #${selectedDeskId}`}
               </CardTitle>
-              <Pill>
-                <PillIndicator
-                  pulse
-                  variant={isMoving ? 'warning' : 'success'}
-                />
-                {isMoving ? 'Moving' : 'Connected'}
-              </Pill>
+              {!loading && (
+                <Pill>
+                  <PillIndicator pulse variant={isMoving ? 'warning' : 'success'} />
+                  {isMoving ? 'Moving' : 'Connected'}
+                </Pill>
+              )}
             </div>
-          )}
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center space-y-2">
-                <Skeleton className="h-9 w-20 mx-auto" />
-                <Skeleton className="h-4 w-28 mx-auto" />
-              </div>
-              <div className="text-center space-y-2">
-                <Skeleton className="h-7 w-16 mx-auto" />
-                <Skeleton className="h-4 w-20 mx-auto" />
-              </div>
-              <div className="text-center space-y-2">
-                <Skeleton className="h-7 w-24 mx-auto" />
-                <Skeleton className="h-4 w-24 mx-auto" />
-              </div>
-            </div>
-          ) : (
-            <div className="relative">
-              <div className="flex flex-wrap gap-4 mb-2">
-                {/* Elapsed Time */}
-                <span className="text-xs text-muted-foreground font-semibold">
-                  Elapsed: {
-                    (() => {
-                      const started = usageStats?.started_at ? new Date(usageStats.started_at) : null;
-                      if (!started) return "00:00:00";
-                      const now = new Date();
-                      const diff = Math.max(0, Math.floor((now - started) / 1000));
-                      const h = Math.floor(diff / 3600);
-                      const m = Math.floor((diff % 3600) / 60);
-                      const s = diff % 60;
-                      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-                    })()
-                  }
-                </span>
-                {/* Remaining Time */}
-                {usageStats?.reservation_end_time && (
-                  <span className="text-xs text-muted-foreground font-semibold">
-                    Remaining: {
-                      (() => {
-                        const end = new Date(usageStats.reservation_end_time);
-                        const now = new Date();
-                        const diff = Math.max(0, Math.floor((end - now) / 1000));
-                        const h = Math.floor(diff / 3600);
-                        const m = Math.floor((diff % 3600) / 60);
-                        const s = diff % 60;
-                        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-                      })()
-                    }
-                  </span>
-                )}
-                {/* Sitting Time */}
-                <span className="text-xs text-muted-foreground font-semibold">
-                  Sitting: {Math.floor((usageStats?.sitting_time || 0) / 60)} min
-                </span>
-                {/* Standing Time */}
-                <span className="text-xs text-muted-foreground font-semibold">
-                  Standing: {Math.floor((usageStats?.standing_time || 0) / 60)} min
-                </span>
-              </div>
-              {/* Report Problem Button in Bottom Right */}
-              <div className="absolute bottom-2 right-2">
+
+            {/* Stats Pills & Actions */}
+            {!loading && (
+              <div className="flex items-center gap-4 self-end md:self-auto">
+                
+                {/* Timer Group */}
+                <div className="flex items-center gap-3 rounded-full bg-gray-100 dark:bg-gray-800 px-4 py-2">
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-xs font-medium text-gray-500 font-sans uppercase tracking-wide">Elapsed:</span>
+                        <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
+                            {formatTime(usageStats?.started_at)}
+                        </span>
+                    </div>
+                    {usageStats?.reservation_end_time && (
+                        <>
+                            <span className="text-gray-300">|</span>
+                            <div className="flex items-baseline gap-2">
+                                <span className="text-xs font-medium text-gray-500 font-sans uppercase tracking-wide">Left:</span>
+                                <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
+                                    {formatTime(usageStats.reservation_end_time, true)}
+                                </span>
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                {/* Health Stats Group */}
+                <div className="hidden lg:flex items-center gap-3 rounded-full bg-gray-100 dark:bg-gray-800 px-4 py-2">
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-xs font-medium text-gray-500 font-sans">STANDING:</span>
+                        <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
+                            {formatMinutes(usageStats?.standing_time)}m
+                        </span>
+                    </div>
+                    <span className="text-gray-300">|</span>
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-xs font-medium text-gray-500 font-sans">SITTING:</span>
+                        <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
+                            {formatMinutes(usageStats?.sitting_time)}m
+                        </span>
+                    </div>
+                </div>
+
+                {/* Report Button */}
                 <Dialog open={reportModal} onOpenChange={setReportModal}>
                   <DialogTrigger asChild>
-                    <Button
-                      variant="destructive"
-                      onClick={() => setReportModal(true)}
-                      size="sm"
-                    >
+                    <Button variant="destructive">
                       Report Problem
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-[425px]">
+                  <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Report a Problem</DialogTitle>
                     </DialogHeader>
@@ -372,184 +315,135 @@ export default function MyDesk({ selectedDeskId }) {
                       <textarea
                         value={reportMessage}
                         onChange={(e) => setReportMessage(e.target.value)}
-                        className="w-full border border-gray-300 dark:border-gray-600 rounded p-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2"
-                        rows="4"
-                        placeholder="Describe the problem here..."
+                        className="w-full border rounded p-3 min-h-[100px]"
+                        placeholder="Describe the issue..."
                       />
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                          Category
-                        </label>
-                        <Select
-                          value={reportCategory}
-                          onValueChange={setReportCategory}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select category" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="desk_doesnt_move">Desk doesn't move</SelectItem>
-                            <SelectItem value="desk_uncleaned">Desk uncleaned</SelectItem>
-                            <SelectItem value="desk_is_broken">Desk is broken</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      <Select value={reportCategory} onValueChange={setReportCategory}>
+                        <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="desk_doesnt_move">Desk doesn't move</SelectItem>
+                          <SelectItem value="desk_uncleaned">Desk uncleaned</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <DialogFooter>
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setReportModal(false);
-                          setReportMessage("");
-                          setReportCategory("other");
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={submitReport}
-                      >
-                        Submit
-                      </Button>
+                      <Button variant="ghost" onClick={() => setReportModal(false)}>Cancel</Button>
+                      <Button onClick={submitReport}>Submit</Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
               </div>
-            </div>
-          )}
-        </CardContent>
+            )}
+          </div>
+        </CardHeader>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Left Column - Height Controls only */}
-        <div className="space-y-4">
-          {/* Height Controls */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <ArrowUpDown className="w-5 h-5" />
-                <CardTitle>Height Controls</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="space-y-4">
-                  <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Skeleton className="h-4 w-16" />
-                      <Skeleton className="h-6 w-16" />
-                      <Skeleton className="h-4 w-16" />
-                    </div>
-                    <Skeleton className="h-2 w-full rounded-full" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Skeleton className="h-12 w-full rounded-lg" />
-                    <Skeleton className="h-12 w-full rounded-lg" />
-                  </div>
-                  <Skeleton className="h-12 w-full rounded-lg" />
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Manual Controls */}
-                  <div className="flex flex-col items-center gap-1">
-                    <Button
-                      className="h-12 w-12"
-                      variant="outline"
-                      size="lg"
-                      onClick={moveUp}
-                      disabled={isControlling || isMoving || currentHeight >= maxHeight}
-                    >
-                      <IconArrowBigUpFilled style={{ width: "30px", height: "30px" }} />
-                    </Button>
-                    {/* Current Height moved between arrows */}
-                    <div className="text-4xl font-bold my-2">
-                      {currentHeight != null ? (
-                        <>
-                          {currentHeight}
-                          <span className="text-xl align-bottom">cm</span>
-                        </>
-                      ) : "--"}
-                    </div>
-                    <Button
-                      className="h-12 w-12"
-                      variant="outline"
-                      size="lg"
-                      onClick={moveDown}
-                      disabled={isControlling || isMoving || currentHeight <= minHeight}
-                    >
-                      <IconArrowBigDownFilled style={{ width: "30px", height: "30px" }} />
-                    </Button>
-                  </div>
+      {/* --- MAIN CONTROLS GRID --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 grow">
+        
+        {/* LEFT PANEL: Height Controls */}
+        <Card className="h-full flex flex-col overflow-hidden">
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <ArrowUpDown className="w-5 h-5" />
+              <CardTitle className="text-lg">Height Controls</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="flex-1 flex flex-col p-0"> {/* p-0 allows buttons to touch edges */}
+            {loading ? (
+               <div className="p-6 space-y-4"><Skeleton className="h-full w-full" /></div>
+            ) : (
+              <div className="flex flex-col h-full">
+                
+                {/* UP BUTTON (Touch Zone) */}
+                <button
+                  className="flex-1 w-full flex items-center justify-center bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors active:scale-[0.99]"
+                  onClick={moveUp}
+                  disabled={isControlling || isMoving || currentHeight >= maxHeight}
+                >
+                  <IconArrowBigUpFilled className="w-24 h-24 text-gray-700 dark:text-gray-300 opacity-80" />
+                </button>
 
-                  {/* Emergency Stop */}
+                {/* CENTER DISPLAY & STOP */}
+                <div className="flex-none py-8 flex flex-col items-center justify-center bg-white dark:bg-black z-10 border-y relative">
+                  <div className="text-6xl font-extrabold tracking-tight">
+                    {currentHeight}
+                    <span className="text-2xl font-medium text-muted-foreground ml-2">cm</span>
+                  </div>
+                  
+                  {/* Stop Button Centered */}
                   <Button
                     onClick={emergencyStop}
                     disabled={!isMoving}
                     variant="destructive"
-                    className="p-3 hover:bg-red-600 transition-colors font-semibold disabled:cursor-not-allowed"
+                    size="lg"
+                    className="mt-4 px-12 rounded-full font-bold uppercase tracking-widest shadow-lg transition-all"
                   >
                     Stop
                   </Button>
-
-                  {isMoving && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
-                      <p className="text-sm text-yellow-800 font-medium">
-                        Desk is moving... Tracking height in real-time
-                      </p>
-                    </div>
-                  )}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
 
-        {/* Right Column - Quick Presets, Desk Info at bottom */}
-        <div className="space-y-4 flex flex-col h-full">
-          {/* Quick Presets */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Settings2 className="w-5 h-5" />
-                <CardTitle>Quick Presets</CardTitle>
+                {/* DOWN BUTTON (Touch Zone) */}
+                <button
+                  className="flex-1 w-full flex items-center justify-center bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors active:scale-[0.99]"
+                  onClick={moveDown}
+                  disabled={isControlling || isMoving || currentHeight <= minHeight}
+                >
+                  <IconArrowBigDownFilled className="w-24 h-24 text-gray-700 dark:text-gray-300 opacity-80" />
+                </button>
               </div>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="grid grid-cols-1 gap-3">
-                  <Skeleton className="h-20 w-full rounded-lg" />
-                  <Skeleton className="h-20 w-full rounded-lg" />
-                  <Skeleton className="h-20 w-full rounded-lg" />
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-3">
-                  <button
-                    onClick={() => controlDeskHeight(110)}
-                    disabled={isControlling || isMoving}
-                    className="flex justify-between items-center p-4 border rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <div>
-                      <div className="font-medium">Standing Position</div>
-                      <div className="text-sm">110cm</div>
-                    </div>
-                  </button>
+            )}
+          </CardContent>
+        </Card>
 
-                  <button
-                    onClick={() => controlDeskHeight(72)}
-                    disabled={isControlling || isMoving}
-                    className="flex justify-between items-center p-4 border rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <div>
-                      <div className="font-medium">Sitting Position</div>
-                      <div className="text-sm">72cm</div>
-                    </div>
-                  </button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        {/* RIGHT PANEL: Presets */}
+        <Card className="h-full flex flex-col">
+          <CardHeader>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Settings2 className="w-5 h-5" />
+              <CardTitle className="text-lg">Quick Presets</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="flex-1 flex flex-col gap-4">
+            {loading ? (
+              <Skeleton className="h-full w-full" />
+            ) : (
+              <>
+                {/* Standing Preset Tile */}
+                <button
+                  onClick={() => controlDeskHeight(110)}
+                  disabled={isControlling || isMoving}
+                  className="flex-1 w-full relative group overflow-hidden rounded-xl border-2 border-transparent hover:border-orange-500/50 bg-orange-50 dark:bg-orange-950/20 hover:bg-orange-100 dark:hover:bg-orange-950/40 transition-all text-left p-8"
+                >
+                  <div className="flex flex-col h-full justify-between relative z-10">
+                    <span className="text-orange-600 dark:text-orange-400 font-semibold text-lg uppercase tracking-wide">Standing Position</span>
+                    <span className="text-5xl font-bold text-gray-900 dark:text-white">110<span className="text-2xl text-muted-foreground ml-1">cm</span></span>
+                  </div>
+                  <div className="absolute right-4 bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <IconArrowBigUpFilled size={120} />
+                  </div>
+                </button>
+
+                {/* Sitting Preset Tile */}
+                <button
+                  onClick={() => controlDeskHeight(72)}
+                  disabled={isControlling || isMoving}
+                  className="flex-1 w-full relative group overflow-hidden rounded-xl border-2 border-transparent hover:border-blue-500/50 bg-blue-50 dark:bg-blue-950/20 hover:bg-blue-100 dark:hover:bg-blue-950/40 transition-all text-left p-8"
+                >
+                  <div className="flex flex-col h-full justify-between relative z-10">
+                    <span className="text-blue-600 dark:text-blue-400 font-semibold text-lg uppercase tracking-wide">Sitting Position</span>
+                    <span className="text-5xl font-bold text-gray-900 dark:text-white">72<span className="text-2xl text-muted-foreground ml-1">cm</span></span>
+                  </div>
+                   <div className="absolute right-4 bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <IconArrowBigDownFilled size={120} />
+                  </div>
+                </button>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
       </div>
     </div>
   );
