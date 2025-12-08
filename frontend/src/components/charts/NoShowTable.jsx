@@ -26,7 +26,7 @@ export default function NoShowTable({ data, isDarkMode }) {
       <CardContent>
         <div className="flex items-center gap-2 mb-4">
           <IconAlertTriangle className="w-5 h-5 text-red-500" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white" title="Reservations you confirmed but didn't check in">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             No Show History
           </h3>
           <span 

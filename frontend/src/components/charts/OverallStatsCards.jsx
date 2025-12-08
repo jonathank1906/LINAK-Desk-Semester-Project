@@ -11,7 +11,6 @@ export function OverallStatsCards({ stats }) {
     {
       title: "Total Sessions",
       value: stats?.total_sessions || 0,
-      subtitle: "Desk usage count",
       icon: IconChartBar,
       color: "text-blue-500",
       bgColor: "bg-blue-500/10",
@@ -19,7 +18,6 @@ export function OverallStatsCards({ stats }) {
     {
       title: "Total Hours",
       value: `${stats?.total_hours || 0}h`,
-      subtitle: "Time at desk",
       icon: IconClock,
       color: "text-green-500",
       bgColor: "bg-green-500/10",
@@ -27,7 +25,6 @@ export function OverallStatsCards({ stats }) {
     {
       title: "Standing Time",
       value: `${stats?.standing_percentage || 0}%`,
-      subtitle: `${standingHours}h total`,
       icon: IconActivity,
       color: "text-purple-500",
       bgColor: "bg-purple-500/10",
@@ -35,7 +32,6 @@ export function OverallStatsCards({ stats }) {
     {
       title: "Position Changes",
       value: stats?.total_position_changes || 0,
-      subtitle: "Sit-stand switches",
       icon: IconArrowsVertical,
       color: "text-orange-500",
       bgColor: "bg-orange-500/10",
@@ -50,7 +46,6 @@ export function OverallStatsCards({ stats }) {
           <Card 
             key={index}
             className=""
-            title={stat.subtitle}
           >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -62,11 +57,6 @@ export function OverallStatsCards({ stats }) {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stat.value}</div>
-              {stat.subtitle && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {stat.subtitle}
-                </p>
-              )}
             </CardContent>
           </Card>
         );

@@ -49,7 +49,7 @@ export default function HealthinessScore({ data, isDarkMode }) {
       <CardContent>
         <div className="flex items-center gap-2 mb-6">
           <IconHeart className={`w-5 h-5 ${colors.text}`} />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white" title="Score based on standing time, position changes, and consistency">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             Healthiness Score
           </h3>
         </div>
