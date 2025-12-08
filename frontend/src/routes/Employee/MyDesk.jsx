@@ -310,68 +310,112 @@ export default function MyDesk({ selectedDeskId }) {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-              <Dialog open={reportModal} onOpenChange={setReportModal}>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="destructive"
-                    onClick={() => setReportModal(true)}
-                    size="sm"
-                  >
-                    Report Problem
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
-                  <DialogHeader>
-                    <DialogTitle>Report a Problem</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <textarea
-                      value={reportMessage}
-                      onChange={(e) => setReportMessage(e.target.value)}
-                      className="w-full border border-gray-300 dark:border-gray-600 rounded p-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2"
-                      rows="4"
-                      placeholder="Describe the problem here..."
-                    />
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Category
-                      </label>
-                      <Select
-                        value={reportCategory}
-                        onValueChange={setReportCategory}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="desk_doesnt_move">Desk doesn't move</SelectItem>
-                          <SelectItem value="desk_uncleaned">Desk uncleaned</SelectItem>
-                          <SelectItem value="desk_is_broken">Desk is broken</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
+            <div className="relative">
+              <div className="flex flex-wrap gap-4 mb-2">
+                {/* Elapsed Time */}
+                <span className="text-xs text-muted-foreground font-semibold">
+                  Elapsed: {
+                    (() => {
+                      const started = usageStats?.started_at ? new Date(usageStats.started_at) : null;
+                      if (!started) return "00:00:00";
+                      const now = new Date();
+                      const diff = Math.max(0, Math.floor((now - started) / 1000));
+                      const h = Math.floor(diff / 3600);
+                      const m = Math.floor((diff % 3600) / 60);
+                      const s = diff % 60;
+                      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                    })()
+                  }
+                </span>
+                {/* Remaining Time */}
+                {usageStats?.reservation_end_time && (
+                  <span className="text-xs text-muted-foreground font-semibold">
+                    Remaining: {
+                      (() => {
+                        const end = new Date(usageStats.reservation_end_time);
+                        const now = new Date();
+                        const diff = Math.max(0, Math.floor((end - now) / 1000));
+                        const h = Math.floor(diff / 3600);
+                        const m = Math.floor((diff % 3600) / 60);
+                        const s = diff % 60;
+                        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                      })()
+                    }
+                  </span>
+                )}
+                {/* Sitting Time */}
+                <span className="text-xs text-muted-foreground font-semibold">
+                  Sitting: {Math.floor((usageStats?.sitting_time || 0) / 60)} min
+                </span>
+                {/* Standing Time */}
+                <span className="text-xs text-muted-foreground font-semibold">
+                  Standing: {Math.floor((usageStats?.standing_time || 0) / 60)} min
+                </span>
+              </div>
+              {/* Report Problem Button in Bottom Right */}
+              <div className="absolute bottom-2 right-2">
+                <Dialog open={reportModal} onOpenChange={setReportModal}>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="destructive"
+                      onClick={() => setReportModal(true)}
+                      size="sm"
+                    >
+                      Report Problem
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Report a Problem</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <textarea
+                        value={reportMessage}
+                        onChange={(e) => setReportMessage(e.target.value)}
+                        className="w-full border border-gray-300 dark:border-gray-600 rounded p-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2"
+                        rows="4"
+                        placeholder="Describe the problem here..."
+                      />
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Category
+                        </label>
+                        <Select
+                          value={reportCategory}
+                          onValueChange={setReportCategory}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="desk_doesnt_move">Desk doesn't move</SelectItem>
+                            <SelectItem value="desk_uncleaned">Desk uncleaned</SelectItem>
+                            <SelectItem value="desk_is_broken">Desk is broken</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                  </div>
-                  <DialogFooter>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setReportModal(false);
-                        setReportMessage("");
-                        setReportCategory("other");
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={submitReport}
-                    >
-                      Submit
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setReportModal(false);
+                          setReportMessage("");
+                          setReportCategory("other");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={submitReport}
+                      >
+                        Submit
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
           )}
         </CardContent>
