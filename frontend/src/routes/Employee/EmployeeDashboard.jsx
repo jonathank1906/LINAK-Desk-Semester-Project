@@ -2,15 +2,14 @@ import { AppSidebar } from "@/components/app-sidebar-employee";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { ModeToggle } from "@/components/mode-toggle";
 import { NavUser } from "@/components/nav-user";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react"; // Added useCallback
 import { useAuth } from "@/contexts/useAuth";
 import MyDesk from "./MyDesk";
 import Reservations from "./Reservations";
 import Hotdesk from "./Hotdesk";
-import { formatLocalYYYYMMDD, formatNiceDate, formatTimeFromISO } from "@/utils/date";
+import { formatNiceDate } from "@/utils/date";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "lucide-react";
-import { IconRefresh } from "@tabler/icons-react";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import {
     Select,
@@ -33,19 +32,9 @@ import axios from "axios";
 import {
     Card,
     CardContent,
-    CardDescription,
-    CardFooter,
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-import { MoreVertical } from "lucide-react";
-import {
-    DropdownMenu,
-    DropdownMenuTrigger,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
 import PendingVerificationModal from "@/components/pending-verification-modal";
 import { toast } from "sonner";
 
@@ -87,6 +76,7 @@ export default function EmployeeDashboard() {
     const [metricsData, setMetricsData] = useState(null);
     const [metricsLoading, setMetricsLoading] = useState(false);
     const [metricsTimeRange, setMetricsTimeRange] = useState("7");
+    const [lastUpdated, setLastUpdated] = useState(null); // New state for timestamp
 
     // HELPER: Safely parse Django ISO format date strings
     const parseDateSafe = (dateString) => {
@@ -194,10 +184,7 @@ export default function EmployeeDashboard() {
                             const now = new Date();
                             const startDiffMins = (parsedStartTime.getTime() - now.getTime()) / 1000 / 60;
 
-                            // Check if this reservation is currently pending in our ref
                             const isPendingInRef = !!pendingConfirmationRef.current[r.id];
-
-                            // If we have it marked as pending locally, keep that state regardless of API
                             const isPending = isPendingInRef || r.status === "pending_confirmation";
 
                             return {
@@ -458,33 +445,6 @@ export default function EmployeeDashboard() {
         }
     }
 
-    async function handleCheckOutReservation(reservationId) {
-        try {
-            const config = {
-                headers: { Authorization: `Bearer ${user?.token}` },
-                withCredentials: true,
-            };
-            await axios.post(
-                `http://localhost:8000/api/reservations/${reservationId}/check_out/`,
-                {},
-                config
-            );
-            toast.success("Checked out successfully");
-            setSelectedDeskId(null);
-            setSessionStartTime(null);
-            setElapsedTime("00:00:00");
-            setLiveSittingSeconds(0);
-            setLiveStandingSeconds(0);
-            setBaseSittingSeconds(0);
-            setBaseStandingSeconds(0);
-            setLastFetchTime(null);
-        } catch (err) {
-            toast.error("Failed to check out", {
-                description: err?.response?.data?.error || err?.message,
-            });
-        }
-    }
-
     async function handleReleaseReservation(id) {
         try {
             const config = {
@@ -507,8 +467,11 @@ export default function EmployeeDashboard() {
         setSelectedSection("hotdesk");
     }
 
-    // Fetch user metrics
-    const fetchMetrics = async () => {
+    // MEMOIZED FETCH FUNCTION
+    // We use useCallback to prevent this function from being recreated on every render
+    const fetchMetrics = useCallback(async () => {
+        if (!user || selectedSection !== "dashboard") return;
+        
         try {
             setMetricsLoading(true);
             const config = {
@@ -522,19 +485,31 @@ export default function EmployeeDashboard() {
             );
 
             setMetricsData(response.data);
+            setLastUpdated(new Date()); // Update the timestamp on success
         } catch (error) {
             console.error("Failed to fetch user metrics:", error);
         } finally {
             setMetricsLoading(false);
         }
-    };
+    }, [user, selectedSection, metricsTimeRange]);
 
-    // Fetch metrics when time range changes or component mounts
+
+    // FETCH EFFECT + AUTO-REFRESH ON FOCUS
     useEffect(() => {
-        if (user && selectedSection === "dashboard") {
+        // Fetch initially
+        fetchMetrics();
+
+        // Create a listener that refetches when the window gains focus
+        const onFocus = () => {
             fetchMetrics();
-        }
-    }, [user, metricsTimeRange, selectedSection]);
+        };
+
+        window.addEventListener("focus", onFocus);
+
+        // Cleanup listener
+        return () => window.removeEventListener("focus", onFocus);
+    }, [fetchMetrics]);
+
 
     const sittingMinutes = Math.floor(liveSittingSeconds / 60);
     const standingMinutes = Math.floor(liveStandingSeconds / 60);
@@ -768,6 +743,11 @@ export default function EmployeeDashboard() {
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-3">
+                                    {lastUpdated && (
+                                        <span className="text-xs text-muted-foreground">
+                                            Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                    )}
                                     <Select value={metricsTimeRange} onValueChange={setMetricsTimeRange}>
                                         <SelectTrigger className="w-[140px]">
                                             <SelectValue placeholder="Time range" />
@@ -778,20 +758,10 @@ export default function EmployeeDashboard() {
                                             <SelectItem value="30">Last 30 days</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    <Button variant="outline" size="icon" onClick={fetchMetrics}>
-                                        <IconRefresh className="h-4 w-4" />
-                                    </Button>
                                 </div>
                             </div>
 
-                            {metricsLoading ? (
-                                <div className="flex items-center justify-center h-96">
-                                    <div className="text-center">
-                                        <Spinner variant="circle" className="h-12 w-12 mx-auto mb-4" />
-                                        <p className="text-muted-foreground">Loading...</p>
-                                    </div>
-                                </div>
-                            ) : metricsData ? (
+                            {metricsData ? (
                                 <>
                                     {/* Overall Stats Cards */}
                                     <OverallStatsCards stats={metricsData.overall_stats} />
@@ -839,7 +809,6 @@ export default function EmployeeDashboard() {
                                 <div className="text-center py-12">
                                     <p className="text-muted-foreground">Failed to load metrics</p>
                                     <Button onClick={fetchMetrics} className="button mt-4">
-                                        <IconRefresh className="h-4 w-4 mr-2" />
                                         Retry
                                     </Button>
                                 </div>
