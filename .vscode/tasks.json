@@ -1,0 +1,63 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "frontend",
+      "type": "shell",
+      "command": "cd frontend && npm run dev",
+      "group": "none"
+    },
+
+    {
+      "label": "backend",
+      "type": "shell",
+      "osx": {
+        "command": "cd backend && source ../env/bin/activate && python3 manage.py runserver"
+      },
+      "linux": {
+        "command": "cd backend && source ../env/bin/activate && python3 manage.py runserver"
+      },
+      "windows": {
+        "command": "cd backend && ..\\env\\Scripts\\activate && py manage.py runserver"
+      }
+    },
+
+    {
+      "label": "sim",
+      "type": "shell",
+      "osx": {
+        "command": "cd wifi2ble-box-simulator && source ../env/bin/activate && python3 simulator/main.py --port 8001"
+      },
+      "linux": {
+        "command": "cd wifi2ble-box-simulator && source ../env/bin/activate && python3 simulator/main.py --port 8001"
+      },
+      "windows": {
+        "command": "cd wifi2ble-box-simulator && ..\\env\\Scripts\\activate && py simulator\\main.py --port 8001"
+      }
+    },
+
+    {
+      "label": "mqtt",
+      "type": "shell",
+      "osx": {
+        "command": "cd backend && source ../env/bin/activate && python3 manage.py mqtt_listener"
+      },
+      "linux": {
+        "command": "cd backend && source ../env/bin/activate && python3 manage.py mqtt_listener"
+      },
+      "windows": {
+        "command": "cd backend && ..\\env\\Scripts\\activate && py manage.py mqtt_listener"
+      }
+    },
+
+    {
+      "label": "Run All",
+      "dependsOn": ["frontend", "backend", "sim", "mqtt"],
+      "type": "shell",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
+}
