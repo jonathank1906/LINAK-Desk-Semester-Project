@@ -773,7 +773,7 @@ export default function EmployeeDashboard() {
                                 </div>
                             </div>
 
-                            {metricsData ? (
+                            {metricsData && (
                                 <>
                                     {/* Overall Stats Cards */}
                                     <OverallStatsCards stats={metricsData.overall_stats} />
@@ -823,13 +823,6 @@ export default function EmployeeDashboard() {
                                         */}
                                     </div>
                                 </>
-                            ) : (
-                                <div className="text-center py-12">
-                                    <p className="text-muted-foreground">Failed to load metrics</p>
-                                    <Button onClick={fetchMetrics} className="button mt-4">
-                                        Retry
-                                    </Button>
-                                </div>
                             )}
                         </div>
                     </div>
