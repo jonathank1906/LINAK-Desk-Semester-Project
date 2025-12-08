@@ -337,32 +337,18 @@ def desk_usage(request, desk_id):
         started_at = log.started_at
         elapsed_seconds = int((now - started_at).total_seconds())
 
-       # Calculate LIVE sitting/standing time
+        # Calculate LIVE sitting/standing time
         last_update = log.last_height_change or log.started_at
         time_since_last_change = int((now - last_update).total_seconds())
 
         current_sitting_time = log.sitting_time
         current_standing_time = log.standing_time
 
-        # DEBUG LOGGING
-        print(f"\n=== DESK USAGE DEBUG ===")
-        print(f"Current time: {now}")
-        print(f"Last height change: {last_update}")
-        print(f"Time since last change: {time_since_last_change}s")
-        print(f"Current desk height: {desk.current_height}")
-        print(f"Stored - Sitting: {log.sitting_time}s, Standing: {log.standing_time}s")
-
         if desk.current_height < 95:
             current_sitting_time += time_since_last_change
-            print(f"Currently SITTING - adding {time_since_last_change}s to sitting")
         else:
             current_standing_time += time_since_last_change
-            print(f"Currently STANDING - adding {time_since_last_change}s to standing")
 
-        print(f"Live - Sitting: {current_sitting_time}s, Standing: {current_standing_time}s")
-        print(f"========================\n")
-
-        # Format times
         hours = elapsed_seconds // 3600
         minutes = (elapsed_seconds % 3600) // 60
         seconds = elapsed_seconds % 60
@@ -370,10 +356,24 @@ def desk_usage(request, desk_id):
         sitting_minutes = current_sitting_time // 60
         standing_minutes = current_standing_time // 60
 
-        # Calculate percentages
         total_time = current_sitting_time + current_standing_time
         sitting_percentage = (current_sitting_time / total_time * 100) if total_time > 0 else 0
         standing_percentage = (current_standing_time / total_time * 100) if total_time > 0 else 0
+
+        # --- Add source and reservation_end_time ---
+        source = log.source if hasattr(log, "source") else None
+        reservation_end_time = None
+        if source == "reservation":
+            # Find the active reservation for this user/desk
+            reservation = Reservation.objects.filter(
+                desk=desk,
+                user=log.user,
+                status__in=["active", "pending_confirmation", "confirmed", "occupied"],
+                start_time__lte=now,
+                end_time__gte=now,
+            ).order_by("-start_time").first()
+            if reservation:
+                reservation_end_time = reservation.end_time.isoformat()
 
         response_data = {
             "desk_id": desk.id,
@@ -381,18 +381,17 @@ def desk_usage(request, desk_id):
             "started_at": started_at.isoformat(),
             "elapsed_seconds": elapsed_seconds,
             "elapsed_formatted": f"{hours:02d}:{minutes:02d}:{seconds:02d}",
-            
-            # Live sitting/standing time
             "sitting_time": current_sitting_time,
             "standing_time": current_standing_time,
             "sitting_minutes": sitting_minutes,
             "standing_minutes": standing_minutes,
             "sitting_percentage": round(sitting_percentage, 1),
             "standing_percentage": round(standing_percentage, 1),
-            
             "position_changes": log.position_changes,
             "current_height": desk.current_height,
             "is_sitting": desk.current_height < 95,
+            "source": source,
+            "reservation_end_time": reservation_end_time,
         }
 
         return Response(response_data)

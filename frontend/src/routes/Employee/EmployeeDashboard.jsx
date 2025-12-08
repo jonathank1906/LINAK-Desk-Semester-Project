@@ -11,6 +11,7 @@ import { formatNiceDate } from "@/utils/date";
 import { Button } from "@/components/ui/button";
 import { Calendar, Clock } from "lucide-react";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
+import { Progress } from "@/components/ui/progress"
 import {
     Select,
     SelectContent,
@@ -45,6 +46,7 @@ export default function EmployeeDashboard() {
     // Live elapsed time state
     const [sessionStartTime, setSessionStartTime] = useState(null);
     const [elapsedTime, setElapsedTime] = useState("00:00:00");
+    const [timeLeft, setTimeLeft] = useState("00:00:00");
 
     // Base values from API (updated every 30 seconds)
     const [baseSittingSeconds, setBaseSittingSeconds] = useState(0);
@@ -83,6 +85,19 @@ export default function EmployeeDashboard() {
         return `${mins}m`;
     }
 
+    function formatTimeLeft(endTime) {
+        if (!endTime) return null;
+        const now = new Date();
+        const end = new Date(endTime);
+        const diffMs = end - now;
+        if (diffMs <= 0) return "00:00:00";
+        const diffSeconds = Math.floor(diffMs / 1000);
+        const hours = Math.floor(diffSeconds / 3600);
+        const minutes = Math.floor((diffSeconds % 3600) / 60);
+        const seconds = diffSeconds % 60;
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
     // Parse Django ISO format date strings
     const parseDateSafe = (dateString) => {
         if (!dateString || typeof dateString !== "string") return null;
@@ -108,6 +123,17 @@ export default function EmployeeDashboard() {
         const diffMins = (startMs - nowMs) / 1000 / 60;
         return diffMins <= 30 && diffMins >= -10;
     };
+
+    useEffect(() => {
+        if (!usageStats?.reservation_end_time) {
+            setTimeLeft("00:00:00");
+            return;
+        }
+        const update = () => setTimeLeft(formatTimeLeft(usageStats.reservation_end_time));
+        update();
+        const interval = setInterval(update, 1000);
+        return () => clearInterval(interval);
+    }, [usageStats?.reservation_end_time]);
 
     useEffect(() => {
         if (!user) return;
@@ -539,19 +565,22 @@ export default function EmployeeDashboard() {
                                             }
                                         </div>
                                         {selectedDeskId && sessionStartTime ? (
-                                            <div className="text-xs text-muted-foreground mt-1">
-                                                <span className="font-mono font-semibold text-primary">
-                                                    {elapsedTime}
+                                            <div className="text-xs text-muted-foreground mt-1 flex gap-4 items-center">
+                                                <span>
+                                                    <span className="font-mono font-semibold text-primary">
+                                                        {elapsedTime}
+                                                    </span>
+                                                    {" "}elapsed
                                                 </span>
-                                                {" "}elapsed
-                                            </div>
-                                        ) : null}
-                                        {selectedDeskId && usageStats?.active_session ? (
-                                            <div className="flex flex-col items-start gap-2 mt-2">
-                                                <div className="text-xs text-muted-foreground">
-                                                    <span className="font-semibold">{formatMinutes(sittingMinutes)} sitting</span> |{" "}
-                                                    <span className="font-semibold">{formatMinutes(standingMinutes)} standing</span>
-                                                </div>
+                                                {/* Show time left only for reservation sessions */}
+                                                {usageStats?.active_session && usageStats?.source === "reservation" && usageStats?.reservation_end_time && (
+                                                    <span>
+                                                        <span className="font-mono font-semibold text-primary">
+                                                            {formatTimeLeft(usageStats.reservation_end_time)}
+                                                        </span>
+                                                        {" "}remaining
+                                                    </span>
+                                                )}
                                             </div>
                                         ) : null}
                                     </div>
