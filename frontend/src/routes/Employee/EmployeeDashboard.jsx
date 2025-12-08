@@ -515,12 +515,12 @@ export default function EmployeeDashboard() {
                 headers: { Authorization: `Bearer ${user.token}` },
                 withCredentials: true,
             };
-            
+
             const response = await axios.get(
                 `http://localhost:8000/api/user/metrics/?days=${metricsTimeRange}`,
                 config
             );
-            
+
             setMetricsData(response.data);
         } catch (error) {
             console.error("Failed to fetch user metrics:", error);
@@ -787,8 +787,8 @@ export default function EmployeeDashboard() {
                             {metricsLoading ? (
                                 <div className="flex items-center justify-center h-96">
                                     <div className="text-center">
-                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                                        <p className="text-muted-foreground">Loading metrics...</p>
+                                        <Spinner variant="circle" className="h-12 w-12 mx-auto mb-4" />
+                                        <p className="text-muted-foreground">Loading...</p>
                                     </div>
                                 </div>
                             ) : metricsData ? (
@@ -798,11 +798,11 @@ export default function EmployeeDashboard() {
 
                                     {/* Healthiness Score & No Show Table */}
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                        <HealthinessScore 
+                                        <HealthinessScore
                                             data={metricsData.healthiness}
                                             isDarkMode={document.documentElement.classList.contains('dark')}
                                         />
-                                        <NoShowTable 
+                                        <NoShowTable
                                             data={metricsData.no_shows}
                                             isDarkMode={document.documentElement.classList.contains('dark')}
                                         />
@@ -811,25 +811,25 @@ export default function EmployeeDashboard() {
                                     {/* Charts Grid */}
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                         {/* Standing/Sitting Chart */}
-                                        <StandingSittingChart 
+                                        <StandingSittingChart
                                             data={metricsData.standing_sitting_chart}
                                             title="Standing vs Sitting Time"
                                         />
 
                                         {/* Weekly Usage Chart */}
-                                        <WeeklyUsageChart 
+                                        <WeeklyUsageChart
                                             data={metricsData.weekly_usage}
                                             title="Weekly Usage Pattern"
                                         />
 
                                         {/* Most Used Desks */}
-                                        <MostUsedDesksChart 
+                                        <MostUsedDesksChart
                                             desks={metricsData.most_used_desks}
                                             title="Most Used Desks"
                                         />
 
                                         {/* Leaderboard */}
-                                        <StandingLeaderboard 
+                                        <StandingLeaderboard
                                             leaderboard={metricsData.leaderboard}
                                             title="Standing Time Leaderboard"
                                         />
@@ -838,7 +838,7 @@ export default function EmployeeDashboard() {
                             ) : (
                                 <div className="text-center py-12">
                                     <p className="text-muted-foreground">Failed to load metrics</p>
-                                    <Button onClick={fetchMetrics} className="mt-4">
+                                    <Button onClick={fetchMetrics} className="button mt-4">
                                         <IconRefresh className="h-4 w-4 mr-2" />
                                         Retry
                                     </Button>

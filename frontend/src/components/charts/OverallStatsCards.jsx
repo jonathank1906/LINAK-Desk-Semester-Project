@@ -49,14 +49,14 @@ export function OverallStatsCards({ stats }) {
         return (
           <Card 
             key={index}
-            className="transition-all duration-300 hover:scale-105 hover:shadow-lg cursor-pointer"
+            className=""
             title={stat.subtitle}
           >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
                 {stat.title}
               </CardTitle>
-              <div className={`${stat.bgColor} p-2 rounded-lg transition-transform duration-300 hover:rotate-12`}>
+              <div className={`${stat.bgColor} p-2 rounded-lg`}>
                 <Icon className={`h-4 w-4 ${stat.color}`} />
               </div>
             </CardHeader>

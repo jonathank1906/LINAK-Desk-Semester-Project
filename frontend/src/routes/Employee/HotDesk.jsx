@@ -250,7 +250,7 @@ export default function HotDesk({ setSelectedDeskId }) {
                       </h3>
                       {desk.reserved ? (
                         isReserver ? (
-                          <p className="text-sm text-blue-700 dark:text-blue-200">You have reserved this desk at {formatTimeFromISO(desk.reserved_time)}</p>
+                          <p className="text-sm">You have reserved this desk at {formatTimeFromISO(desk.reserved_time)}</p>
                         ) : (
                           <p className="text-sm text-yellow-700 dark:text-yellow-200">Warning: Reserved at {formatTimeFromISO(desk.reserved_time)}</p>
                         )
