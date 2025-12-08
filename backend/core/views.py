@@ -1700,19 +1700,22 @@ def release_desk(request, desk_id):
     try:
         desk = Desk.objects.get(id=desk_id)
         
-        if desk.current_user != request.user:
-            return Response(
-                {"error": "You are not using this desk"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        # Get active usage log
+        # ✅ FIX: Check if user has an active usage log for this desk
+        # instead of only relying on desk.current_user
         log = DeskUsageLog.objects.filter(
             user=request.user, 
             desk=desk, 
             ended_at__isnull=True
-        ).first()
+        ).order_by("-started_at").first()
         
+        # If no active log AND desk.current_user doesn't match, deny access
+        if not log and desk.current_user != request.user:
+            return Response(
+                {"error": "You are not using this desk"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        
+        # If there's an active log, finalize it
         if log:
             now = timezone.now()
             log.ended_at = now
@@ -1740,7 +1743,7 @@ def release_desk(request, desk_id):
         desk.current_status = "available"
         desk.save()
 
-        #  Notify Pico that desk is now available
+        # Notify Pico that desk is now available
         mqtt_service = get_mqtt_service()
         has_pico = Pico.objects.filter(desk_id=desk.id).exists()
         
