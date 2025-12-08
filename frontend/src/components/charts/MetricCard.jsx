@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 export function MetricCard({ title, description, children, className = "" }) {
   return (
-    <Card>
+    <Card className="animate-fade-up animation-delay-200">
       <CardHeader>
         <CardTitle className="text-lg">{title}</CardTitle>
         {description && (

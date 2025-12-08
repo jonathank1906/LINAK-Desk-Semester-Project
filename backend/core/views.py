@@ -474,7 +474,7 @@ def control_desk_height(request, desk_id):
             
             # VERIFY IT SAVED
             log.refresh_from_db()
-            print(f"✅ VERIFIED - Last height change in DB: {log.last_height_change}")
+            print(f"VERIFIED - Last height change in DB: {log.last_height_change}")
         
         # Send command to WiFi2BLE simulator
         from core.services.WiFi2BLEService import WiFi2BLEService
@@ -487,7 +487,7 @@ def control_desk_height(request, desk_id):
             desk.current_height = target_height
             desk.save()
 
-            print(f"✅ Desk height updated in database to: {desk.current_height}")
+            print(f"Desk height updated in database to: {desk.current_height}")
 
             mqtt_service = get_mqtt_service()
             has_pico = Pico.objects.filter(desk_id=desk.id).exists()
@@ -497,7 +497,7 @@ def control_desk_height(request, desk_id):
                 mqtt_service.notify_desk_moving(
                     desk_id=desk.id,
                     target_height=target_height,
-                    is_moving=True,  # ⭐ Pico will pulse yellow + beep
+                    is_moving=True,  # Pico will pulse yellow + beep
                     user_name=user_name
                 )
             
@@ -542,7 +542,7 @@ def poll_desk_movement(request, desk_id):
             desk.current_status = 'occupied'
         desk.save()
         
-        # ✅ Notify Pico with current movement status
+        # Notify Pico with current movement status
         mqtt_service = get_mqtt_service()
         has_pico = Pico.objects.filter(desk_id=desk.id).exists()
         
@@ -551,7 +551,7 @@ def poll_desk_movement(request, desk_id):
             mqtt_service.notify_desk_moving(
                 desk_id=desk.id,
                 target_height=int(current_height),
-                is_moving=is_moving,  # ⭐ False = stop buzzer, blue LED
+                is_moving=is_moving,  # False = stop buzzer, blue LED
                 user_name=user_name
             )
         
@@ -1084,7 +1084,7 @@ def solve_complaint(request, complaint_id: int):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def start_hot_desk(request, desk_id):
-    print(f"\n🏢 START_HOT_DESK CALLED - Desk ID: {desk_id}")
+    print(f"\n START_HOT_DESK CALLED - Desk ID: {desk_id}")
     print(f"   User: {request.user.username}")
 
     
@@ -1097,13 +1097,13 @@ def start_hot_desk(request, desk_id):
         
         if desk.current_user == request.user:
             if desk.current_status == "occupied":
-                print(f"⚠️ User {request.user.username} already occupies desk {desk_id}")
+                print(f"User {request.user.username} already occupies desk {desk_id}")
                 return Response(
                     {"error": "You are already using this desk"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             elif desk.current_status == "pending_verification":
-                print(f"⚠️ Desk {desk_id} already pending verification for {request.user.username}")
+                print(f"Desk {desk_id} already pending verification for {request.user.username}")
                 return Response(
                     {"error": "Desk is already pending your confirmation"},
                     status=status.HTTP_400_BAD_REQUEST
@@ -1112,7 +1112,7 @@ def start_hot_desk(request, desk_id):
         
         # Check if desk is available
         if desk.current_status not in ["available", "Normal"]:
-            print(f"❌ Desk {desk_id} not available (status: {desk.current_status})")
+            print(f"Desk {desk_id} not available (status: {desk.current_status})")
             return Response(
                 {"error": "Desk not available"}, 
                 status=status.HTTP_400_BAD_REQUEST
@@ -1126,22 +1126,20 @@ def start_hot_desk(request, desk_id):
             if live_state:
                 current_height = live_state.get("position_mm", 750) / 10
                 desk.current_height = current_height
-                print(f"📊 Synced desk height from simulator: {current_height}cm")
+                print(f"Synced desk height from simulator: {current_height}cm")
             else:
-                print(f"⚠️ WiFi2BLE returned None, using database height: {desk.current_height}cm")
+                print(f"WiFi2BLE returned None, using database height: {desk.current_height}cm")
         except Exception as e:
-            print(f"⚠️ Could not sync desk height: {e}")
-
+            print(f"Could not sync desk height: {e}")
         # Set desk to pending verification
         desk.current_user = request.user
         desk.current_status = "pending_verification"
         desk.save()
-        print(f"✅ Desk {desk_id} set to pending_verification for {request.user.username}")
+        print(f"Desk {desk_id} set to pending_verification for {request.user.username}")
 
         # Check if desk has a Pico (requires physical confirmation)
         has_pico = Pico.objects.filter(desk_id=desk.id).exists()
-        print(f"🔍 Desk {desk.id} has_pico: {has_pico}")
-
+        print(f"Desk {desk.id} has_pico: {has_pico}")
         # Create usage log
         usage_log = DeskUsageLog.objects.create(
             desk=desk,
@@ -1150,8 +1148,7 @@ def start_hot_desk(request, desk_id):
             last_height_change=timezone.now(),
             source="hotdesk",
         )
-        print(f"✅ Created usage log ID: {usage_log.id}")
-
+        print(f"Created usage log ID: {usage_log.id}")
         # Create desk log entry for tracking
         DeskLog.objects.create(
             desk=desk,
@@ -1169,7 +1166,7 @@ def start_hot_desk(request, desk_id):
             wait_interval = 0.1  # check every 100ms
             elapsed = 0
             
-            print(f"⏳ Waiting for MQTT connection...")
+            print(f"Waiting for MQTT connection...")
             while not mqtt_service.connected and elapsed < max_wait:
                 time.sleep(wait_interval)
                 elapsed += wait_interval
@@ -1183,25 +1180,25 @@ def start_hot_desk(request, desk_id):
                     "user": request.user.get_full_name() or request.user.username,
                 }
                 mqtt_service.publish(topic, json.dumps(message))
-                print(f"✅ Published show_confirm_button to {topic} (connected after {elapsed:.1f}s)")
+                print(f"Published show_confirm_button to {topic} (connected after {elapsed:.1f}s)")
             else:
-                print(f"⚠️ MQTT not connected after {max_wait}s, message not sent")
+                print(f"MQTT not connected after {max_wait}s, message not sent")
         else:
             # If no Pico, auto-confirm the hot desk
             desk.current_status = "occupied"
             desk.save()
-            print(f"✅ Auto-confirmed desk {desk_id} (no Pico)")
+            print(f"Auto-confirmed desk {desk_id} (no Pico)")
 
-        print(f"🏢 START_HOT_DESK: Returning success\n")
+        print(f"START_HOT_DESK: Returning success\n")
         return Response(
             {"success": True, "desk": desk.name, "requires_confirmation": has_pico}
         )
         
     except Desk.DoesNotExist:
-        print(f"❌ Desk {desk_id} not found")
+        print(f"Desk {desk_id} not found")
         return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
-        print(f"❌ Unexpected error in start_hot_desk: {e}")
+        print(f"Unexpected error in start_hot_desk: {e}")
         import traceback
         traceback.print_exc()
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -1263,7 +1260,7 @@ def cancel_pending_verification(request, desk_id):
                 pending_reservation.status = "confirmed"
                 pending_reservation.checked_in_at = None
                 pending_reservation.save()
-                print(f"✅ Reverted reservation {pending_reservation.id} from pending_confirmation to confirmed")
+                print(f"Reverted reservation {pending_reservation.id} from pending_confirmation to confirmed")
             
             desk.current_user = None
             desk.current_status = "available"
@@ -1281,7 +1278,7 @@ def cancel_pending_verification(request, desk_id):
                     "desk_id": desk.id
                 }
                 mqtt_service.publish(topic, json.dumps(message))
-                print(f"✅ Notified Pico: Cancelled pending verification for Desk {desk.id}")
+                print(f"Notified Pico: Cancelled pending verification for Desk {desk.id}")
 
             return Response({"success": True})
         return Response(
@@ -1443,7 +1440,7 @@ def cleanup_expired_reservations():
     )
     
     if count > 0:
-        print(f"🧹 Auto-cancelled {count} no-show reservation(s)")
+        print(f"Auto-cancelled {count} no-show reservation(s)")
     
     return count
 
@@ -1546,7 +1543,7 @@ def check_in_reservation(request, reservation_id):
                     "user": request.user.get_full_name() or request.user.username,
                 }
                 mqtt_service.publish(topic, json.dumps(message))
-                print(f"✅ Published show_confirm_button for reservation to {topic}")
+                print(f"Published show_confirm_button for reservation to {topic}")
         else:
             # For desks without Pico, complete check-in immediately
             reservation.status = "active"
@@ -1729,7 +1726,7 @@ def release_desk(request, desk_id):
     try:
         desk = Desk.objects.get(id=desk_id)
         
-        # ✅ FIX: Check if user has an active usage log for this desk
+        # FIX: Check if user has an active usage log for this desk
         # instead of only relying on desk.current_user
         log = DeskUsageLog.objects.filter(
             user=request.user, 
@@ -1778,7 +1775,7 @@ def release_desk(request, desk_id):
         
         if has_pico:
             mqtt_service.notify_desk_available(desk_id=desk.id)
-            print(f"✅ Notified Pico: Desk {desk.id} is now available")
+            print(f"Notified Pico: Desk {desk.id} is now available")
 
         return Response({"success": True})
         

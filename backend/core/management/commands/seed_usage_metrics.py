@@ -68,4 +68,4 @@ class Command(BaseCommand):
                 
                 self.stdout.write(f"Created usage log: {user.email} - {desk.name} ({duration_hours}h)")
 
-        self.stdout.write(self.style.SUCCESS("✅ Successfully seeded desk usage data!"))
+        self.stdout.write(self.style.SUCCESS("Successfully seeded desk usage data!"))
