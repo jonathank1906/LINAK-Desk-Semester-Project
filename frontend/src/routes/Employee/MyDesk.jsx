@@ -60,7 +60,6 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
 
   // --- HELPER: SAFE REDIRECT ---
   const handleSessionExpiry = () => {
-    // 1. Force the UI to show "Session Ended" immediately
     setUsageStats({ active_session: false });
     
     if (hasRedirected.current) return;
@@ -97,36 +96,55 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
 
   // --- 1. INITIAL FETCH & DATA SYNC ---
   useEffect(() => {
-    if (!user || !selectedDeskId) return;
-
+    // Reset state when desk ID changes to ensure fresh load
     setLoading(true);
-    hasRedirected.current = false; 
+    setDeskStatus(null);
+    setUsageStats(null);
+    hasRedirected.current = false;
+
+    if (!user || !selectedDeskId) {
+        setLoading(false);
+        return;
+    }
 
     const fetchDeskData = async () => {
       try {
         const deskId = selectedDeskId;
         const config = { headers: { Authorization: `Bearer ${user.token}` } };
 
-        const [statusRes, usageRes] = await Promise.all([
-          axios.get(`http://localhost:8000/api/desks/${deskId}/status/`, config),
-          axios.get(`http://localhost:8000/api/desks/${deskId}/usage/`, config),
-        ]);
+        // We fetch status and usage. 
+        // Note: Usage failing shouldn't block the desk controls if status works.
+        const statusReq = axios.get(`http://localhost:8000/api/desks/${deskId}/status/`, config);
+        const usageReq = axios.get(`http://localhost:8000/api/desks/${deskId}/usage/`, config);
 
-        // CHECK: If API explicitly says session is over
-        if (usageRes.data.active_session === false) {
-            handleSessionExpiry();
-            return; // Stop processing, finally block will run setLoading(false)
-        }
+        // Await status primarily
+        const statusRes = await statusReq;
 
         if (isMounted.current) {
-          setDeskStatus(statusRes.data);
-          setUsageStats(usageRes.data);
+            setDeskStatus(statusRes.data);
         }
+
+        // Handle usage separately to prevent usage 500s from blocking UI
+        try {
+            const usageRes = await usageReq;
+            
+            // CHECK: Only block if API EXPLICITLY says false.
+            if (usageRes.data.active_session === false) {
+                if (isMounted.current) handleSessionExpiry();
+                return;
+            }
+            if (isMounted.current) {
+                setUsageStats(usageRes.data);
+            }
+        } catch (usageErr) {
+            console.warn("Usage stats failed to load, but desk is connected:", usageErr);
+        }
+
       } catch (err) {
-        console.error("Error fetching desk data:", err);
-        // If 404/403, session is gone
+        console.error("Error fetching desk status:", err);
+        // If 404/403 on the STATUS endpoint, the desk is genuinely inaccessible
         if (err.response && (err.response.status === 404 || err.response.status === 403)) {
-            handleSessionExpiry();
+            if (isMounted.current) handleSessionExpiry();
         }
       } finally {
         if (isMounted.current) setLoading(false);
@@ -246,25 +264,29 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
     }
   };
 
-  // --- VIEW LOGIC GATES (ORDER MATTERS) ---
+  // --- VIEW LOGIC GATES ---
 
-  // 1. Session Logic Check
-  const isSessionActive = () => {
-    if (usageStats && usageStats.active_session === false) return false;
-    // If we have stats with an end time, check it
-    if (usageStats?.reservation_end_time) {
-        const now = new Date();
-        const end = new Date(usageStats.reservation_end_time);
-        if (now > end) return false;
-    }
-    // If stats are null but we are loading, treat as active. 
-    // If stats are null and NOT loading, treat as dead.
-    if (!usageStats && !loading) return false;
-    return true;
-  };
+  // 1. Loading State
+  if (loading) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center p-8 h-full">
+         <Card className="w-full max-w-4xl p-8 flex flex-col items-center justify-center gap-4">
+            <Skeleton className="h-12 w-3/4" />
+            <Skeleton className="h-64 w-full" />
+            <p className="text-muted-foreground animate-pulse">Connecting to desk...</p>
+         </Card>
+      </div>
+    );
+  }
 
-  // 2. Render "Session Ended" Card (This prevents the skeleton from showing)
-  if (!selectedDeskId || (!loading && !isSessionActive())) {
+  // 2. Error / Session Ended State
+  // We only show this if:
+  // a) No desk is selected (shouldn't happen if parent passes ID)
+  // b) We loaded successfully, but have NO desk status (API 404/403)
+  // c) The usage stats explicitly said "active_session: false"
+  const sessionExplicitlyEnded = usageStats && usageStats.active_session === false;
+  
+  if (!selectedDeskId || !deskStatus || sessionExplicitlyEnded) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center p-8 h-full">
         <Card className="max-w-md w-full text-center animate-in fade-in zoom-in duration-300">
@@ -290,28 +312,6 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
         </Card>
       </div>
     );
-  }
-
-  // 3. Render Loading Skeleton
-  if (loading) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center p-8 h-full">
-         <Card className="w-full max-w-4xl p-8 flex flex-col items-center justify-center gap-4">
-            <Skeleton className="h-12 w-3/4" />
-            <Skeleton className="h-64 w-full" />
-            <p className="text-muted-foreground animate-pulse">Connecting to desk...</p>
-         </Card>
-      </div>
-    );
-  }
-
-  // 4. Render Error / Missing Data Fallback
-  if (!deskStatus) {
-      return (
-        <div className="flex flex-1 flex-col items-center justify-center p-8 h-full">
-            <p className="text-muted-foreground">Unable to load desk data.</p>
-        </div>
-      );
   }
 
   // --- MAIN RENDER ---
@@ -490,7 +490,7 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
                     <span className="text-blue-600 dark:text-blue-400 font-semibold text-lg uppercase tracking-wide">Sitting Position</span>
                     <span className="text-5xl font-bold text-gray-900 dark:text-white">72<span className="text-2xl text-muted-foreground ml-1">cm</span></span>
                   </div>
-                   <div className="absolute right-4 bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <div className="absolute right-4 bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
                     <IconArrowBigDownFilled size={120} />
                   </div>
                 </button>

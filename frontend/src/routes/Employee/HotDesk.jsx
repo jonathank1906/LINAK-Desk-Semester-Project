@@ -7,9 +7,8 @@ import { Button } from "@/components/ui/button";
 import PendingVerificationModal from "@/components/pending-verification-modal";
 import { formatTimeFromISO } from "@/utils/date";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
-import { Clock } from "lucide-react";
+import { Clock, LogOut } from "lucide-react";
 
-// Helper to get YYYY-MM-DD in LOCAL time
 const formatLocalYYYYMMDD = (date) => {
   if (!date) return "";
   const d = new Date(date);
@@ -23,12 +22,17 @@ export default function HotDesk({ setSelectedDeskId }) {
   const { user } = useAuth();
   const [hotdeskStatus, setHotdeskStatus] = useState([]);
   const [loading, setLoading] = useState(false);
+  
   const [userHasActive, setUserHasActive] = useState(false);
+  const [activeDeskId, setActiveDeskId] = useState(null);
+  const [isOccupying, setIsOccupying] = useState(false); 
+  
   const [verificationModalOpen, setVerificationModalOpen] = useState(false);
   const [pendingDeskId, setPendingDeskId] = useState(null);
   const [polling, setPolling] = useState(false);
   const [selectingDeskId, setSelectingDeskId] = useState(null);
   const [selectingAnyDesk, setSelectingAnyDesk] = useState(false);
+  const [releasing, setReleasing] = useState(false);
 
   useEffect(() => {
     fetchHotdeskStatus();
@@ -77,25 +81,45 @@ export default function HotDesk({ setSelectedDeskId }) {
     }
   };
 
-  // Check if the current user already has an active desk or active reservation
   async function refreshUserActive() {
     try {
       const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
       const desksRes = await axios.get(`http://localhost:8000/api/desks/`, config);
-      const hasDesk = (desksRes.data || []).some(d => {
+      
+      const activeDesk = (desksRes.data || []).find(d => {
         const isOwnedByUser = d.current_user && String(d.current_user.id) === String(user?.id) && d.current_status !== 'available';
-        const isOccupied = (d.current_status === 'occupied' || d.current_status === 'in_use') && d.current_status !== 'available';
-        return isOwnedByUser || isOccupied;
+        const isOccupied = (d.current_status === 'occupied' || d.current_status === 'in_use' || d.current_status === 'pending_verification');
+        return isOwnedByUser && isOccupied;
       });
-      if (hasDesk) {
+
+      if (activeDesk) {
         setUserHasActive(true);
+        setIsOccupying(true); 
+        setActiveDeskId(activeDesk.id);
         return;
       }
+
       const res = await axios.get(`http://localhost:8000/api/reservations/`, config);
-      const hasRes = (res.data || []).some(r => (r.status === 'active' || r.status === 'confirmed') && ((r.user_id && String(r.user_id) === String(user?.id)) || (r.user && ((typeof r.user === 'object' && r.user.id) || r.user) == user?.id)));
-      setUserHasActive(hasRes);
+      const userRes = (res.data || []).find(r => (r.status === 'active' || r.status === 'confirmed') && ((r.user_id && String(r.user_id) === String(user?.id)) || (r.user && ((typeof r.user === 'object' && r.user.id) || r.user) == user?.id)));
+      
+      if (userRes) {
+          setUserHasActive(true);
+          setActiveDeskId(userRes.desk || userRes.desk_id);
+          if (userRes.status === 'active') {
+              setIsOccupying(true);
+          } else {
+              setIsOccupying(false); 
+          }
+      } else {
+          setUserHasActive(false);
+          setIsOccupying(false);
+          setActiveDeskId(null);
+      }
+
     } catch (err) {
       setUserHasActive(false);
+      setIsOccupying(false);
+      setActiveDeskId(null);
     }
   }
 
@@ -106,10 +130,34 @@ export default function HotDesk({ setSelectedDeskId }) {
     // eslint-disable-next-line
   }, [user]);
 
+  const handleReleaseActive = async () => {
+      if (!activeDeskId) return;
+      setReleasing(true);
+      try {
+          const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
+          await axios.post(`http://localhost:8000/api/desks/${activeDeskId}/release/`, {}, config);
+          
+          toast.success("Desk released successfully");
+          
+          setUserHasActive(false);
+          setIsOccupying(false);
+          setActiveDeskId(null);
+          if (setSelectedDeskId) setSelectedDeskId(null);
+          
+          fetchHotdeskStatus();
+          window.dispatchEvent(new Event('reservation-updated'));
+          
+      } catch (err) {
+          toast.error("Failed to release desk", { description: err.response?.data?.error || err.message });
+      } finally {
+          setReleasing(false);
+      }
+  };
+
   const startHotDesk = async (deskId) => {
-    // 1. Check BEFORE setting loading state to avoid UI flicker
+    // 1. Frontend Check (Immediate feedback)
     if (userHasActive) {
-        toast.error('You already have an active desk or reservation. Release it before starting another.');
+        toast.error('You are already using a desk.', { description: "Please release your current desk before selecting a new one." });
         return;
     }
 
@@ -118,36 +166,8 @@ export default function HotDesk({ setSelectedDeskId }) {
     
     try {
       const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
-
-      // Double check active desk (server-side check is safer)
-      try {
-        const desksRes = await axios.get(`http://localhost:8000/api/desks/`, config);
-        const existingDesk = (desksRes.data || []).find(d => d.current_user && String(d.current_user.id) === String(user?.id) && d.current_status !== 'available');
-        if (existingDesk) {
-          setUserHasActive(true);
-          toast.error('You already have an active desk. Release it before starting another.');
-          setSelectingDeskId(null);
-          setSelectingAnyDesk(false);
-          return;
-        }
-      } catch (err) {
-        // ignore
-      }
-
-      try {
-        const res = await axios.get(`http://localhost:8000/api/reservations/`, config);
-        const hasActiveReservation = (res.data || []).some(r => (r.status === 'active' || r.status === 'confirmed') && ((r.user_id && String(r.user_id) === String(user?.id)) || (r.user && ((typeof r.user === 'object' && r.user.id) || r.user) == user?.id)));
-        if (hasActiveReservation) {
-          setUserHasActive(true);
-          toast.error('You have an active reservation. Release or cancel it before starting a hotdesk.');
-          setSelectingDeskId(null);
-          setSelectingAnyDesk(false);
-          return;
-        }
-      } catch (err) {
-        // ignore
-      }
-
+      
+      // 2. Call API (Backend Check will throw 400 if user has another desk)
       const response = await axios.post(`http://localhost:8000/api/desks/${deskId}/hotdesk/start/`, {}, config);
       const { requires_confirmation } = response.data;
 
@@ -160,18 +180,22 @@ export default function HotDesk({ setSelectedDeskId }) {
         toast.success("Hot desk started!");
         setSelectedDeskId(deskId);
         setUserHasActive(true);
+        setIsOccupying(true);
+        setActiveDeskId(deskId);
         fetchHotdeskStatus();
         window.dispatchEvent(new Event('reservation-updated'));
       }
     } catch (err) {
+      // 3. Catch Backend Error (e.g., "You are already using Desk 1")
       toast.error("Failed to start hot desk", { description: err.response?.data?.error || err.message });
+      // Refresh state to ensure button disables if backend says we have a desk
+      refreshUserActive();
     } finally {
       setSelectingDeskId(null);
       setSelectingAnyDesk(false);
     }
   };
 
-  // Button content helper to keep button width fixed
   const renderButtonContent = (deskId) => {
     const buttonText = "Select Desk";
     if (selectingDeskId === deskId && selectingAnyDesk) {
@@ -188,15 +212,30 @@ export default function HotDesk({ setSelectedDeskId }) {
     );
   };
 
-  const anyDeskOccupied = hotdeskStatus.some(desk => !!desk.occupied || (!!desk.current_status && desk.current_status === "occupied"));
   const deskCardHeight = "80px"; 
 
   return (
     <div className="p-4 md:p-6 w-full">
       <Card className="lg:col-span-3">
-        <CardHeader>
-          <CardTitle>Hot Desk</CardTitle>
-          <CardDescription>See which desks are free right now</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <div className="space-y-1">
+            <CardTitle>Hot Desk</CardTitle>
+            <CardDescription>See which desks are free right now</CardDescription>
+          </div>
+          
+          {/* RELEASE BUTTON (Only shows if user is actively occupying a desk) */}
+          {isOccupying && activeDeskId && (
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                onClick={handleReleaseActive}
+                disabled={releasing}
+                className="gap-2"
+              >
+                {releasing ? <Spinner className="w-4 h-4 text-white" /> : <LogOut className="w-4 h-4" />}
+                Release Current Desk
+              </Button>
+          )}
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -221,7 +260,6 @@ export default function HotDesk({ setSelectedDeskId }) {
                 const isReserved = !!desk.reserved;
                 const isReserver = desk.reserved_by && user?.id && String(desk.reserved_by) === String(user.id);
 
-                // --- AVAILABILITY BADGES ---
                 let availabilityBadge = null;
                 if (!isOccupied && !isReserved) {
                     availabilityBadge = (
@@ -239,17 +277,6 @@ export default function HotDesk({ setSelectedDeskId }) {
                             </span>
                         );
                     }
-                }
-
-                let canUse = false;
-                if (isOccupied) {
-                  canUse = false;
-                } else if (!isReserved) {
-                  canUse = true;
-                } else if (isReserver) {
-                  canUse = threshold ? now >= threshold : false;
-                } else {
-                  canUse = threshold ? now < threshold : true;
                 }
 
                 return (
@@ -300,11 +327,11 @@ export default function HotDesk({ setSelectedDeskId }) {
                                 Reserved
                              </span>
                           ) : (
-                             // It's reserved later, allow selection (check happens inside startHotDesk)
                              <Button
                                 variant="outline"
                                 onClick={() => startHotDesk(desk.id)}
-                                disabled={selectingAnyDesk} // Removed userHasActive check
+                                // Disable if *you* are occupying another desk
+                                disabled={userHasActive || selectingAnyDesk} 
                                 style={{ width: "120px" }}
                               >
                                 {renderButtonContent(desk.id)}
@@ -312,20 +339,15 @@ export default function HotDesk({ setSelectedDeskId }) {
                           )
                         )
                       ) : (
-                        // Hide Select Desk button if any desk is occupied
-                        anyDeskOccupied ? (
-                          <span style={{ width: "120px", display: "inline-block" }}></span>
-                        ) : (
-                          <Button
+                        <Button
                             variant="outline"
                             onClick={() => startHotDesk(desk.id)}
-                            // CHANGE: Removed userHasActive here so the click event fires
-                            disabled={selectingAnyDesk} 
+                            // Disable if *you* are occupying another desk
+                            disabled={userHasActive || selectingAnyDesk} 
                             style={{ width: "120px" }}
                           >
                             {renderButtonContent(desk.id)}
-                          </Button>
-                        )
+                        </Button>
                       )}
                     </div>
                   </div>
