@@ -1499,59 +1499,41 @@ def list_user_reservations(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_reservation(request):
+    """Create a new reservation - let serializer handle datetime parsing"""
     user = request.user
     data = request.data.copy()
+    data["user"] = user.id
     
-    # 1. Manual Parse to check for conflicts before Serializer
-    try:
-        start_str = data.get('start_time')
-        end_str = data.get('end_time')
-        
-        if not start_str or not end_str:
-             return Response({"error": "Start and end times are required"}, status=400)
-
-        # Parse formats (Handling "2025-12-08 15:00" format from frontend)
-        try:
-            start_time = timezone.make_aware(datetime.strptime(start_str, "%Y-%m-%d %H:%M"))
-            end_time = timezone.make_aware(datetime.strptime(end_str, "%Y-%m-%d %H:%M"))
-        except ValueError:
-             # Fallback for ISO format if needed
-             start_time = timezone.parse_datetime(start_str)
-             end_time = timezone.parse_datetime(end_str)
-
-    except Exception as e:
-        return Response({"error": f"Invalid date format: {str(e)}"}, status=400)
-
-    # ---------------------------------------------------------
-    # 2. VALIDATION: Prevent Multiple Bookings for Same User
-    # ---------------------------------------------------------
-    # Check if this user already has a reservation that overlaps with the new time
-    overlapping_reservation = Reservation.objects.filter(
+    # Use serializer to parse and validate
+    serializer = ReservationSerializer(data=data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Get the parsed datetime values from validated data
+    start_time = serializer.validated_data['start_time']
+    end_time = serializer.validated_data['end_time']
+    
+    # Check for overlapping reservations
+    overlapping = Reservation.objects.filter(
         user=user,
-        status__in=['confirmed', 'active', 'pending_confirmation'], # Ignore cancelled
-        start_time__lt=end_time,  # Overlap logic
+        status__in=['confirmed', 'active', 'pending_confirmation'],
+        start_time__lt=end_time,
         end_time__gt=start_time
     ).first()
-
-    if overlapping_reservation:
+    
+    if overlapping:
         return Response({
             "error": "You already have a reservation during this time.",
             "conflict": {
-                "desk": overlapping_reservation.desk.name,
-                "start": overlapping_reservation.start_time,
-                "end": overlapping_reservation.end_time
+                "desk": overlapping.desk.name,
+                "start": overlapping.start_time.isoformat(),
+                "end": overlapping.end_time.isoformat()
             }
-        }, status=status.HTTP_409_CONFLICT) 
-
-    # ---------------------------------------------------------
-
-    data["user"] = user.id
-    serializer = ReservationSerializer(data=data)
-    if serializer.is_valid():
-        serializer.save(status="confirmed")
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        }, status=status.HTTP_409_CONFLICT)
     
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    # Save the reservation
+    serializer.save(status="confirmed")
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 @api_view(["POST"])
@@ -1744,99 +1726,73 @@ def edit_reservation(request, reservation_id):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def available_desks_for_date(request):
-    # Cleanup no-shows before listing
+    """Get available desks for a specific date/time slot"""
     cleanup_expired_reservations()
-
+    
+    # Get query parameters
     date_str = request.GET.get("date")
-    start_time = request.GET.get("start_time")
-    end_time = request.GET.get("end_time")
-
-    if not date_str or not start_time or not end_time:
-        return Response({"error": "Date, start_time, and end_time required"}, status=400)
-
+    start_time_str = request.GET.get("start_time")
+    end_time_str = request.GET.get("end_time")
+    
+    if not all([date_str, start_time_str, end_time_str]):
+        return Response({
+            "error": "Date, start_time, and end_time are required"
+        }, status=400)
+    
+    # Parse datetime strings
     try:
-        # Build datetime objects for the requested slot
-        date_obj = timezone.datetime.strptime(date_str, "%Y-%m-%d").date()
-        
-        # Make timestamps timezone-aware
-        start_dt = timezone.make_aware(timezone.datetime.strptime(f"{date_str} {start_time}", "%Y-%m-%d %H:%M"))
-        end_dt = timezone.make_aware(timezone.datetime.strptime(f"{date_str} {end_time}", "%Y-%m-%d %H:%M"))
-        
-        # Day boundaries for "All Day" check
-        day_start_dt = timezone.make_aware(timezone.datetime.combine(date_obj, timezone.datetime.min.time()))
-        day_end_dt = timezone.make_aware(timezone.datetime.combine(date_obj, timezone.datetime.max.time()))
-        
+        start_dt = timezone.make_aware(
+            datetime.strptime(f"{date_str} {start_time_str}", "%Y-%m-%d %H:%M")
+        )
+        end_dt = timezone.make_aware(
+            datetime.strptime(f"{date_str} {end_time_str}", "%Y-%m-%d %H:%M")
+        )
     except ValueError:
         return Response({"error": "Invalid date or time format"}, status=400)
-
-    # 1. OPTIMIZATION: Fetch ALL reservations for this date in ONE query
-    # Instead of querying inside the loop, we get everything upfront.
-    daily_reservations = Reservation.objects.filter(
-        status__in=["confirmed", "active"],
-        start_time__gte=day_start_dt,
-        start_time__lte=day_end_dt
-    ).values('desk_id', 'start_time', 'end_time')
-
-    # 2. Build a map of desk_id -> list of reservations
-    reservations_by_desk = {}
-    blocked_desk_ids = set()
-
-    for r in daily_reservations:
-        d_id = r['desk_id']
-        if d_id not in reservations_by_desk:
-            reservations_by_desk[d_id] = []
-        reservations_by_desk[d_id].append(r)
-
-        # Check if this reservation conflicts with the user's requested slot
-        # Conflict logic: (StartA < EndB) and (EndA > StartB)
-        if r['start_time'] < end_dt and r['end_time'] > start_dt:
-            blocked_desk_ids.add(d_id)
-
-    # 3. Get all desks that are NOT blocked
-    desks = Desk.objects.exclude(id__in=blocked_desk_ids)
     
-    # 4. Serialize manually or via serializer (Serializer is cleaner but slower for huge lists)
-    # We will use the serializer for consistency, but annotate the extra data
-    serializer = DeskSerializer(desks, many=True)
-    desk_data = serializer.data
-
-    # 5. Process logic in Memory (Super Fast)
-    for desk in desk_data:
-        desk_id = desk["id"]
-        desk_res_list = reservations_by_desk.get(desk_id, [])
+    # Get all desks
+    all_desks = Desk.objects.all()
+    
+    # Find desks with conflicting reservations using correct overlap logic
+    # Two time ranges overlap if: start1 < end2 AND end1 > start2
+    conflicting_reservations = Reservation.objects.filter(
+        status__in=["confirmed", "active"],
+        start_time__lt=end_dt,  # Existing reservation starts before our end time
+        end_time__gt=start_dt   # Existing reservation ends after our start time
+    )
+    
+    # Get unique desk IDs that have conflicts
+    conflicting_desk_ids = set(conflicting_reservations.values_list('desk_id', flat=True))
+    
+    # Filter out conflicting desks
+    available_desks = all_desks.exclude(id__in=conflicting_desk_ids)
+    
+    # Serialize and add extra info
+    result = []
+    for desk in available_desks:
+        desk_data = DeskSerializer(desk).data
         
-        # Check Pico (this is a separate fast query or could be prefetched)
-        desk["requires_confirmation"] = Pico.objects.filter(desk_id=desk_id).exists()
-
-        # Logic: Find availability
-        # We need to see if there is any reservation AFTER our requested end time
-        next_meeting_start = None
-        has_prior_meeting = False
-
-        for r in desk_res_list:
-            # Check for meetings later in the day
-            if r['start_time'] >= end_dt:
-                # Found a future meeting. Is it the earliest one?
-                if next_meeting_start is None or r['start_time'] < next_meeting_start:
-                    next_meeting_start = r['start_time']
-            
-            # Check for meetings earlier in the day
-            if r['end_time'] <= start_dt:
-                has_prior_meeting = True
-
-        if next_meeting_start:
-            desk["available_until"] = next_meeting_start.isoformat()
-            desk["free_all_day"] = False
+        # Check if desk requires physical confirmation (has Pico)
+        desk_data["requires_confirmation"] = Pico.objects.filter(desk_id=desk.id).exists()
+        
+        # Find next reservation after requested time slot
+        next_reservation = Reservation.objects.filter(
+            desk=desk,
+            status__in=["confirmed", "active"],
+            start_time__gte=end_dt,
+            start_time__date=start_dt.date()
+        ).order_by('start_time').first()
+        
+        if next_reservation:
+            desk_data["available_until"] = next_reservation.start_time.isoformat()
+            desk_data["free_all_day"] = False
         else:
-            desk["available_until"] = None
-            # It's free for the rest of the day. 
-            # Is it "Free All Day"? Only if there were NO prior meetings either.
-            # (Note: Logic is 'Free for the rest of the day' vs 'Free entirely')
-            # Usually "Available all day" means "No other bookings at all today" or "Free from now until close".
-            # Let's stick to "Free for the rest of the day" logic:
-            desk["free_all_day"] = True 
-
-    return Response(desk_data)
+            desk_data["available_until"] = None
+            desk_data["free_all_day"] = True
+        
+        result.append(desk_data)
+    
+    return Response(result)
 
 
 @api_view(["POST"])

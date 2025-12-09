@@ -187,9 +187,10 @@ class ReservationAPITest(APITestCase):
         """Test that system detects overlapping reservations"""
         self.client.force_authenticate(user=self.user)
         
-        # Use a fixed time to avoid timezone issues
+        # Use timezone-aware times that respect Django's TIME_ZONE setting
+        # Create times in UTC (like timezone.now() does)
         base_time = timezone.now().replace(hour=10, minute=0, second=0, microsecond=0)
-        start_time = base_time + timedelta(days=1)  # Tomorrow at 10:00
+        start_time = base_time + timedelta(days=1)  # Tomorrow at 10:00 (in whatever timezone Django uses)
         end_time = start_time + timedelta(hours=2)   # Tomorrow at 12:00
         
         # Create first reservation (10:00 - 12:00)
@@ -205,19 +206,22 @@ class ReservationAPITest(APITestCase):
         overlapping_start = start_time + timedelta(minutes=30)  # 10:30
         overlapping_end = end_time + timedelta(minutes=30)      # 12:30
         
+        # Format times in LOCAL timezone for the API (not UTC)
+        # Convert to local timezone first
+        local_tz = timezone.get_current_timezone()
+        local_start = overlapping_start.astimezone(local_tz)
+        local_end = overlapping_end.astimezone(local_tz)
+        
         # Check if desk is available for this time slot
         response = self.client.get('/api/desks/available/', {
-            'date': start_time.strftime('%Y-%m-%d'),
-            'start_time': overlapping_start.strftime('%H:%M'),
-            'end_time': overlapping_end.strftime('%H:%M')
+            'date': local_start.strftime('%Y-%m-%d'),
+            'start_time': local_start.strftime('%H:%M'),
+            'end_time': local_end.strftime('%H:%M')
         })
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         
-        # The desk should NOT be in the available desks list because:
-        # - Existing reservation: 10:00 - 12:00
-        # - Requested time: 10:30 - 12:30
-        # - These overlap from 10:30 - 12:00
+        # The desk should NOT be in the available desks list
         desk_ids = [d['id'] for d in response.data]
         self.assertNotIn(
             self.desk.id, 
