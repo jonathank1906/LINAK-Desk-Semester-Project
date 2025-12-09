@@ -15,8 +15,13 @@ from djoser.utils import decode_uid
 from django.utils import timezone
 from datetime import datetime, timedelta
 import json
-from core.services.MQTTService import get_mqtt_service
+import traceback
 
+# --- IMPORTS ---
+from core.services.MQTTService import get_mqtt_service
+from core.models import Pico, SensorReading 
+from .models import Desk, DeskUsageLog, DeskLog, DeskReport, Reservation, Complaint
+from .services.WiFi2BLEService import WiFi2BLEService
 from .serializers import (
     UserRegisterSerializer,
     UserSerializer,
@@ -26,11 +31,137 @@ from .serializers import (
     DeskLogSerializer,
     ComplaintSerializer
 )
-from .models import Desk, DeskUsageLog, DeskLog, DeskReport, Reservation
-from .services.WiFi2BLEService import WiFi2BLEService
-from core.services.MQTTService import get_mqtt_service
-from core.models import Pico, SensorReading, Reservation
 
+# ================= HELPER FUNCTIONS =================
+# These must be defined BEFORE the views that call them.
+
+def cleanup_expired_reservations():
+    """Automatically mark no-show reservations as cancelled"""
+    now = timezone.now()
+    grace_period = timedelta(minutes=10)
+    
+    no_shows = Reservation.objects.filter(
+        status='confirmed',
+        checked_in_at__isnull=True,
+        start_time__lt=now - grace_period
+    )
+    
+    count = no_shows.update(
+        status='cancelled',
+        cancelled_at=now,
+        cancelled_by=None  # System cancellation
+    )
+    
+    if count > 0:
+        print(f"Auto-cancelled {count} no-show reservation(s)")
+    
+    return count
+
+def cleanup_expired_active_reservations():
+    """
+    Finds active reservations where end_time has passed.
+    Releases the desk, closes usage logs, and marks reservation as completed.
+    """
+    now = timezone.now()
+    
+    # Find active reservations that have expired
+    expired_reservations = Reservation.objects.filter(
+        status='active',
+        end_time__lt=now
+    ).select_related('desk', 'user') 
+
+    count = 0
+
+    for reservation in expired_reservations:
+        desk = reservation.desk
+        user = reservation.user
+        
+        print(f"Auto-completing expired reservation {reservation.id} for Desk {desk.id}")
+
+        # 1. Close the Active Usage Log
+        log = DeskUsageLog.objects.filter(
+            user=user, 
+            desk=desk, 
+            ended_at__isnull=True, 
+            source="reservation"
+        ).order_by("-started_at").first()
+
+        if log:
+            log.ended_at = now
+            # Calculate final stats
+            last_update = log.last_height_change or log.started_at
+            elapsed_seconds = (now - last_update).total_seconds()
+            
+            if desk.current_height < 95:
+                log.sitting_time += int(elapsed_seconds)
+            else:
+                log.standing_time += int(elapsed_seconds)
+            log.save()
+        
+        # 2. Reset the Desk
+        # Only reset if the current user is actually the reservation owner
+        if desk.current_user == user:
+            desk.current_user = None
+            desk.current_status = "available"
+            desk.save()
+            
+            # Notify Pico to clear display
+            try:
+                mqtt_service = get_mqtt_service()
+                if Pico.objects.filter(desk_id=desk.id).exists():
+                    mqtt_service.notify_desk_available(desk_id=desk.id)
+            except Exception as e:
+                print(f"Failed to notify MQTT during cleanup: {e}")
+
+        # 3. Mark Reservation as Completed
+        reservation.status = 'completed'
+        reservation.checked_out_at = now
+        reservation.save()
+
+        # 4. Log it
+        DeskLog.objects.create(
+            desk=desk,
+            user=user,
+            action="reservation_auto_completed"
+        )
+        
+        count += 1
+    
+    if count > 0:
+        print(f"Successfully auto-completed {count} expired active reservation(s)")
+
+    return count
+
+def _get_recent_reservations(days=30):
+    """Helper function to fetch reservations in the last N days (excluding admins)."""
+    now = timezone.now()
+    since = now - timedelta(days=days)
+    return Reservation.objects.filter(start_time__gte=since, user__is_admin=False)
+
+def _bucket_reservation_minutes_by_hour(reservations, day_start, hours_labels):
+    """Return list of utilization percentages per hour for a single day."""
+    desks_count = Desk.objects.count() or 1
+    results = []
+
+    for hour_label, hour_idx in zip(hours_labels, range(len(hours_labels))):
+        start = day_start + timedelta(hours=hour_idx)
+        end = start + timedelta(hours=1)
+
+        minutes = 0
+        for r in reservations:
+            if not r.end_time: continue
+            overlap_start = max(r.start_time, start)
+            overlap_end = min(r.end_time, end)
+            if overlap_start < overlap_end:
+                minutes += int((overlap_end - overlap_start).total_seconds() / 60)
+
+        utilization = (minutes / (desks_count * 60)) * 100 if desks_count else 0
+        results.append(round(utilization, 1))
+
+    return results
+
+
+# ================= AUTH VIEWS =================
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
@@ -249,8 +380,7 @@ def set_initial_password(request, uid, token):
     )
 
 
-# ===== DESK MANAGEMENT ENDPOINTS =====
-
+# ================= DESK MANAGEMENT ENDPOINTS =================
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -312,6 +442,11 @@ def get_desk_live_status(request, desk_id):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def desk_usage(request, desk_id):
+    # 1. RUN CLEANUP FIRST
+    # This checks if any reservations have expired right now.
+    # If they have, it closes the logs and resets the desk status.
+    cleanup_expired_active_reservations()
+
     """Get desk usage statistics with live sitting/standing time"""
     try:
         desk = Desk.objects.get(id=desk_id)
@@ -322,6 +457,8 @@ def desk_usage(request, desk_id):
             ended_at__isnull=True
         ).order_by("-started_at").first()
 
+        # If the cleanup function above ran and closed the log, 'log' will now be None.
+        # This correctly triggers the "No active session" response below.
         if not log:
             return Response({
                 "desk_id": desk.id, 
@@ -333,7 +470,6 @@ def desk_usage(request, desk_id):
 
         # Calculate elapsed time
         now = timezone.now()
-        fifteen_minutes = timedelta(minutes=15)
         started_at = log.started_at
         elapsed_seconds = int((now - started_at).total_seconds())
 
@@ -447,38 +583,17 @@ def control_desk_height(request, desk_id):
             
             current_height = desk.current_height
             
-            print(f"\n=== CONTROL DESK HEIGHT DEBUG ===")
-            print(f"Log ID: {log.id}")  
-            print(f"Current time: {now}")
-            print(f"Last height change BEFORE: {log.last_height_change}")
-            print(f"Elapsed seconds: {elapsed_seconds}")
-            print(f"Current height (before move): {current_height}")
-            print(f"Target height: {target_height}")
-            print(f"BEFORE - Sitting: {log.sitting_time}s, Standing: {log.standing_time}s")
-            
             if current_height < 95:
                 log.sitting_time += int(elapsed_seconds)
-                print(f"Adding {int(elapsed_seconds)}s to SITTING")
             else:
                 log.standing_time += int(elapsed_seconds)
-                print(f"Adding {int(elapsed_seconds)}s to STANDING")
             
             log.position_changes += 1
             log.last_height_change = now
             
-            print(f"AFTER - Sitting: {log.sitting_time}s, Standing: {log.standing_time}s")
-            print(f"Last height change AFTER: {log.last_height_change}")
-            print(f"=================================\n")
-            
             log.save()
-            
-            # VERIFY IT SAVED
-            log.refresh_from_db()
-            print(f"VERIFIED - Last height change in DB: {log.last_height_change}")
         
         # Send command to WiFi2BLE simulator
-        from core.services.WiFi2BLEService import WiFi2BLEService
-        
         wifi2ble = WiFi2BLEService()
         success = wifi2ble.set_desk_height(desk.wifi2ble_id, target_height)
         
@@ -565,7 +680,8 @@ def poll_desk_movement(request, desk_id):
     except Desk.DoesNotExist:
         return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)
 
-# -------------------------------------------------------------
+# ================= OTHER ENDPOINTS (LED, SENSORS, ETC) =================
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def control_pico_led(request, pico_id):
@@ -582,10 +698,8 @@ def control_pico_led(request, pico_id):
             {"error": "Pico device not found"}, status=status.HTTP_404_NOT_FOUND
         )
     except Exception as e:
-        print("LED Control Error:", e)  # <-- Add this line
-        import traceback
-
-        traceback.print_exc()  # <-- Add this line
+        print("LED Control Error:", e) 
+        traceback.print_exc() 
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -613,7 +727,6 @@ def get_pico_sensor_data(request, pico_id):
         )
 
 
-# -------------------------------------------------------------
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def list_available_hot_desks(request):
@@ -635,51 +748,8 @@ def list_available_hot_desks(request):
     return Response(desk_data)
 
 
-from core.services.MQTTService import get_mqtt_service
-from .models import Complaint, DeskUsageLog
-from .serializers import ComplaintSerializer
-
-
 # ================= ADMIN ANALYTICS VIEWS =================
 
-
-def _get_recent_reservations(days=30):
-    """Helper function to fetch reservations in the last N days (excluding admins)."""
-    now = timezone.now()
-    since = now - timedelta(days=days)
-    return Reservation.objects.filter(start_time__gte=since, user__is_admin=False)
-
-
-def _bucket_reservation_minutes_by_hour(reservations, day_start, hours_labels):
-    """Return list of utilization percentages per hour for a single day.
-
-    Utilization per hour = reserved minutes in that hour / (total_desks * 60) * 100.
-    """
-    from django.db.models import Count
-
-    desks_count = Desk.objects.count() or 1
-    results = []
-
-    for hour_label, hour_idx in zip(hours_labels, range(len(hours_labels))):
-        start = day_start + timedelta(hours=hour_idx)
-        end = start + timedelta(hours=1)
-
-        minutes = 0
-        for r in reservations:
-            # Overlap between [r.start_time, r.end_time] and [start, end)
-            if not r.end_time:
-                continue
-            overlap_start = max(r.start_time, start)
-            overlap_end = min(r.end_time, end)
-            if overlap_start < overlap_end:
-                minutes += int((overlap_end - overlap_start).total_seconds() / 60)
-
-        utilization = (minutes / (desks_count * 60)) * 100 if desks_count else 0
-        results.append(round(utilization, 1))
-
-    return results
-
-# -------------------------------------------------------------
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
 def admin_dashboard_analytics(request):
@@ -825,8 +895,6 @@ def admin_dashboard_analytics(request):
     return Response(data)
 
 
-
-# -------------------------------------------------------------
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
 def admin_full_analytics(request):
@@ -1036,11 +1104,7 @@ def admin_full_analytics(request):
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def complaints_view(request):
-    """List or create complaints.
-
-    - GET: regular users see their own complaints; admins see all complaints.
-    - POST: create a new complaint for the authenticated user.
-    """
+    """List or create complaints."""
     if request.method == "GET":
         if request.user.is_admin:
             qs = Complaint.objects.select_related("user", "desk").all()
@@ -1059,10 +1123,7 @@ def complaints_view(request):
 @api_view(["POST"])
 @permission_classes([IsAdminUser])
 def solve_complaint(request, complaint_id: int):
-    """Mark a complaint as solved.
-
-    This is intended for use from the admin dashboard only.
-    """
+    """Mark a complaint as solved."""
     try:
         complaint = Complaint.objects.get(id=complaint_id)
     except Complaint.DoesNotExist:
@@ -1081,13 +1142,13 @@ def solve_complaint(request, complaint_id: int):
     return Response(serializer.data)
 
 
+# ================= HOT DESK & RESERVATION ENDPOINTS =================
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def start_hot_desk(request, desk_id):
     print(f"\n START_HOT_DESK CALLED - Desk ID: {desk_id}")
     print(f"   User: {request.user.username}")
-
-    
 
     try:
         desk = Desk.objects.get(id=desk_id)
@@ -1097,29 +1158,23 @@ def start_hot_desk(request, desk_id):
         
         if desk.current_user == request.user:
             if desk.current_status == "occupied":
-                print(f"User {request.user.username} already occupies desk {desk_id}")
                 return Response(
                     {"error": "You are already using this desk"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             elif desk.current_status == "pending_verification":
-                print(f"Desk {desk_id} already pending verification for {request.user.username}")
                 return Response(
                     {"error": "Desk is already pending your confirmation"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
         
-        
-        # Check if desk is available
         if desk.current_status not in ["available", "Normal"]:
-            print(f"Desk {desk_id} not available (status: {desk.current_status})")
             return Response(
                 {"error": "Desk not available"}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         # Sync desk height from WiFi2BLE simulator
-        from core.services.WiFi2BLEService import WiFi2BLEService
         wifi2ble = WiFi2BLEService()
         try:
             live_state = wifi2ble.get_desk_state(desk.wifi2ble_id)
@@ -1131,6 +1186,7 @@ def start_hot_desk(request, desk_id):
                 print(f"WiFi2BLE returned None, using database height: {desk.current_height}cm")
         except Exception as e:
             print(f"Could not sync desk height: {e}")
+
         # Set desk to pending verification
         desk.current_user = request.user
         desk.current_status = "pending_verification"
@@ -1140,6 +1196,7 @@ def start_hot_desk(request, desk_id):
         # Check if desk has a Pico (requires physical confirmation)
         has_pico = Pico.objects.filter(desk_id=desk.id).exists()
         print(f"Desk {desk.id} has_pico: {has_pico}")
+        
         # Create usage log
         usage_log = DeskUsageLog.objects.create(
             desk=desk,
@@ -1149,6 +1206,7 @@ def start_hot_desk(request, desk_id):
             source="hotdesk",
         )
         print(f"Created usage log ID: {usage_log.id}")
+        
         # Create desk log entry for tracking
         DeskLog.objects.create(
             desk=desk,
@@ -1199,7 +1257,6 @@ def start_hot_desk(request, desk_id):
         return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         print(f"Unexpected error in start_hot_desk: {e}")
-        import traceback
         traceback.print_exc()
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -1218,14 +1275,6 @@ def confirm_hot_desk(request, desk_id):
         # Mark desk as occupied
         desk.current_status = "occupied"
         desk.save()
-
-        # Optionally: update usage log to 'active'
-        # log = DeskUsageLog.objects.filter(
-        #     user=request.user, desk=desk, ended_at__isnull=True, status="pending_verification"
-        # ).first()
-        # if log:
-        #     log.status = "active"
-        #     log.save()
 
         # Notify Pico to update OLED display
         mqtt_service = get_mqtt_service()
@@ -1267,7 +1316,6 @@ def cancel_pending_verification(request, desk_id):
             desk.save()
 
             # Notify Pico that pending verification is cancelled
-            from core.services.MQTTService import get_mqtt_service
             mqtt_service = get_mqtt_service()
             has_pico = Pico.objects.filter(desk_id=desk.id).exists()
             if has_pico:
@@ -1420,35 +1468,11 @@ def hotdesk_status(request):
     return Response(result)
 
 
-
-# ---------------- RESERVATION ENDPOINTS ----------------
-def cleanup_expired_reservations():
-    """Automatically mark no-show reservations as cancelled"""
-    now = timezone.now()
-    grace_period = timedelta(minutes=10)
-    
-    no_shows = Reservation.objects.filter(
-        status='confirmed',
-        checked_in_at__isnull=True,
-        start_time__lt=now - grace_period
-    )
-    
-    count = no_shows.update(
-        status='cancelled',
-        cancelled_at=now,
-        cancelled_by=None  # System cancellation
-    )
-    
-    if count > 0:
-        print(f"Auto-cancelled {count} no-show reservation(s)")
-    
-    return count
-
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def list_user_reservations(request):
-    # Cleanup no-shows before listing
     cleanup_expired_reservations()
+    cleanup_expired_active_reservations()
 
     user = request.user
     date_str = request.GET.get("date")
@@ -1512,7 +1536,6 @@ def check_in_reservation(request, reservation_id):
 
         if has_pico:
             # For desks requiring confirmation, mark reservation as "pending_confirmation"
-            # and set desk to pending_verification, but DON'T create usage log yet
             reservation.status = "pending_confirmation"
             reservation.checked_in_at = now
             reservation.save()
@@ -1524,7 +1547,6 @@ def check_in_reservation(request, reservation_id):
             # Notify Pico to show confirmation prompt
             mqtt_service = get_mqtt_service()
             
-            # Wait for MQTT connection
             import time
             max_wait = 3
             wait_interval = 0.1
@@ -1580,7 +1602,6 @@ def check_in_reservation(request, reservation_id):
         )
 
 
-
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def check_out_reservation(request, reservation_id):
@@ -1613,7 +1634,7 @@ def check_out_reservation(request, reservation_id):
         desk.current_status = "available"
         desk.save()
 
-        #desk log entry for tracking check-out
+        # desk log entry for tracking check-out
         DeskLog.objects.create(
             desk=desk,
             user=request.user,
@@ -1718,7 +1739,6 @@ def available_desks_for_date(request):
     return Response(desk_data)
 
 
-
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def release_desk(request, desk_id):
@@ -1726,8 +1746,7 @@ def release_desk(request, desk_id):
     try:
         desk = Desk.objects.get(id=desk_id)
         
-        # FIX: Check if user has an active usage log for this desk
-        # instead of only relying on desk.current_user
+        # Check if user has an active usage log for this desk
         log = DeskUsageLog.objects.filter(
             user=request.user, 
             desk=desk, 
@@ -1781,8 +1800,6 @@ def release_desk(request, desk_id):
         
     except Desk.DoesNotExist:
         return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)
-    
-    # ---- LOGS ----
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -1818,7 +1835,6 @@ def submit_desk_report(request, desk_id):
 @permission_classes([IsAuthenticated])
 def get_all_reports(request):
     reports = DeskReport.objects.order_by("-created_at")
-    print("REPORTS:", reports)
     data = [{
         "id": r.id,
         "desk": r.desk.name,
@@ -2113,5 +2129,3 @@ def user_metrics(request):
         'no_shows': no_show_list,
         'healthiness': healthiness
     })
-
-

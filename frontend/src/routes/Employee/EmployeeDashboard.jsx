@@ -248,6 +248,8 @@ export default function EmployeeDashboard() {
         return () => window.removeEventListener("reservation-updated", sync);
     }, []);
 
+    // ... inside EmployeeDashboard.js ...
+
     useEffect(() => {
         if (!user || !selectedDeskId) {
             setDeskStatus(null);
@@ -255,60 +257,79 @@ export default function EmployeeDashboard() {
             setSessionStartTime(null);
             return;
         }
+
         const fetchDeskStatus = async () => {
             try {
                 const config = {
                     headers: { Authorization: `Bearer ${user.token}` },
                     withCredentials: true,
                 };
+
+                // 1. Get Status
                 const statusRes = await axios.get(
                     `http://localhost:8000/api/desks/${selectedDeskId}/`,
                     config
                 );
                 setDeskStatus(statusRes.data);
                 setCurrentHeight(statusRes.data.current_height);
+
+                // 2. Get Usage Stats
                 try {
                     const usageRes = await axios.get(
                         `http://localhost:8000/api/desks/${selectedDeskId}/usage/`,
                         config
                     );
-                    setUsageStats(usageRes.data);
-                    if (usageRes.data.active_session && usageRes.data.started_at) {
-                        setSessionStartTime(new Date(usageRes.data.started_at));
-                        setBaseSittingSeconds(usageRes.data.sitting_time || 0);
-                        setBaseStandingSeconds(usageRes.data.standing_time || 0);
-                        setLastFetchTime(new Date());
-                    } else {
+
+                    // --- FIX STARTS HERE ---
+                    // If backend says active_session is explicitly FALSE, it means time ran out.
+                    if (usageRes.data.active_session === false) {
+                        toast("Session Ended", {
+                            description: "Your reservation time has expired."
+                        });
+
+                        // Reset ALL state immediately
+                        setSelectedDeskId(null);
+                        setDeskStatus(null);
+                        setUsageStats(null);
                         setSessionStartTime(null);
                         setBaseSittingSeconds(0);
                         setBaseStandingSeconds(0);
                         setLiveSittingSeconds(0);
                         setLiveStandingSeconds(0);
                         setLastFetchTime(null);
+
+                        // Force a re-fetch of reservations to update the list
+                        window.dispatchEvent(new Event('reservation-updated'));
+                        return;
                     }
-                } catch {
+                    // --- FIX ENDS HERE ---
+
+                    setUsageStats(usageRes.data);
+
+                    // Normal active session logic
+                    if (usageRes.data.active_session && usageRes.data.started_at) {
+                        setSessionStartTime(new Date(usageRes.data.started_at));
+                        setBaseSittingSeconds(usageRes.data.sitting_time || 0);
+                        setBaseStandingSeconds(usageRes.data.standing_time || 0);
+                        setLastFetchTime(new Date());
+                    }
+                } catch (err) {
+                    // If 404, session is definitely gone
                     setUsageStats(null);
                     setSessionStartTime(null);
-                    setBaseSittingSeconds(0);
-                    setBaseStandingSeconds(0);
-                    setLiveSittingSeconds(0);
-                    setLiveStandingSeconds(0);
-                    setLastFetchTime(null);
+                    // Also clear selected desk if usage is forbidden/gone
+                    setSelectedDeskId(null);
                 }
             } catch (err) {
                 console.error("API error:", err);
-                setDeskStatus(null);
-                setUsageStats(null);
-                setSessionStartTime(null);
-                setBaseSittingSeconds(0);
-                setBaseStandingSeconds(0);
-                setLiveSittingSeconds(0);
-                setLiveStandingSeconds(0);
-                setLastFetchTime(null);
+                // If the desk itself is unreadable, reset
+                setSelectedDeskId(null);
             }
         };
+
         fetchDeskStatus();
-        const interval = setInterval(fetchDeskStatus, 30000);
+        // Reduced interval from 30s to 5s to catch expiration faster
+        const interval = setInterval(fetchDeskStatus, 5000);
         return () => clearInterval(interval);
     }, [user, selectedDeskId]);
 
@@ -863,7 +884,12 @@ export default function EmployeeDashboard() {
             case "hotdesk":
                 return <Hotdesk setSelectedDeskId={setSelectedDeskId} />;
             case "mydesk":
-                return <MyDesk selectedDeskId={selectedDeskId} />;
+                return (
+                    <MyDesk
+                        selectedDeskId={selectedDeskId}
+                        onNavigate={setSelectedSection}
+                    />
+                );
         }
     }
 

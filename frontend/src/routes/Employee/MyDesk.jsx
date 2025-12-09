@@ -24,6 +24,8 @@ import {
 import {
   Settings2,
   ArrowUpDown,
+  Armchair,
+  PersonStanding
 } from "lucide-react"
 
 import {
@@ -31,81 +33,74 @@ import {
   IconArrowBigDownFilled,
 } from "@tabler/icons-react"
 
-// Helper function to format seconds into HH:MM:SS
-const formatTime = (dateString, isDiff = false) => {
-  if (!dateString) return "00:00:00";
-  
-  const target = new Date(dateString);
-  const now = new Date();
-  // If isDiff is true (Remaining), we calculate target - now. 
-  // If false (Elapsed), we calculate now - target.
-  const diffInSeconds = isDiff 
-    ? Math.floor((target - now) / 1000) 
-    : Math.floor((now - target) / 1000);
-
-  const seconds = Math.max(0, diffInSeconds);
-  
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-};
-
-// Helper for simple minutes display
-const formatMinutes = (seconds) => Math.floor((seconds || 0) / 60);
-
-export default function MyDesk({ selectedDeskId }) {
+export default function MyDesk({ selectedDeskId, onNavigate }) {
   const { user } = useAuth();
   const [deskStatus, setDeskStatus] = useState(null);
   const [usageStats, setUsageStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  
   const [isControlling, setIsControlling] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
+  
   const [reportModal, setReportModal] = useState(false);
   const [reportMessage, setReportMessage] = useState("");
   const [reportCategory, setReportCategory] = useState("other");
 
+  const isMounted = useRef(true);
   const pollingIntervalRef = useRef(null);
+  const hasRedirected = useRef(false);
 
-  // Check if session is active
-  function isSessionActive() {
-    if (usageStats && usageStats.reservation_end_time) {
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { 
+        isMounted.current = false; 
+        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+    };
+  }, []);
+
+  // --- HELPER: SAFE REDIRECT ---
+  const handleSessionExpiry = () => {
+    // 1. Force the UI to show "Session Ended" immediately
+    setUsageStats({ active_session: false });
+    
+    if (hasRedirected.current) return;
+    hasRedirected.current = true;
+
+    toast("Session Ended", {
+      description: "Your desk reservation time has expired.",
+      duration: 5000,
+    });
+  };
+
+  // --- HELPER: TIME FORMATTING ---
+  const formatTime = (dateString, isDiff = false) => {
+    if (!dateString) return "00:00:00";
+    try {
+      const target = new Date(dateString);
+      if (isNaN(target.getTime())) return "00:00:00"; 
       const now = new Date();
-      const end = new Date(usageStats.reservation_end_time);
-      if (now > end) return false;
-    }
-    if (usageStats && usageStats.active_session === false) return false;
-    return true;
-  }
+      const diffInSeconds = isDiff 
+        ? Math.floor((target - now) / 1000) 
+        : Math.floor((now - target) / 1000);
+      const seconds = Math.max(0, diffInSeconds);
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = seconds % 60;
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    } catch (e) { return "00:00:00"; }
+  };
 
-  // --- No Desk Selected / Session Ended View ---
-  if (!selectedDeskId || (!loading && !isSessionActive())) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center p-8">
-        <Card className="max-w-md w-full text-center">
-          <CardHeader>
-            <CardTitle>
-              <span className="px-3 py-1 rounded-full bg-yellow-200 text-yellow-900 font-semibold inline-block text-sm">
-                {selectedDeskId ? "Session Ended" : "No Desk Selected"}
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground mb-4">
-              {selectedDeskId
-                ? "Your reservation or session has ended. Please select a desk to continue."
-                : "Please select a desk from the Hot Desk or Reservations page."}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const formatMinutes = (seconds) => {
+    if (!seconds || isNaN(seconds)) return 0;
+    return Math.floor(seconds / 60);
+  };
 
-  // --- Data Fetching & Polling Logic ---
+  // --- 1. INITIAL FETCH & DATA SYNC ---
   useEffect(() => {
     if (!user || !selectedDeskId) return;
+
+    setLoading(true);
+    hasRedirected.current = false; 
 
     const fetchDeskData = async () => {
       try {
@@ -117,12 +112,24 @@ export default function MyDesk({ selectedDeskId }) {
           axios.get(`http://localhost:8000/api/desks/${deskId}/usage/`, config),
         ]);
 
-        setDeskStatus(statusRes.data);
-        setUsageStats(usageRes.data);
+        // CHECK: If API explicitly says session is over
+        if (usageRes.data.active_session === false) {
+            handleSessionExpiry();
+            return; // Stop processing, finally block will run setLoading(false)
+        }
+
+        if (isMounted.current) {
+          setDeskStatus(statusRes.data);
+          setUsageStats(usageRes.data);
+        }
       } catch (err) {
         console.error("Error fetching desk data:", err);
+        // If 404/403, session is gone
+        if (err.response && (err.response.status === 404 || err.response.status === 403)) {
+            handleSessionExpiry();
+        }
       } finally {
-        setLoading(false);
+        if (isMounted.current) setLoading(false);
       }
     };
 
@@ -131,6 +138,8 @@ export default function MyDesk({ selectedDeskId }) {
     return () => clearInterval(interval);
   }, [user, selectedDeskId]);
 
+
+  // --- 2. POLLING FOR MOVEMENT ---
   const startMovementPolling = () => {
     if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
     setIsMoving(true);
@@ -144,16 +153,20 @@ export default function MyDesk({ selectedDeskId }) {
         );
         const data = response.data;
         
-        setDeskStatus(prev => ({
-          ...prev,
-          current_height: data.height,
-          is_moving: data.is_moving,
-          status: data.status
-        }));
+        if (isMounted.current) {
+          setDeskStatus(prev => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              current_height: data.height,
+              is_moving: data.is_moving,
+              status: data.status
+            };
+          });
 
-        if (!data.is_moving) stopMovementPolling();
+          if (!data.is_moving) stopMovementPolling();
+        }
       } catch (error) {
-        console.error('Polling error:', error);
         stopMovementPolling();
       }
     }, 500);
@@ -164,9 +177,10 @@ export default function MyDesk({ selectedDeskId }) {
       clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
     }
-    setIsMoving(false);
+    if (isMounted.current) setIsMoving(false);
   };
 
+  // --- ACTIONS ---
   const controlDeskHeight = async (targetHeight) => {
     setIsControlling(true);
     try {
@@ -179,15 +193,16 @@ export default function MyDesk({ selectedDeskId }) {
 
       if (response.data.status === 'moving') startMovementPolling();
       
-      // Immediate update to show UI feedback
-      setDeskStatus(prev => ({ ...prev, is_moving: true }));
+      if (isMounted.current) {
+        setDeskStatus(prev => ({ ...prev, is_moving: true }));
+      }
       toast.success(`Moving desk to ${targetHeight}cm`);
 
     } catch (err) {
       toast.error("Failed to control desk");
       stopMovementPolling();
     } finally {
-      setIsControlling(false);
+      if (isMounted.current) setIsControlling(false);
     }
   };
 
@@ -209,7 +224,7 @@ export default function MyDesk({ selectedDeskId }) {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
       await axios.post(
         `http://localhost:8000/api/desks/${selectedDeskId}/control/`,
-        { height: deskStatus?.current_height || 85 }, // Send current height to force stop
+        { height: deskStatus?.current_height || 85 }, 
         config
       );
       toast.error('Emergency stop activated!');
@@ -231,38 +246,97 @@ export default function MyDesk({ selectedDeskId }) {
     }
   };
 
-  // Derived Values
-  const currentHeight = deskStatus?.current_height || 72; // Default to sit height if null
+  // --- VIEW LOGIC GATES (ORDER MATTERS) ---
+
+  // 1. Session Logic Check
+  const isSessionActive = () => {
+    if (usageStats && usageStats.active_session === false) return false;
+    // If we have stats with an end time, check it
+    if (usageStats?.reservation_end_time) {
+        const now = new Date();
+        const end = new Date(usageStats.reservation_end_time);
+        if (now > end) return false;
+    }
+    // If stats are null but we are loading, treat as active. 
+    // If stats are null and NOT loading, treat as dead.
+    if (!usageStats && !loading) return false;
+    return true;
+  };
+
+  // 2. Render "Session Ended" Card (This prevents the skeleton from showing)
+  if (!selectedDeskId || (!loading && !isSessionActive())) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center p-8 h-full">
+        <Card className="max-w-md w-full text-center animate-in fade-in zoom-in duration-300">
+          <CardHeader>
+            <CardTitle>
+              <span className="px-3 py-1 rounded-full bg-yellow-200 text-yellow-900 font-semibold inline-block text-sm">
+                {selectedDeskId ? "Session Ended" : "No Desk Selected"}
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-4">
+              {selectedDeskId
+                ? "Your reservation or session has ended. Please select a desk to continue."
+                : "Please select a desk from the Hot Desk or Reservations page."}
+            </p>
+            {onNavigate && (
+                <Button onClick={() => onNavigate("hotdesk")}>
+                    Go to Hot Desk
+                </Button>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // 3. Render Loading Skeleton
+  if (loading) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center p-8 h-full">
+         <Card className="w-full max-w-4xl p-8 flex flex-col items-center justify-center gap-4">
+            <Skeleton className="h-12 w-3/4" />
+            <Skeleton className="h-64 w-full" />
+            <p className="text-muted-foreground animate-pulse">Connecting to desk...</p>
+         </Card>
+      </div>
+    );
+  }
+
+  // 4. Render Error / Missing Data Fallback
+  if (!deskStatus) {
+      return (
+        <div className="flex flex-1 flex-col items-center justify-center p-8 h-full">
+            <p className="text-muted-foreground">Unable to load desk data.</p>
+        </div>
+      );
+  }
+
+  // --- MAIN RENDER ---
+  const currentHeight = deskStatus?.current_height || 72;
   const minHeight = 60;
   const maxHeight = 120;
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0 h-[calc(100vh-100px)]"> 
-      {/* Added fixed height calculation to ensure full screen usage if needed, or remove h-full class */}
-
-      {/* --- HEADER --- */}
+      
+      {/* HEADER */}
       <Card className="shrink-0">
         <CardHeader className="py-4">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            
-            {/* Title & Connection Status */}
             <div className="flex items-center gap-3">
               <CardTitle className="text-2xl">
                 {deskStatus?.name || `Desk #${selectedDeskId}`}
               </CardTitle>
-              {!loading && (
-                <Pill>
-                  <PillIndicator pulse variant={isMoving ? 'warning' : 'success'} />
-                  {isMoving ? 'Moving' : 'Connected'}
-                </Pill>
-              )}
+              <Pill>
+                <PillIndicator pulse variant={isMoving ? 'warning' : 'success'} />
+                {isMoving ? 'Moving' : 'Connected'}
+              </Pill>
             </div>
 
-            {/* Stats Pills & Actions */}
-            {!loading && (
-              <div className="flex items-center gap-4 self-end md:self-auto">
-                
-                {/* Timer Group */}
+            <div className="flex items-center gap-4 self-end md:self-auto">
                 <div className="flex items-center gap-3 rounded-full bg-gray-100 dark:bg-gray-800 px-4 py-2">
                     <div className="flex items-baseline gap-2">
                         <span className="text-xs font-medium text-gray-500 font-sans uppercase tracking-wide">Elapsed:</span>
@@ -283,27 +357,25 @@ export default function MyDesk({ selectedDeskId }) {
                     )}
                 </div>
 
-                {/* Health Stats Group */}
                 <div className="hidden lg:flex items-center gap-3 rounded-full bg-gray-100 dark:bg-gray-800 px-4 py-2">
-                    <div className="flex items-baseline gap-2">
-                        <span className="text-xs font-medium text-gray-500 font-sans">STANDING:</span>
+                    <div className="flex items-center gap-2">
+                        <PersonStanding className="w-4 h-4 text-orange-500" />
                         <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
                             {formatMinutes(usageStats?.standing_time)}m
                         </span>
                     </div>
-                    <span className="text-gray-300">|</span>
-                    <div className="flex items-baseline gap-2">
-                        <span className="text-xs font-medium text-gray-500 font-sans">SITTING:</span>
+                    <span className="text-gray-300 dark:text-gray-700">|</span>
+                    <div className="flex items-center gap-2">
+                        <Armchair className="w-4 h-4 text-blue-500" />
                         <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
                             {formatMinutes(usageStats?.sitting_time)}m
                         </span>
                     </div>
                 </div>
 
-                {/* Report Button */}
                 <Dialog open={reportModal} onOpenChange={setReportModal}>
                   <DialogTrigger asChild>
-                    <Button variant="destructive">
+                    <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">
                       Report Problem
                     </Button>
                   </DialogTrigger>
@@ -333,16 +405,15 @@ export default function MyDesk({ selectedDeskId }) {
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
-              </div>
-            )}
+            </div>
           </div>
         </CardHeader>
       </Card>
 
-      {/* --- MAIN CONTROLS GRID --- */}
+      {/* CONTROLS GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 grow">
         
-        {/* LEFT PANEL: Height Controls */}
+        {/* LEFT PANEL */}
         <Card className="h-full flex flex-col overflow-hidden">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2 text-muted-foreground">
@@ -350,13 +421,8 @@ export default function MyDesk({ selectedDeskId }) {
               <CardTitle className="text-lg">Height Controls</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col p-0"> {/* p-0 allows buttons to touch edges */}
-            {loading ? (
-               <div className="p-6 space-y-4"><Skeleton className="h-full w-full" /></div>
-            ) : (
+          <CardContent className="flex-1 flex flex-col p-0"> 
               <div className="flex flex-col h-full">
-                
-                {/* UP BUTTON (Touch Zone) */}
                 <button
                   className="flex-1 w-full flex items-center justify-center bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors active:scale-[0.99]"
                   onClick={moveUp}
@@ -365,14 +431,11 @@ export default function MyDesk({ selectedDeskId }) {
                   <IconArrowBigUpFilled className="w-24 h-24 text-gray-700 dark:text-gray-300 opacity-80" />
                 </button>
 
-                {/* CENTER DISPLAY & STOP */}
                 <div className="flex-none py-8 flex flex-col items-center justify-center bg-white dark:bg-black z-10 border-y relative">
                   <div className="text-6xl font-extrabold tracking-tight">
                     {currentHeight}
                     <span className="text-2xl font-medium text-muted-foreground ml-2">cm</span>
                   </div>
-                  
-                  {/* Stop Button Centered */}
                   <Button
                     onClick={emergencyStop}
                     disabled={!isMoving}
@@ -384,7 +447,6 @@ export default function MyDesk({ selectedDeskId }) {
                   </Button>
                 </div>
 
-                {/* DOWN BUTTON (Touch Zone) */}
                 <button
                   className="flex-1 w-full flex items-center justify-center bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors active:scale-[0.99]"
                   onClick={moveDown}
@@ -393,11 +455,10 @@ export default function MyDesk({ selectedDeskId }) {
                   <IconArrowBigDownFilled className="w-24 h-24 text-gray-700 dark:text-gray-300 opacity-80" />
                 </button>
               </div>
-            )}
           </CardContent>
         </Card>
 
-        {/* RIGHT PANEL: Presets */}
+        {/* RIGHT PANEL */}
         <Card className="h-full flex flex-col">
           <CardHeader>
             <div className="flex items-center gap-2 text-muted-foreground">
@@ -406,12 +467,7 @@ export default function MyDesk({ selectedDeskId }) {
             </div>
           </CardHeader>
           <CardContent className="flex-1 flex flex-col gap-4">
-            {loading ? (
-              <Skeleton className="h-full w-full" />
-            ) : (
-              <>
-                {/* Standing Preset Tile */}
-                <button
+              <button
                   onClick={() => controlDeskHeight(110)}
                   disabled={isControlling || isMoving}
                   className="flex-1 w-full relative group overflow-hidden rounded-xl border-2 border-transparent hover:border-orange-500/50 bg-orange-50 dark:bg-orange-950/20 hover:bg-orange-100 dark:hover:bg-orange-950/40 transition-all text-left p-8"
@@ -425,7 +481,6 @@ export default function MyDesk({ selectedDeskId }) {
                   </div>
                 </button>
 
-                {/* Sitting Preset Tile */}
                 <button
                   onClick={() => controlDeskHeight(72)}
                   disabled={isControlling || isMoving}
@@ -439,8 +494,6 @@ export default function MyDesk({ selectedDeskId }) {
                     <IconArrowBigDownFilled size={120} />
                   </div>
                 </button>
-              </>
-            )}
           </CardContent>
         </Card>
 
