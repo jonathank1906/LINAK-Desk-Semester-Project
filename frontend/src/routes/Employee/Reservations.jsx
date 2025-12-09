@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/useAuth";
 import axios from "axios";
 import { toast } from "sonner";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Clock, LogOut } from "lucide-react"; // LogOut imported here
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Spinner } from '@/components/ui/shadcn-io/spinner';
 
 // Helper to get YYYY-MM-DD in LOCAL time
 const formatLocalYYYYMMDD = (date) => {
@@ -41,7 +42,6 @@ const formatLocalYYYYMMDD = (date) => {
   return `${year}-${month}-${day}`;
 };
 
-// Date formatting helpers for the date picker
 function formatDate(date) {
   if (!date) return "";
   return date.toLocaleDateString("en-US", {
@@ -62,7 +62,6 @@ export default function Reservations({ setSelectedDeskId }) {
   const [userReservations, setUserReservations] = useState([]);
   const [loading, setLoading] = useState(false);
   
-  // Helper: round up to next interval (default 30 minutes)
   function roundUpToNextInterval(date, intervalMins = 30) {
     const d = new Date(date);
     const mins = d.getMinutes();
@@ -79,18 +78,13 @@ export default function Reservations({ setSelectedDeskId }) {
     return `${h}:${m}`;
   }
 
-  // Returns default start/end times for a given date.
-  // If the date is today, start is next available 30-min slot (rounded up), end = start + 30min.
-  // Otherwise defaults to 09:00 - 17:00.
   function getDefaultTimesForDate(date) {
     if (!date) return { start: "09:00", end: "17:00" };
     const now = new Date();
     const target = new Date(date);
     if (target.toDateString() === now.toDateString()) {
       let start = roundUpToNextInterval(now, 30);
-      // clamp earliest start to 06:00
       if (start.getHours() < 6) start = new Date(target.setHours(6, 0, 0, 0));
-      // clamp latest start to 22:00
       if (start.getHours() > 22) start = new Date(target.setHours(22, 0, 0, 0));
       const end = new Date(start.getTime() + 30 * 60 * 1000);
       return { start: formatHHMM(start), end: formatHHMM(end) };
@@ -98,7 +92,6 @@ export default function Reservations({ setSelectedDeskId }) {
     return { start: "09:00", end: "17:00" };
   }
 
-  // ✅ Initialize with default times immediately
   const initialTimes = getDefaultTimesForDate(new Date());
   const [startTime, setStartTime] = useState(initialTimes.start);
   const [endTime, setEndTime] = useState(initialTimes.end);
@@ -109,29 +102,21 @@ export default function Reservations({ setSelectedDeskId }) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const nav = useNavigate();
 
-  // Date picker state
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [datePickerMonth, setDatePickerMonth] = useState(selectedDate);
   const [datePickerValue, setDatePickerValue] = useState(formatDate(selectedDate));
 
-  // ✅ NEW: Auto-refresh times every minute to keep them current
   useEffect(() => {
     const updateTimes = () => {
       const defaults = getDefaultTimesForDate(selectedDate);
       setStartTime(defaults.start);
       setEndTime(defaults.end);
     };
-
-    // Update immediately
     updateTimes();
-
-    // Then update every minute
-    const interval = setInterval(updateTimes, 60000); // 60 seconds
-
+    const interval = setInterval(updateTimes, 60000);
     return () => clearInterval(interval);
   }, [selectedDate]);
 
-  // Helper to generate SelectItem components for time options
   function generateSelectTimeOptions(selectedDate, startFrom = "06:00", minInterval = 0) {
     const options = [];
     if (!selectedDate || !(selectedDate instanceof Date)) return options;
@@ -161,7 +146,6 @@ export default function Reservations({ setSelectedDeskId }) {
         );
       }
     }
-
     return options;
   }
 
@@ -184,7 +168,7 @@ export default function Reservations({ setSelectedDeskId }) {
       setAvailableDesks(response.data);
     } catch (err) {
       console.error("API error:", err);
-      toast.error("Failed to fetch available desks", { description: err.response?.data?.error || err.message });
+      toast.error("Failed to fetch available desks");
       setAvailableDesks([]);
     } finally {
       setLoading(false);
@@ -193,7 +177,6 @@ export default function Reservations({ setSelectedDeskId }) {
 
   const fetchUserReservations = async () => {
     try {
-      // Fetch ALL reservations for the user, not just for the selected date
       const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
       const response = await axios.get(`http://localhost:8000/api/reservations/`, config);
       setUserReservations(response.data);
@@ -209,21 +192,15 @@ export default function Reservations({ setSelectedDeskId }) {
         toast.error("Start time must be before end time");
         return;
       }
-
       const formattedDate = formatLocalYYYYMMDD(selectedDate);
-
       const payload = {
         desk: deskId,
         start_time: `${formattedDate} ${startTime}`,
         end_time: `${formattedDate} ${endTime}`,
       };
-
       const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
-
       await axios.post(`http://localhost:8000/api/reservations/create/`, payload, config);
-
       toast.success("Reservation created!", { description: `Desk reserved for ${formattedDate}` });
-
       fetchAvailableDesks();
       fetchUserReservations();
       window.dispatchEvent(new Event("reservation-updated"));
@@ -235,17 +212,13 @@ export default function Reservations({ setSelectedDeskId }) {
 
   const handleEditReservation = async () => {
     if (!editingReservation) return;
-
     if (editStartTime >= editEndTime) {
       toast.error("Start time must be before end time");
       return;
     }
-
     const formattedDate = formatLocalYYYYMMDD(selectedDate);
-
     try {
       const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
-
       await axios.patch(
         `http://localhost:8000/api/reservations/${editingReservation.id}/edit/`,
         {
@@ -254,17 +227,15 @@ export default function Reservations({ setSelectedDeskId }) {
         },
         config
       );
-
       toast.success("Reservation updated!");
       setEditingReservation(null);
       setEditDialogOpen(false);
       fetchUserReservations();
       fetchAvailableDesks();
       window.dispatchEvent(new Event("reservation-updated"));
-
     } catch (err) {
       console.error("API error:", err);
-      toast.error("Failed to update reservation", { description: err.response?.data?.error || err.message });
+      toast.error("Failed to update reservation");
     }
   };
 
@@ -272,7 +243,6 @@ export default function Reservations({ setSelectedDeskId }) {
     try {
       const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
       await axios.post(`http://localhost:8000/api/reservations/${reservationId}/cancel/`, {}, config);
-
       toast.success("Reservation deleted!");
       setUserReservations((prev) => prev.filter((res) => res.id !== reservationId));
       fetchUserReservations();
@@ -285,7 +255,24 @@ export default function Reservations({ setSelectedDeskId }) {
     }
   };
 
-  // Date picker change handler
+  const handleCheckOut = async (reservationId) => {
+    try {
+        const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
+        await axios.post(`http://localhost:8000/api/reservations/${reservationId}/check_out/`, {}, config);
+        
+        toast.success("Checked out successfully", { description: "Session ended." });
+        
+        fetchUserReservations();
+        fetchAvailableDesks();
+        window.dispatchEvent(new Event("reservation-updated"));
+        
+        if (setSelectedDeskId) setSelectedDeskId(null);
+    } catch (err) {
+        console.error("API error:", err);
+        toast.error("Failed to check out", { description: err.response?.data?.error || err.message });
+    }
+  };
+
   const handleDatePickerChange = (date) => {
     setSelectedDate(date);
     setDatePickerMonth(date);
@@ -295,17 +282,16 @@ export default function Reservations({ setSelectedDeskId }) {
     setEndTime(defaults.end);
   };
 
-  // Filter only confirmed or active reservations
   const filteredReservations = userReservations.filter(
     (r) => r.status === "confirmed" || r.status === "active"
   );
 
-  // Fixed height for desk card content (same as HotDesk)
   const deskCardHeight = "80px";
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      {/* My Reservations - full width */}
+      
+      {/* 1. YOUR RESERVATIONS SECTION */}
       <Card className="w-full mb-6">
         <CardHeader>
           <CardTitle>Your Reservations</CardTitle>
@@ -316,79 +302,110 @@ export default function Reservations({ setSelectedDeskId }) {
             <p className="text-center text-muted-foreground">No reservations found</p>
           ) : (
             <div className="space-y-3">
-              {filteredReservations.map((reservation) => (
-                <div key={reservation.id} className="flex items-center justify-between p-4 border rounded-lg" style={{ minHeight: deskCardHeight, height: deskCardHeight }}>
-                  <div>
-                    <h3 className="font-semibold">{reservation.desk_name || `Desk ${reservation.desk_id}`}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(reservation.start_time).toLocaleDateString()}<br />
-                      Reserved from {formatTimeFromISO(reservation.start_time) || "N/A"} to {formatTimeFromISO(reservation.end_time) || "N/A"}
-                    </p>
+              {filteredReservations.map((reservation) => {
+                const isActive = reservation.status === "active"; 
+
+                return (
+                  <div key={reservation.id} className="flex items-center justify-between p-4 border rounded-lg" style={{ minHeight: deskCardHeight, height: deskCardHeight }}>
+                    <div>
+                      <div className="flex items-center gap-2">
+                          <h3 className="font-semibold">{reservation.desk_name || `Desk ${reservation.desk_id}`}</h3>
+                          {/* SHOW ACTIVE BADGE */}
+                          {isActive && (
+                              <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 text-xs font-bold border border-green-200 dark:border-green-800">
+                                  Active Session
+                              </span>
+                          )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(reservation.start_time).toLocaleDateString()}<br />
+                        Reserved from {formatTimeFromISO(reservation.start_time) || "N/A"} to {formatTimeFromISO(reservation.end_time) || "N/A"}
+                      </p>
+                    </div>
+                    
+                    {/* BUTTON ACTIONS */}
+                    <div className="space-x-2">
+                        {isActive ? (
+                            // SHOW RELEASE DESK BUTTON WITH LOGOUT ICON
+                            <Button 
+                                variant="destructive" 
+                                size="sm"
+                                className="gap-2"
+                                onClick={() => handleCheckOut(reservation.id)}
+                            >
+                                <LogOut className="w-4 h-4" />
+                                Release Desk
+                            </Button>
+                        ) : (
+                            // SHOW EDIT/DELETE BUTTONS
+                            <>
+                                <Dialog open={editingReservation?.id === reservation.id && editDialogOpen} onOpenChange={(open) => {
+                                if (!open) {
+                                    setEditingReservation(null);
+                                    setEditDialogOpen(false);
+                                }
+                                }}>
+                                <DialogTrigger asChild>
+                                    <Button variant="outline" onClick={() => {
+                                    setEditingReservation(reservation);
+                                    setEditStartTime(formatTimeFromISO(reservation.start_time));
+                                    setEditEndTime(formatTimeFromISO(reservation.end_time));
+                                    setEditDialogOpen(true);
+                                    }}>Edit</Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-md">
+                                    <DialogHeader>
+                                    <DialogTitle>Edit Reservation</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="flex flex-row gap-4">
+                                    <div className="space-y-2 w-1/2">
+                                        <label className="block text-sm font-medium">Start Time</label>
+                                        <Select value={editStartTime} onValueChange={setEditStartTime}>
+                                        <SelectTrigger className="w-full border rounded px-2 py-1">
+                                            <SelectValue placeholder="Select start time" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {generateSelectTimeOptions(selectedDate, "06:00", 0)}
+                                        </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2 w-1/2">
+                                        <label className="block text-sm font-medium">End Time</label>
+                                        <Select value={editEndTime} onValueChange={setEditEndTime}>
+                                        <SelectTrigger className="w-full border rounded px-2 py-1">
+                                            <SelectValue placeholder="Select end time" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {generateSelectTimeOptions(selectedDate, editStartTime, 30)}
+                                        </SelectContent>
+                                        </Select>
+                                    </div>
+                                    </div>
+                                    <DialogFooter>
+                                    <Button variant="outline" onClick={() => {
+                                        setEditingReservation(null);
+                                        setEditDialogOpen(false);
+                                    }}>Cancel</Button>
+                                    <Button onClick={handleEditReservation}>Save</Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                                </Dialog>
+                                <Button variant="destructive" onClick={() => cancelReservation(reservation.id)}>Delete</Button>
+                            </>
+                        )}
+                    </div>
                   </div>
-                  <div className="space-x-2">
-                    <Dialog open={editingReservation?.id === reservation.id && editDialogOpen} onOpenChange={(open) => {
-                      if (!open) {
-                        setEditingReservation(null);
-                        setEditDialogOpen(false);
-                      }
-                    }}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" onClick={() => {
-                          setEditingReservation(reservation);
-                          setEditStartTime(formatTimeFromISO(reservation.start_time));
-                          setEditEndTime(formatTimeFromISO(reservation.end_time));
-                          setEditDialogOpen(true);
-                        }}>Edit</Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-md">
-                        <DialogHeader>
-                          <DialogTitle>Edit Reservation</DialogTitle>
-                        </DialogHeader>
-                        <div className="flex flex-row gap-4">
-                          <div className="space-y-2 w-1/2">
-                            <label className="block text-sm font-medium">Start Time</label>
-                            <Select value={editStartTime} onValueChange={setEditStartTime}>
-                              <SelectTrigger className="w-full border rounded px-2 py-1">
-                                <SelectValue placeholder="Select start time" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {generateSelectTimeOptions(selectedDate, "06:00", 0)}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-2 w-1/2">
-                            <label className="block text-sm font-medium">End Time</label>
-                            <Select value={editEndTime} onValueChange={setEditEndTime}>
-                              <SelectTrigger className="w-full border rounded px-2 py-1">
-                                <SelectValue placeholder="Select end time" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {generateSelectTimeOptions(selectedDate, editStartTime, 30)}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <DialogFooter>
-                          <Button variant="outline" onClick={() => {
-                            setEditingReservation(null);
-                            setEditDialogOpen(false);
-                          }}>Cancel</Button>
-                          <Button onClick={handleEditReservation}>Save</Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                    <Button variant="destructive" onClick={() => cancelReservation(reservation.id)}>Delete</Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Sticky Filters Card and Desk List */}
+      {/* 2. FIND A DESK SECTION */}
       <div className="relative flex flex-col lg:flex-row gap-6">
-        {/* Sticky Filters Card */}
+        
+        {/* Sticky Filters */}
         <div className="lg:w-1/3 w-full lg:sticky lg:top-6 z-40 h-fit">
           <Card>
             <CardHeader>
@@ -396,11 +413,8 @@ export default function Reservations({ setSelectedDeskId }) {
               <CardDescription>Select date and time to find available desks</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
-              {/* Date Picker */}
               <div className="flex flex-col gap-3 w-full">
-                <Label htmlFor="date" className="px-1">
-                  Reservation Date
-                </Label>
+                <Label htmlFor="date" className="px-1">Reservation Date</Label>
                 <div className="relative flex gap-2">
                   <Input
                     id="date"
@@ -410,9 +424,7 @@ export default function Reservations({ setSelectedDeskId }) {
                     onChange={(e) => {
                       const date = new Date(e.target.value);
                       setDatePickerValue(e.target.value);
-                      if (isValidDate(date)) {
-                        handleDatePickerChange(date);
-                      }
+                      if (isValidDate(date)) handleDatePickerChange(date);
                     }}
                     onKeyDown={(e) => {
                       if (e.key === "ArrowDown") {
@@ -423,21 +435,11 @@ export default function Reservations({ setSelectedDeskId }) {
                   />
                   <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
                     <PopoverTrigger asChild>
-                      <Button
-                        id="date-picker"
-                        variant="ghost"
-                        className="absolute top-1/2 right-2 size-6 -translate-y-1/2"
-                      >
+                      <Button variant="ghost" className="absolute top-1/2 right-2 size-6 -translate-y-1/2">
                         <CalendarIcon className="size-3.5" />
-                        <span className="sr-only">Select date</span>
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent
-                      className="w-auto overflow-hidden p-0"
-                      align="end"
-                      alignOffset={-8}
-                      sideOffset={10}
-                    >
+                    <PopoverContent className="w-auto overflow-hidden p-0" align="end" alignOffset={-8} sideOffset={10}>
                       <Calendar
                         mode="single"
                         selected={selectedDate}
@@ -502,26 +504,50 @@ export default function Reservations({ setSelectedDeskId }) {
             </CardHeader>
             <CardContent>
               {loading ? (
-                <p className="text-center text-muted-foreground">Loading...</p>
+                <div className="flex justify-center p-8"><Spinner variant="circle"/></div>
               ) : availableDesks.length === 0 ? (
                 <p className="text-center text-muted-foreground">No desks available for this date</p>
               ) : (
                 <div className="space-y-3">
-                  {availableDesks.map((desk) => (
-                    <div key={desk.id} className="flex items-center justify-between p-4 border rounded-lg transition-colors" style={{ minHeight: deskCardHeight, height: deskCardHeight }}>
-                      <div className="flex flex-col justify-center h-full">
-                        <h3 className="font-semibold flex items-center">
-                          {desk.name || desk.desk_name || `Desk ${desk.id}`}
-                          {desk.requires_confirmation && (
-                            <span className="ml-2 px-3 py-1 rounded-full bg-[#C91E4A] text-white font-semibold inline-block text-sm">
-                              Pico
+                  {availableDesks.map((desk) => {
+                    // --- AVAILABILITY BADGES ---
+                    let availabilityBadge = null;
+                    if (desk.free_all_day) {
+                        availabilityBadge = (
+                            <span className="ml-3 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-xs font-medium border border-emerald-200 dark:border-emerald-800">
+                                Available all day
                             </span>
-                          )}
-                        </h3>
-                      </div>
-                      <Button variant="outline" onClick={() => makeReservation(desk.id)}>Reserve Desk</Button>
-                    </div>
-                  ))}
+                        );
+                    } else if (desk.available_until) {
+                        const timeStr = new Date(desk.available_until).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        availabilityBadge = (
+                            <span className="ml-3 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 text-xs font-medium border border-amber-200 dark:border-amber-800">
+                                <Clock className="w-3 h-3" />
+                                Available until {timeStr}
+                            </span>
+                        );
+                    }
+
+                    return (
+                        <div key={desk.id} className="flex items-center justify-between p-4 border rounded-lg transition-colors" style={{ minHeight: deskCardHeight, height: deskCardHeight }}>
+                          <div className="flex flex-col justify-center h-full">
+                            <div className="flex items-center flex-wrap gap-y-1">
+                                <h3 className="font-semibold">
+                                  {desk.name || desk.desk_name || `Desk ${desk.id}`}
+                                </h3>
+                                {desk.requires_confirmation && (
+                                  <span className="ml-2 px-2 py-0.5 rounded-md bg-[#C91E4A] text-white text-xs font-bold shadow-sm">
+                                    Pico
+                                  </span>
+                                )}
+                                {/* Render Badge */}
+                                {availabilityBadge}
+                            </div>
+                          </div>
+                          <Button variant="outline" onClick={() => makeReservation(desk.id)}>Reserve Desk</Button>
+                        </div>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

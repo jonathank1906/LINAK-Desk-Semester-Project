@@ -9,7 +9,7 @@ import Reservations from "./Reservations";
 import Hotdesk from "./Hotdesk";
 import { formatNiceDate } from "@/utils/date";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock } from "lucide-react";
+import { Calendar, Clock, LogOut } from "lucide-react"; // Added LogOut
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { Progress } from "@/components/ui/progress"
 import {
@@ -247,8 +247,6 @@ export default function EmployeeDashboard() {
         window.addEventListener("reservation-updated", sync);
         return () => window.removeEventListener("reservation-updated", sync);
     }, []);
-
-    // ... inside EmployeeDashboard.js ...
 
     useEffect(() => {
         if (!user || !selectedDeskId) {
@@ -669,18 +667,19 @@ export default function EmployeeDashboard() {
                                                             setReleasingDesk(false);
                                                         }
                                                     }}
-                                                    className="variant-outline"
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    className="gap-2"
                                                     aria-label="Release desk"
                                                     disabled={releasingDesk}
                                                 >
                                                     {releasingDesk ? (
-                                                        <span style={{ display: "inline-block", width: "7em", textAlign: "center" }}>
-                                                            <Spinner variant="circle" className="h-4 w-4 mx-auto" />
-                                                        </span>
+                                                        <Spinner variant="circle" className="h-4 w-4" />
                                                     ) : (
-                                                        <span style={{ display: "inline-block", width: "7em", textAlign: "center" }}>
+                                                        <>
+                                                            <LogOut className="w-4 h-4" />
                                                             Release Desk
-                                                        </span>
+                                                        </>
                                                     )}
                                                 </Button>
                                             </>
@@ -830,20 +829,6 @@ export default function EmployeeDashboard() {
                                     {/* Overall Stats Cards */}
                                     <OverallStatsCards stats={metricsData.overall_stats} />
 
-                                    {/* Healthiness Score & No Show Table */}
-                                    {/*
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                        <HealthinessScore
-                                            data={metricsData.healthiness}
-                                            isDarkMode={document.documentElement.classList.contains('dark')}
-                                        />
-                                        <NoShowTable
-                                            data={metricsData.no_shows}
-                                            isDarkMode={document.documentElement.classList.contains('dark')}
-                                        />
-                                    </div>
-                                    */}
-
                                     {/* Charts Grid */}
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                         {/* Standing/Sitting Chart */}
@@ -852,27 +837,11 @@ export default function EmployeeDashboard() {
                                             title="Standing vs Sitting Time"
                                         />
 
-                                        {/* Weekly Usage Chart */}
-                                        {/*
-                                        <WeeklyUsageChart
-                                            data={metricsData.weekly_usage}
-                                            title="Weekly Usage Pattern"
-                                        />
-                                        */}
-
                                         {/* Most Used Desks */}
                                         <MostUsedDesksChart
                                             desks={metricsData.most_used_desks}
                                             title="Most Used Desks"
                                         />
-
-                                        {/* Leaderboard */}
-                                        {/*}
-                                        <StandingLeaderboard
-                                            leaderboard={metricsData.leaderboard}
-                                            title="Standing Time Leaderboard"
-                                        />
-                                        */}
                                     </div>
                                 </>
                             )}

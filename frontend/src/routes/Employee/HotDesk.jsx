@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import PendingVerificationModal from "@/components/pending-verification-modal";
 import { formatTimeFromISO } from "@/utils/date";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
+import { Clock } from "lucide-react";
 
 // Helper to get YYYY-MM-DD in LOCAL time
 const formatLocalYYYYMMDD = (date) => {
@@ -106,18 +107,19 @@ export default function HotDesk({ setSelectedDeskId }) {
   }, [user]);
 
   const startHotDesk = async (deskId) => {
+    // 1. Check BEFORE setting loading state to avoid UI flicker
+    if (userHasActive) {
+        toast.error('You already have an active desk or reservation. Release it before starting another.');
+        return;
+    }
+
     setSelectingDeskId(deskId);
     setSelectingAnyDesk(true);
+    
     try {
       const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
 
-      if (userHasActive) {
-        toast.error('You already have an active desk or reservation. Release it before starting another.');
-        setSelectingDeskId(null);
-        setSelectingAnyDesk(false);
-        return;
-      }
-
+      // Double check active desk (server-side check is safer)
       try {
         const desksRes = await axios.get(`http://localhost:8000/api/desks/`, config);
         const existingDesk = (desksRes.data || []).find(d => d.current_user && String(d.current_user.id) === String(user?.id) && d.current_status !== 'available');
@@ -186,11 +188,8 @@ export default function HotDesk({ setSelectedDeskId }) {
     );
   };
 
-  // Check if any desk is occupied
   const anyDeskOccupied = hotdeskStatus.some(desk => !!desk.occupied || (!!desk.current_status && desk.current_status === "occupied"));
-
-  // Fixed height for desk card content
-  const deskCardHeight = "80px"; // Adjust as needed for your design
+  const deskCardHeight = "80px"; 
 
   return (
     <div className="p-4 md:p-6 w-full">
@@ -222,6 +221,26 @@ export default function HotDesk({ setSelectedDeskId }) {
                 const isReserved = !!desk.reserved;
                 const isReserver = desk.reserved_by && user?.id && String(desk.reserved_by) === String(user.id);
 
+                // --- AVAILABILITY BADGES ---
+                let availabilityBadge = null;
+                if (!isOccupied && !isReserved) {
+                    availabilityBadge = (
+                        <span className="ml-3 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-xs font-medium border border-emerald-200 dark:border-emerald-800">
+                            Available all day
+                        </span>
+                    );
+                } else if (!isOccupied && isReserved && !desk.locked_for_checkin && reservedStart) {
+                    if (reservedStart > now) {
+                        const timeStr = reservedStart.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        availabilityBadge = (
+                            <span className="ml-3 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 text-xs font-medium border border-amber-200 dark:border-amber-800">
+                                <Clock className="w-3 h-3" />
+                                Available until {timeStr}
+                            </span>
+                        );
+                    }
+                }
+
                 let canUse = false;
                 if (isOccupied) {
                   canUse = false;
@@ -239,34 +258,58 @@ export default function HotDesk({ setSelectedDeskId }) {
                     className={`flex items-center justify-between p-4 border rounded-lg`}
                     style={{ minHeight: deskCardHeight, height: deskCardHeight }}
                   >
-                    <div>
-                      <h3 className="font-semibold">
-                        {desk.name || desk.desk_name || `Desk ${desk.id}`}
-                        {desk.requires_confirmation && (
-                          <span className="ml-2 px-3 py-1 rounded-full bg-[#C91E4A] text-white font-semibold inline-block text-sm">
-                            Pico
-                          </span>
-                        )}
-                      </h3>
+                    <div className="flex flex-col justify-center">
+                      <div className="flex items-center flex-wrap gap-y-1">
+                          <h3 className="font-semibold text-lg">
+                            {desk.name || desk.desk_name || `Desk ${desk.id}`}
+                          </h3>
+                          {desk.requires_confirmation && (
+                            <span className="ml-2 px-2 py-0.5 rounded-md bg-[#C91E4A] text-white text-xs font-bold shadow-sm">
+                              Pico
+                            </span>
+                          )}
+                          {availabilityBadge}
+                      </div>
+
                       {desk.reserved ? (
                         isReserver ? (
-                          <p className="text-sm">You have reserved this desk at {formatTimeFromISO(desk.reserved_time)}</p>
+                          <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
+                            Reserved by you at {formatTimeFromISO(desk.reserved_time)}
+                          </p>
                         ) : (
-                          <p className="text-sm text-yellow-700 dark:text-yellow-200">Warning: Reserved at {formatTimeFromISO(desk.reserved_time)}</p>
+                          desk.locked_for_checkin ? (
+                             <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                                Reserved at {formatTimeFromISO(desk.reserved_time)}
+                             </p>
+                          ) : null
                         )
                       ) : null}
                     </div>
 
                     <div style={{ minWidth: "140px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       {isOccupied ? (
-                        <span className="px-3 py-1 rounded-full bg-yellow-200 text-yellow-900 font-semibold inline-block text-sm">Desk is being used</span>
+                        <span className="px-3 py-1 rounded-full bg-secondary text-secondary-foreground font-medium text-sm">In Use</span>
                       ) : isReserved ? (
                         isReserver ? (
-                          <button className="px-3 py-1 rounded-md border text-sm text-muted-foreground" disabled style={{ width: "120px" }}>
-                            Please check in 30 minutes before your reserve time starts
+                          <button className="px-3 py-1 rounded-md border text-sm text-muted-foreground bg-muted/50" disabled style={{ width: "120px" }}>
+                            Check-in soon
                           </button>
                         ) : (
-                          <span className="text-xs text-red-500" style={{ width: "120px", textAlign: "center" }}>Reserved — desk locked</span>
+                          desk.locked_for_checkin ? (
+                             <span className="text-xs font-medium text-red-500 bg-red-50 dark:bg-red-950/30 px-2 py-1 rounded" style={{ width: "120px", textAlign: "center" }}>
+                                Reserved
+                             </span>
+                          ) : (
+                             // It's reserved later, allow selection (check happens inside startHotDesk)
+                             <Button
+                                variant="outline"
+                                onClick={() => startHotDesk(desk.id)}
+                                disabled={selectingAnyDesk} // Removed userHasActive check
+                                style={{ width: "120px" }}
+                              >
+                                {renderButtonContent(desk.id)}
+                              </Button>
+                          )
                         )
                       ) : (
                         // Hide Select Desk button if any desk is occupied
@@ -276,8 +319,8 @@ export default function HotDesk({ setSelectedDeskId }) {
                           <Button
                             variant="outline"
                             onClick={() => startHotDesk(desk.id)}
-                            disabled={userHasActive || selectingAnyDesk}
-                            title={userHasActive ? 'You already have an active desk or reservation' : undefined}
+                            // CHANGE: Removed userHasActive here so the click event fires
+                            disabled={selectingAnyDesk} 
                             style={{ width: "120px" }}
                           >
                             {renderButtonContent(desk.id)}
