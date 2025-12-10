@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
 from djoser.serializers import UserCreateSerializer
-from .models import Desk, Reservation, DeskUsageLog, UserDeskPreference, Complaint
+from .models import Desk, Reservation, DeskUsageLog, UserDeskPreference
 from django.utils import timezone
 from .models import DeskReport, DeskLog
 
@@ -145,49 +145,6 @@ class DeskUsageLogSerializer(serializers.ModelSerializer):
             "source",
             "notes",
         ]
-
-
-class ComplaintSerializer(serializers.ModelSerializer):
-    user_display = serializers.SerializerMethodField()
-    desk_name = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Complaint
-        fields = [
-            "id",
-            "user",
-            "user_display",
-            "desk",
-            "desk_name",
-            "reservation",
-            "subject",
-            "message",
-            "status",
-            "created_at",
-            "solved_at",
-            "solved_by",
-        ]
-        read_only_fields = [
-            "user",
-            "user_display",
-            "status",
-            "created_at",
-            "solved_at",
-            "solved_by",
-        ]
-
-    def get_user_display(self, obj):
-        full_name = f"{obj.user.first_name} {obj.user.last_name}".strip()
-        return full_name or obj.user.email
-
-    def get_desk_name(self, obj):
-        return obj.desk.name if obj.desk else None
-
-    def create(self, validated_data):
-        request = self.context.get("request")
-        if request and request.user.is_authenticated:
-            validated_data["user"] = request.user
-        return super().create(validated_data)
 
 
 class UserDeskPreferenceSerializer(serializers.ModelSerializer):

@@ -23,6 +23,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 import {
   IconUsers,
@@ -66,20 +67,20 @@ export default function AdminDashboard() {
   const [reports, setReports] = useState([]);
   const [showReportModal, setShowReportModal] = useState(false);
 
-  useEffect(() => {
-    async function fetchReports() {
-      try {
-        const config = {
-          headers: { Authorization: `Bearer ${user.token}` },
-          withCredentials: true,
-        };
-        const res = await axios.get("http://localhost:8000/api/reports/", config);
-        setReports(res.data);
-      } catch (err) {
-        console.error("Failed to fetch reports:", err?.response || err);
-      }
+  const fetchReports = async () => {
+    try {
+      const config = {
+        headers: { Authorization: `Bearer ${user.token}` },
+        withCredentials: true,
+      };
+      const res = await axios.get("http://localhost:8000/api/reports/", config);
+      setReports(res.data);
+    } catch (err) {
+      console.error("Failed to fetch reports:", err?.response || err);
     }
+  };
 
+  useEffect(() => {
     fetchReports();
     const interval = setInterval(fetchReports, 5000);
     return () => clearInterval(interval);
@@ -204,23 +205,23 @@ export default function AdminDashboard() {
       default:
         return (
           <div className="flex flex-1 flex-col gap-6 p-4 pt-0">
-            {/* TOP ROW: SYSTEM STATUS + METRICS */}
+            {/* TOP ROW: SYSTEM STATUS + DESK REPORTS */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
               <Card
-                className={`animate-fade-up rounded-xl p-4 flex flex-col justify-center text-white shadow-sm transition-transform bg-gradient-to-r ${metrics.system_status === "operational"
+                className={`animate-fade-up rounded-xl p-6 flex flex-col justify-center text-white shadow-sm transition-transform bg-gradient-to-r ${metrics.system_status === "operational"
                   ? "from-green-500 to-green-400"
                   : "from-red-500 to-red-400"
                   }`}
               >
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-white text-sm font-semibold">System Status</CardTitle>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-white text-base font-semibold">System Status</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-xl font-bold flex items-center gap-2">
+                  <div className="text-2xl font-bold flex items-center gap-3">
                     {metrics.system_status === "operational" ? (
-                      <IconCheck size={20} />
+                      <IconCheck size={24} />
                     ) : (
-                      <IconAlertCircle size={20} />
+                      <IconAlertCircle size={24} />
                     )}
                     {metrics.system_status === "operational"
                       ? "All systems operational"
@@ -228,62 +229,107 @@ export default function AdminDashboard() {
                   </div>
                 </CardContent>
               </Card>
-              <div className="grid grid-cols-3 gap-4">
-                <Card className="animate-fade-up">
-                  <CardHeader className="flex flex-row items-center gap-4">
-                    <span><IconUsers size={32} /></span>
-                    <CardTitle>Total Active Users</CardTitle>
-                  </CardHeader>
-                  <CardContent className="flex items-center justify-center min-h-[30px]">
-                    <span className="text-3xl font-bold">{metrics.active_users}</span>
-                  </CardContent>
-                </Card>
-                <Card className="animate-fade-up">
-                  <CardHeader className="flex flex-row items-center gap-4">
-                    <span><IconDesk size={32} /></span>
-                    <CardTitle>Available Desks</CardTitle>
-                  </CardHeader>
-                  <CardContent className="flex items-center justify-center min-h-[30px]">
-                    <span className="text-3xl font-bold">{metrics.available_desks}</span>
-                  </CardContent>
-                </Card>
-                <Card className="animate-fade-up">
-                  <CardHeader className="flex flex-row items-center gap-4">
-                    <span><IconDesk size={32} /></span>
-                    <CardTitle>Desks In Use Online</CardTitle>
-                  </CardHeader>
-                  <CardContent className="flex items-center justify-center min-h-[30px]">
-                    <span className="text-3xl font-bold">{metrics.desks_in_use_online}</span>
-                  </CardContent>
-                </Card>
-              </div>
+
+              <Card className="animate-fade-up bg-muted/50 rounded-xl p-4 transition-transform">
+                <CardHeader>
+                  <CardTitle className="text-lg">Desk Reports</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col justify-between">
+                  <div className="flex items-center gap-2 mb-4">
+                    {reports.length > 0 ? (
+                      <IconAlertCircle size={40} className="text-red-500" />
+                    ) : (
+                      <IconCheck size={40} className="text-emerald-500" />
+                    )}
+                    <div className="flex flex-col">
+                      <span className="text-xs text-muted-foreground uppercase tracking-wide">
+                        Open reports
+                      </span>
+                      <span className="text-2xl font-bold">{reports.length}</span>
+                    </div>
+                  </div>
+                  {reports.length > 0 && (
+                    <ul className="text-sm space-y-2 max-h-40 overflow-hidden pr-1 mb-4">
+                      {reports.slice(0, 2).map((r, i) => (
+                        <li key={i} className="flex items-start gap-3 py-2 first:pt-0">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="font-medium text-gray-700 dark:text-gray-300 truncate">
+                                {r.user}
+                              </span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 ml-2">
+                                {r.created_at}
+                              </span>
+                            </div>
+                            <div className="text-xs text-muted-foreground mb-1">
+                              Desk: <span className="font-medium text-foreground">{r.desk || 'Unknown'}</span>
+                            </div>
+                            <span className="text-muted-foreground text-xs block truncate">
+                              {r.message}
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {reports.length > 0 && (
+                    <Button
+                      onClick={() => setShowReportModal(true)}
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                    >
+                      View & Resolve All
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* METRICS ROW */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="animate-fade-up">
+                <CardHeader className="flex flex-row items-center gap-4">
+                  <span><IconUsers size={32} /></span>
+                  <CardTitle className="text-lg">Total Active Users</CardTitle>
+                </CardHeader>
+                <CardContent className="flex items-center justify-center min-h-[30px]">
+                  <span className="text-3xl font-bold">{metrics.active_users}</span>
+                </CardContent>
+              </Card>
+              <Card className="animate-fade-up">
+                <CardHeader className="flex flex-row items-center gap-4">
+                  <span><IconDesk size={32} /></span>
+                  <CardTitle className="text-lg">Available Desks</CardTitle>
+                </CardHeader>
+                <CardContent className="flex items-center justify-center min-h-[30px]">
+                  <span className="text-3xl font-bold">{metrics.available_desks}</span>
+                </CardContent>
+              </Card>
+              <Card className="animate-fade-up">
+                <CardHeader className="flex flex-row items-center gap-4">
+                  <span><IconDesk size={32} /></span>
+                  <CardTitle className="text-lg">Desks In Use Online</CardTitle>
+                </CardHeader>
+                <CardContent className="flex items-center justify-center min-h-[30px]">
+                  <span className="text-3xl font-bold">{metrics.desks_in_use_online}</span>
+                </CardContent>
+              </Card>
             </div>
 
             {/* CHARTS ROW */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card className="animate-fade-up animation-delay-100 bg-muted/50 min-h-[250px] transition-transform">
                 <CardHeader>
-                  <CardTitle>Today's Hourly Desk Utilization</CardTitle>
+                  <CardTitle className="text-lg">Today's Hourly Desk Utilization</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Line data={hourlyUtilizationData} />
                 </CardContent>
               </Card>
-              <Card className="animate-fade-up animation-delay-100 bg-muted/50 min-h-[250px] transition-transform">
+              <Card className="animate-fade-up animation-delay-100 bg-muted/50 rounded-xl p-4 transition-transform">
                 <CardHeader>
-                  <CardTitle>Active Users by Department</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Bar data={activeUsersByDeptData} />
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* BOTTOM ROW */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="animate-fade-up animation-delay-200 bg-muted/50 rounded-xl p-4 transition-transform">
-                <CardHeader>
-                  <CardTitle>Recent Bookings</CardTitle>
+                  <CardTitle className="text-lg">Recent Bookings</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ul className="text-sm space-y-2 pr-1">
@@ -307,55 +353,36 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
 
+            </div>
+
+            {/* BOTTOM ROW */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card className="animate-fade-up animation-delay-200 bg-muted/50 min-h-[250px] transition-transform">
                 <CardHeader>
-                  <CardTitle>Today's Booking Timeline</CardTitle>
+                  <CardTitle className="text-lg">Active Users by Department</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Bar data={activeUsersByDeptData} />
+                </CardContent>
+              </Card>
+
+              <Card className="animate-fade-up animation-delay-200 bg-muted/50 min-h-[250px] transition-transform">
+                <CardHeader>
+                  <CardTitle className="text-lg">Today's Booking Timeline</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Bar data={todayBookingTimelineData} />
                 </CardContent>
               </Card>
-
-              <Card className="animate-fade-up animation-delay-200 bg-muted/50 rounded-xl p-4 transition-transform">
-                <CardHeader className="flex justify-between items-center mb-2">
-                  <CardTitle>Desk Reports</CardTitle>
-                  <button
-                    onClick={() => setShowReportModal(true)}
-                    className="text-white bg-blue-400 text-xs px-3 py-1 rounded shadow hover:bg-blue-700 transition-colors duration-200 cursor-pointer"
-                  >
-                    View All
-                  </button>
-                </CardHeader>
-                <CardContent>
-                  <ul className="text-sm divide-y divide-gray-300 dark:divide-gray-700">
-                    {reports.slice(0, 5).length === 0 ? (
-                      <p className="text-gray-500 italic pt-2">No new reports</p>
-                    ) : (
-                      reports.slice(0, 5).map((r, i) => (
-                        <li key={i} className="py-2 first:pt-0 last:pb-0">
-                          <div className="flex flex-col">
-                            <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex justify-between items-center">
-                              <span>{r.user}</span>
-                              <span className="text-gray-500 dark:text-gray-400 font-normal">
-                                {r.created_at}
-                              </span>
-                            </div>
-                            <p className="mt-1 text-sm text-gray-900 dark:text-white line-clamp-2">
-                              {r.message}
-                            </p>
-                          </div>
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                </CardContent>
-              </Card>
-
-              {showReportModal && (
-                <ReportModal user={user} onClose={() => setShowReportModal(false)} />
-              )}
-
             </div>
+
+            {showReportModal && (
+              <ReportModal 
+                user={user} 
+                onClose={() => setShowReportModal(false)}
+                onReportsResolved={fetchReports}
+              />
+            )}
           </div>
         );
     }

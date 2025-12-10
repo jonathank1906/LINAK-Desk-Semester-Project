@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from core.models import (
     Desk, Reservation, DeskUsageLog, 
     UserDeskPreference, Pico, 
-    SensorReading, Complaint
+    SensorReading
 )
 from django.utils import timezone
 from datetime import timedelta
@@ -233,27 +233,6 @@ class PicoDeviceModelTest(TestCase):
         
         self.assertEqual(pico.desk, self.desk)
         self.assertEqual(pico.status, "online")
-
-
-class ComplaintModelTest(TestCase):
-    def setUp(self):
-        self.user = User.objects.create_user(
-            username="testuser",
-            email="test@example.com"
-        )
-    
-    def test_complaint_creation(self):
-        """Test creating a complaint"""
-        complaint = Complaint.objects.create(
-            user=self.user,
-            subject="Desk issue",
-            message="The desk is not moving properly",
-            status="open"
-        )
-        
-        self.assertEqual(complaint.status, "open")
-        self.assertEqual(complaint.subject, "Desk issue")
-        self.assertIsNotNone(complaint.created_at)
 
 
 class DeskReportModelTest(TestCase):
