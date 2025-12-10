@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/useAuth";
+import { usePostureReminder } from "@/contexts/usePostureReminder";
 import axios from "axios";
 import { toast } from "sonner";
 import { Pill, PillIndicator } from '@/components/ui/shadcn-io/pill';
@@ -33,8 +34,13 @@ import {
   IconArrowBigDownFilled,
 } from "@tabler/icons-react"
 
+// Desk height constants (in cm)
+export const STANDING_HEIGHT = 110;
+export const SITTING_HEIGHT = 72;
+
 export default function MyDesk({ selectedDeskId, onNavigate }) {
   const { user } = useAuth();
+  const { pendingHeightChange } = usePostureReminder();
   const [deskStatus, setDeskStatus] = useState(null);
   const [usageStats, setUsageStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -49,6 +55,7 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
   const isMounted = useRef(true);
   const pollingIntervalRef = useRef(null);
   const hasRedirected = useRef(false);
+  const lastPendingHeightRef = useRef(null);
 
   useEffect(() => {
     isMounted.current = true;
@@ -199,7 +206,7 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
   };
 
   // --- ACTIONS ---
-  const controlDeskHeight = async (targetHeight) => {
+  const controlDeskHeight = useCallback(async (targetHeight) => {
     setIsControlling(true);
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
@@ -222,7 +229,22 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
     } finally {
       if (isMounted.current) setIsControlling(false);
     }
-  };
+  }, [user, selectedDeskId]);
+
+  // Handle pending height change from posture reminder
+  useEffect(() => {
+    if (pendingHeightChange && 
+        pendingHeightChange.timestamp && 
+        pendingHeightChange.timestamp !== lastPendingHeightRef.current && 
+        !loading && 
+        deskStatus && 
+        selectedDeskId) {
+      lastPendingHeightRef.current = pendingHeightChange.timestamp;
+      if (pendingHeightChange.height) {
+        controlDeskHeight(pendingHeightChange.height);
+      }
+    }
+  }, [pendingHeightChange, loading, deskStatus, selectedDeskId, controlDeskHeight]);
 
   const moveUp = () => {
     if (currentHeight == null) return;
@@ -315,7 +337,7 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
   }
 
   // --- MAIN RENDER ---
-  const currentHeight = deskStatus?.current_height || 72;
+  const currentHeight = deskStatus?.current_height || SITTING_HEIGHT;
   const minHeight = 60;
   const maxHeight = 120;
 
@@ -468,13 +490,13 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
           </CardHeader>
           <CardContent className="flex-1 flex flex-col gap-4">
               <button
-                  onClick={() => controlDeskHeight(110)}
+                  onClick={() => controlDeskHeight(STANDING_HEIGHT)}
                   disabled={isControlling || isMoving}
                   className="flex-1 w-full relative group overflow-hidden rounded-xl border-2 border-transparent hover:border-orange-500/50 bg-orange-50 dark:bg-orange-950/20 hover:bg-orange-100 dark:hover:bg-orange-950/40 transition-all text-left p-8"
                 >
                   <div className="flex flex-col h-full justify-between relative z-10">
                     <span className="text-orange-600 dark:text-orange-400 font-semibold text-lg uppercase tracking-wide">Standing Position</span>
-                    <span className="text-5xl font-bold text-gray-900 dark:text-white">110<span className="text-2xl text-muted-foreground ml-1">cm</span></span>
+                    <span className="text-5xl font-bold text-gray-900 dark:text-white">{STANDING_HEIGHT}<span className="text-2xl text-muted-foreground ml-1">cm</span></span>
                   </div>
                   <div className="absolute right-4 bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
                     <IconArrowBigUpFilled size={120} />
@@ -482,13 +504,13 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
                 </button>
 
                 <button
-                  onClick={() => controlDeskHeight(72)}
+                  onClick={() => controlDeskHeight(SITTING_HEIGHT)}
                   disabled={isControlling || isMoving}
                   className="flex-1 w-full relative group overflow-hidden rounded-xl border-2 border-transparent hover:border-blue-500/50 bg-blue-50 dark:bg-blue-950/20 hover:bg-blue-100 dark:hover:bg-blue-950/40 transition-all text-left p-8"
                 >
                   <div className="flex flex-col h-full justify-between relative z-10">
                     <span className="text-blue-600 dark:text-blue-400 font-semibold text-lg uppercase tracking-wide">Sitting Position</span>
-                    <span className="text-5xl font-bold text-gray-900 dark:text-white">72<span className="text-2xl text-muted-foreground ml-1">cm</span></span>
+                    <span className="text-5xl font-bold text-gray-900 dark:text-white">{SITTING_HEIGHT}<span className="text-2xl text-muted-foreground ml-1">cm</span></span>
                   </div>
                     <div className="absolute right-4 bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
                     <IconArrowBigDownFilled size={120} />

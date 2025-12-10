@@ -1,9 +1,11 @@
 import { AppSidebar } from "@/components/app-sidebar-employee";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { ModeToggle } from "@/components/mode-toggle";
+import { PostureTestButton } from "@/components/PostureTestButton";
 import { NavUser } from "@/components/nav-user";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/useAuth";
+import { usePostureReminder } from "@/contexts/usePostureReminder";
 import MyDesk from "./MyDesk";
 import Reservations from "./Reservations";
 import Hotdesk from "./Hotdesk";
@@ -37,6 +39,7 @@ import { toast } from "sonner";
 export default function EmployeeDashboard() {
     const [selectedSection, setSelectedSection] = useState("dashboard");
     const { user } = useAuth();
+    const { registerCallbacks, setActiveDeskStatus } = usePostureReminder();
 
     const [selectedDeskId, setSelectedDeskId] = useState(null);
     const [deskStatus, setDeskStatus] = useState(null);
@@ -498,6 +501,18 @@ export default function EmployeeDashboard() {
         setSelectedSection("mydesk");
     }
 
+    // Register navigation callback with posture reminder context
+    useEffect(() => {
+        registerCallbacks(() => {
+            goToMyDesk();
+        });
+    }, []);
+
+    // Update active desk status in posture reminder context
+    useEffect(() => {
+        setActiveDeskStatus(!!selectedDeskId);
+    }, [selectedDeskId, setActiveDeskStatus]);
+
     function goToHotDesk() {
         setSelectedSection("hotdesk");
     }
@@ -839,6 +854,7 @@ export default function EmployeeDashboard() {
         <SidebarProvider>
             <div className="absolute top-4 right-4 z-50">
                 <div className="flex items-center gap-3">
+                    <PostureTestButton />
                     <ModeToggle />
                     <NavUser user={user} />
                 </div>
