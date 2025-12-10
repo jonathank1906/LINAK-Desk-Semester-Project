@@ -87,17 +87,25 @@ export default function EmployeeDashboard() {
         return `${mins}m`;
     }
 
+    // Format seconds as "Xh Ym" or "Xm" (no seconds)
+    function formatHM(seconds) {
+        if (!seconds || isNaN(seconds)) return "0m";
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        if (h > 0) {
+            return `${h}h${m > 0 ? ` ${m}m` : ''}`;
+        }
+        return `${m}m`;
+    }
+
     function formatTimeLeft(endTime) {
         if (!endTime) return null;
         const now = new Date();
         const end = new Date(endTime);
         const diffMs = end - now;
-        if (diffMs <= 0) return "00:00:00";
+        if (diffMs <= 0) return "0m";
         const diffSeconds = Math.floor(diffMs / 1000);
-        const hours = Math.floor(diffSeconds / 3600);
-        const minutes = Math.floor((diffSeconds % 3600) / 60);
-        const seconds = diffSeconds % 60;
-        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        return formatHM(diffSeconds);
     }
 
     // Parse Django ISO format date strings
@@ -335,19 +343,14 @@ export default function EmployeeDashboard() {
 
     useEffect(() => {
         if (!sessionStartTime) {
-            setElapsedTime("00:00:00");
+            setElapsedTime("0m");
             return;
         }
         const updateElapsedTime = () => {
             const now = new Date();
             const diffMs = now - sessionStartTime;
             const diffSeconds = Math.floor(diffMs / 1000);
-            const hours = Math.floor(diffSeconds / 3600);
-            const minutes = Math.floor((diffSeconds % 3600) / 60);
-            const seconds = diffSeconds % 60;
-            setElapsedTime(
-                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-            );
+            setElapsedTime(formatHM(diffSeconds));
         };
         updateElapsedTime();
         const timerInterval = setInterval(updateElapsedTime, 1000);

@@ -79,21 +79,30 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
   };
 
   // --- HELPER: TIME FORMATTING ---
+  // Format seconds as "Xh Ym" or "Xm" (no seconds)
+  const formatHM = (seconds) => {
+    if (!seconds || isNaN(seconds)) return "0m";
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    if (h > 0) {
+      return `${h}h${m > 0 ? ` ${m}m` : ''}`;
+    }
+    return `${m}m`;
+  };
+
+  // Format elapsed or remaining time (dateString) as h m
   const formatTime = (dateString, isDiff = false) => {
-    if (!dateString) return "00:00:00";
+    if (!dateString) return "0m";
     try {
       const target = new Date(dateString);
-      if (isNaN(target.getTime())) return "00:00:00"; 
+      if (isNaN(target.getTime())) return "0m";
       const now = new Date();
-      const diffInSeconds = isDiff 
-        ? Math.floor((target - now) / 1000) 
+      const diffInSeconds = isDiff
+        ? Math.floor((target - now) / 1000)
         : Math.floor((now - target) / 1000);
       const seconds = Math.max(0, diffInSeconds);
-      const h = Math.floor(seconds / 3600);
-      const m = Math.floor((seconds % 3600) / 60);
-      const s = seconds % 60;
-      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    } catch (e) { return "00:00:00"; }
+      return formatHM(seconds);
+    } catch (e) { return "0m"; }
   };
 
   const formatMinutes = (seconds) => {
@@ -363,7 +372,7 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
                     <div className="flex items-baseline gap-2">
                         <span className="text-xs font-medium text-gray-500 font-sans uppercase tracking-wide">Elapsed:</span>
                         <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
-                            {formatTime(usageStats?.started_at)}
+                          {formatTime(usageStats?.started_at)}
                         </span>
                     </div>
                     {usageStats?.reservation_end_time && (
@@ -372,7 +381,7 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
                             <div className="flex items-baseline gap-2">
                                 <span className="text-xs font-medium text-gray-500 font-sans uppercase tracking-wide">Left:</span>
                                 <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
-                                    {formatTime(usageStats.reservation_end_time, true)}
+                                  {formatTime(usageStats.reservation_end_time, true)}
                                 </span>
                             </div>
                         </>
@@ -380,19 +389,35 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
                 </div>
 
                 <div className="hidden lg:flex items-center gap-3 rounded-full bg-gray-100 dark:bg-gray-800 px-4 py-2">
-                    <div className="flex items-center gap-2">
-                        <PersonStanding className="w-4 h-4 text-orange-500" />
-                        <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
-                            {formatMinutes(usageStats?.standing_time)}m
-                        </span>
-                    </div>
-                    <span className="text-gray-300 dark:text-gray-700">|</span>
-                    <div className="flex items-center gap-2">
-                        <Armchair className="w-4 h-4 text-blue-500" />
-                        <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
-                            {formatMinutes(usageStats?.sitting_time)}m
-                        </span>
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <PersonStanding className="w-4 h-4 text-orange-500" />
+                    <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
+                      {(() => {
+                        const mins = formatMinutes(usageStats?.standing_time);
+                        if (mins >= 60) {
+                          const h = Math.floor(mins / 60);
+                          const m = mins % 60;
+                          return `${h}h${m > 0 ? ` ${m}m` : ''}`;
+                        }
+                        return `${mins}m`;
+                      })()}
+                    </span>
+                  </div>
+                  <span className="text-gray-300 dark:text-gray-700">|</span>
+                  <div className="flex items-center gap-2">
+                    <Armchair className="w-4 h-4 text-blue-500" />
+                    <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
+                      {(() => {
+                        const mins = formatMinutes(usageStats?.sitting_time);
+                        if (mins >= 60) {
+                          const h = Math.floor(mins / 60);
+                          const m = mins % 60;
+                          return `${h}h${m > 0 ? ` ${m}m` : ''}`;
+                        }
+                        return `${mins}m`;
+                      })()}
+                    </span>
+                  </div>
                 </div>
 
                 <Dialog open={reportModal} onOpenChange={setReportModal}>
