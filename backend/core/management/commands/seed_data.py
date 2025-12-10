@@ -304,14 +304,13 @@ class Command(BaseCommand):
 
 
         # -------------------------------------------------
-        # Seed sample reservations, desk usage logs and complaints
+        # Seed sample reservations and desk usage logs
         # -------------------------------------------------
         try:
             Reservation = apps.get_model('core', 'Reservation')
             DeskUsageLog = apps.get_model('core', 'DeskUsageLog')
-            Complaint = apps.get_model('core', 'Complaint')
         except LookupError:
-            self.stderr.write("Reservation, DeskUsageLog or Complaint model not found - skipping analytics seeding")
+            self.stderr.write("Reservation or DeskUsageLog model not found - skipping analytics seeding")
             return
 
         desks = list(Desk.objects.all()[:5])
@@ -429,24 +428,3 @@ class Command(BaseCommand):
                             f"Created usage log for {log.user.email} on desk {log.desk.name}"
                         )
                     )
-
-        # Create a couple of open complaints for the admin dashboard widget
-        self.stdout.write(self.style.SUCCESS("Seeding sample complaints"))
-        Complaint.objects.get_or_create(
-            user=regular_user2,
-            message="Desk 4486 feels unstable when fully raised.",
-            defaults={
-                "desk": desks[0],
-                "subject": "Desk stability issue",
-                "status": "open",
-            },
-        )
-        Complaint.objects.get_or_create(
-            user=regular_user3,
-            message="Height control buttons on Desk 6743 sometimes stop responding.",
-            defaults={
-                "desk": desks[1],
-                "subject": "Height adjustment problem",
-                "status": "open",
-            },
-        )

@@ -20,7 +20,7 @@ import traceback
 # --- IMPORTS ---
 from core.services.MQTTService import get_mqtt_service
 from core.models import Pico, SensorReading 
-from .models import Desk, DeskUsageLog, DeskLog, DeskReport, Reservation, Complaint
+from .models import Desk, DeskUsageLog, DeskLog, DeskReport, Reservation
 from .services.WiFi2BLEService import WiFi2BLEService
 from .serializers import (
     UserRegisterSerializer,
@@ -29,7 +29,6 @@ from .serializers import (
     ReservationSerializer,
     AdminUserListSerializer,
     DeskLogSerializer,
-    ComplaintSerializer
 )
 
 # ================= HELPER FUNCTIONS =================
@@ -863,15 +862,6 @@ def admin_dashboard_analytics(request):
         for item in combined
     ]
 
-    # Complaints – latest open complaints
-    complaints_qs = (
-        Complaint.objects
-        .select_related('user', 'desk')
-        .filter(status="open")
-        .order_by('-created_at')[:10]
-    )
-    complaints = ComplaintSerializer(complaints_qs, many=True).data
-
     data = {
         "total_users": total_users,
         "active_users": active_users,
@@ -889,7 +879,6 @@ def admin_dashboard_analytics(request):
             "values": slot_counts,
         },
         "recent_bookings": recent_bookings,
-        "complaints": complaints,
     }
 
     return Response(data)
@@ -1096,50 +1085,6 @@ def admin_full_analytics(request):
     }
 
     return Response(data)
-
-
-# ================= COMPLAINTS API =================
-
-
-@api_view(["GET", "POST"])
-@permission_classes([IsAuthenticated])
-def complaints_view(request):
-    """List or create complaints."""
-    if request.method == "GET":
-        if request.user.is_admin:
-            qs = Complaint.objects.select_related("user", "desk").all()
-        else:
-            qs = Complaint.objects.select_related("user", "desk").filter(user=request.user)
-        serializer = ComplaintSerializer(qs, many=True)
-        return Response(serializer.data)
-
-    # POST
-    serializer = ComplaintSerializer(data=request.data, context={"request": request})
-    serializer.is_valid(raise_exception=True)
-    complaint = serializer.save()
-    return Response(ComplaintSerializer(complaint).data, status=status.HTTP_201_CREATED)
-
-
-@api_view(["POST"])
-@permission_classes([IsAdminUser])
-def solve_complaint(request, complaint_id: int):
-    """Mark a complaint as solved."""
-    try:
-        complaint = Complaint.objects.get(id=complaint_id)
-    except Complaint.DoesNotExist:
-        return Response({"error": "Complaint not found"}, status=status.HTTP_404_NOT_FOUND)
-
-    if complaint.status == "solved":
-        serializer = ComplaintSerializer(complaint)
-        return Response(serializer.data)
-
-    complaint.status = "solved"
-    complaint.solved_at = timezone.now()
-    complaint.solved_by = request.user
-    complaint.save(update_fields=["status", "solved_at", "solved_by"])
-
-    serializer = ComplaintSerializer(complaint)
-    return Response(serializer.data)
 
 
 # ================= HOT DESK & RESERVATION ENDPOINTS =================
