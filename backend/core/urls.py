@@ -24,6 +24,8 @@ from .views import (
     complaints_view,
     solve_complaint,
     user_metrics,
+    desk_schedules_list,
+    desk_schedule_detail,
 )
 
 urlpatterns = [
@@ -86,4 +88,8 @@ urlpatterns = [
     path('reservations/<int:reservation_id>/edit/', edit_reservation, name='edit_reservation'),
 
     path("desks/<int:desk_id>/poll-movement/", poll_desk_movement, name="poll-desk-movement"),
+    
+    # DESK SCHEDULES (Automation)
+    path('schedules/', desk_schedules_list, name='desk_schedules_list'),
+    path('schedules/<int:schedule_id>/', desk_schedule_detail, name='desk_schedule_detail'),
 ]

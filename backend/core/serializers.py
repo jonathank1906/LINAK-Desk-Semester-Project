@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
 from djoser.serializers import UserCreateSerializer
-from .models import Desk, Reservation, DeskUsageLog, UserDeskPreference, Complaint
+from .models import Desk, Reservation, DeskUsageLog, UserDeskPreference, Complaint, DeskSchedule
 from django.utils import timezone
 from .models import DeskReport, DeskLog
 
@@ -249,3 +249,41 @@ class DeskLogSerializer(serializers.ModelSerializer):
             if report:
                 return report.get_category_display()
         return None
+
+
+class DeskScheduleSerializer(serializers.ModelSerializer):
+    """Serializer for automated desk cleaning schedules"""
+    created_by_name = serializers.CharField(source="created_by.get_full_name", read_only=True)
+    weekday_names = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = DeskSchedule
+        fields = [
+            'id', 'name', 'time', 'weekdays', 'target_height',
+            'is_active', 'created_by', 'created_by_name',
+            'created_at', 'updated_at', 'last_executed',
+            'weekday_names'
+        ]
+        read_only_fields = ['created_by', 'created_at', 'updated_at', 'last_executed']
+    
+    def get_weekday_names(self, obj):
+        """Convert weekday numbers to abbreviated names"""
+        weekday_map = {0: 'Mon', 1: 'Tue', 2: 'Wed', 3: 'Thu', 4: 'Fri', 5: 'Sat', 6: 'Sun'}
+        return [weekday_map.get(day, '') for day in obj.weekdays]
+    
+    def validate_weekdays(self, value):
+        """Validate weekdays are in range 0-6"""
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Weekdays must be a list")
+        if not value:
+            raise serializers.ValidationError("At least one weekday must be selected")
+        for day in value:
+            if not isinstance(day, int) or day < 0 or day > 6:
+                raise serializers.ValidationError("Weekdays must be integers between 0 and 6")
+        return value
+    
+    def validate_target_height(self, value):
+        """Validate target height is within reasonable range"""
+        if value < 60 or value > 130:
+            raise serializers.ValidationError("Target height must be between 60 and 130 cm")
+        return value

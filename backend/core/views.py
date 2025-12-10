@@ -20,7 +20,7 @@ import traceback
 # --- IMPORTS ---
 from core.services.MQTTService import get_mqtt_service
 from core.models import Pico, SensorReading 
-from .models import Desk, DeskUsageLog, DeskLog, DeskReport, Reservation, Complaint
+from .models import Desk, DeskUsageLog, DeskLog, DeskReport, Reservation, Complaint, DeskSchedule
 from .services.WiFi2BLEService import WiFi2BLEService
 from .serializers import (
     UserRegisterSerializer,
@@ -29,7 +29,8 @@ from .serializers import (
     ReservationSerializer,
     AdminUserListSerializer,
     DeskLogSerializer,
-    ComplaintSerializer
+    ComplaintSerializer,
+    DeskScheduleSerializer
 )
 
 # ================= HELPER FUNCTIONS =================
@@ -2164,3 +2165,74 @@ def user_metrics(request):
         'no_shows': no_show_list,
         'healthiness': healthiness
     })
+
+
+# ================= DESK SCHEDULE VIEWS =================
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def desk_schedules_list(request):
+    """
+    GET: List all desk schedules (admin only)
+    POST: Create a new desk schedule (admin only)
+    """
+    # Only admins can manage schedules
+    if not request.user.is_admin:
+        return Response(
+            {'error': 'Admin privileges required'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    if request.method == 'GET':
+        schedules = DeskSchedule.objects.all()
+        serializer = DeskScheduleSerializer(schedules, many=True)
+        return Response(serializer.data)
+    
+    elif request.method == 'POST':
+        serializer = DeskScheduleSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(created_by=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def desk_schedule_detail(request, schedule_id):
+    """
+    GET: Retrieve a specific schedule
+    PUT: Update a schedule (admin only)
+    DELETE: Delete a schedule (admin only)
+    """
+    # Only admins can manage schedules
+    if not request.user.is_admin:
+        return Response(
+            {'error': 'Admin privileges required'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    try:
+        schedule = DeskSchedule.objects.get(id=schedule_id)
+    except DeskSchedule.DoesNotExist:
+        return Response(
+            {'error': 'Schedule not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    if request.method == 'GET':
+        serializer = DeskScheduleSerializer(schedule)
+        return Response(serializer.data)
+    
+    elif request.method == 'PUT':
+        serializer = DeskScheduleSerializer(schedule, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    elif request.method == 'DELETE':
+        schedule.delete()
+        return Response(
+            {'message': 'Schedule deleted successfully'},
+            status=status.HTTP_204_NO_CONTENT
+        )
