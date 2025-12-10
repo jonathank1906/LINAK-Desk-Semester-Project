@@ -197,7 +197,7 @@ export default function Automate() {
             <DialogTitle>Create Cleaning Schedule</DialogTitle>
             <div className="space-y-4 mt-4">
               <div>
-                <Label htmlFor="name">Schedule Name</Label>
+                <Label htmlFor="name" className="mb-2 block">Schedule Name</Label>
                 <Input 
                   id="name"
                   placeholder="e.g., Morning Cleaning" 
@@ -208,7 +208,7 @@ export default function Automate() {
               </div>
               
               <div>
-                <Label htmlFor="time">Time</Label>
+                <Label htmlFor="time" className="mb-2 block">Time</Label>
                 <Input 
                   id="time"
                   type="time"
@@ -219,7 +219,7 @@ export default function Automate() {
               </div>
               
               <div>
-                <Label>Days</Label>
+                <Label className="mb-2 block">Days</Label>
                 <div className="grid grid-cols-2 gap-2 mt-2">
                   {WEEKDAYS.map(day => (
                     <div key={day.value} className="flex items-center space-x-2">
@@ -238,7 +238,7 @@ export default function Automate() {
               </div>
               
               <div>
-                <Label htmlFor="height">Target Height (cm)</Label>
+                <Label htmlFor="height" className="mb-2 block">Target Height (cm)</Label>
                 <Input 
                   id="height"
                   type="number"
@@ -339,7 +339,7 @@ export default function Automate() {
           <DialogTitle>Edit Cleaning Schedule</DialogTitle>
           <div className="space-y-4 mt-4">
             <div>
-              <Label htmlFor="edit-name">Schedule Name</Label>
+              <Label htmlFor="edit-name" className="mb-2 block">Schedule Name</Label>
               <Input 
                 id="edit-name"
                 placeholder="e.g., Morning Cleaning" 
@@ -350,7 +350,7 @@ export default function Automate() {
             </div>
             
             <div>
-              <Label htmlFor="edit-time">Time</Label>
+              <Label htmlFor="edit-time" className="mb-2 block">Time</Label>
               <Input 
                 id="edit-time"
                 type="time"
@@ -361,7 +361,7 @@ export default function Automate() {
             </div>
             
             <div>
-              <Label>Days</Label>
+              <Label className="mb-2 block">Days</Label>
               <div className="grid grid-cols-2 gap-2 mt-2">
                 {WEEKDAYS.map(day => (
                   <div key={day.value} className="flex items-center space-x-2">
@@ -380,7 +380,7 @@ export default function Automate() {
             </div>
             
             <div>
-              <Label htmlFor="edit-height">Target Height (cm)</Label>
+              <Label htmlFor="edit-height" className="mb-2 block">Target Height (cm)</Label>
               <Input 
                 id="edit-height"
                 type="number"
