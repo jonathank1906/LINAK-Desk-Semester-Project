@@ -187,3 +187,13 @@ export const deleteDeskSchedule = async (scheduleId) => {
         throw error;
     }
 };
+
+export const executeDeskSchedule = async (scheduleId) => {
+    try {
+        const response = await axios.post(`${BASE_URL}schedules/${scheduleId}/execute/`, {}, { withCredentials: true });
+        return response.data;
+    } catch (error) {
+        console.error("Failed to execute schedule:", error);
+        throw error;
+    }
+};

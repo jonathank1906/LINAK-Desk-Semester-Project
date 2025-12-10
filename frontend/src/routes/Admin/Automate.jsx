@@ -31,7 +31,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { getDeskSchedules, createDeskSchedule, updateDeskSchedule, deleteDeskSchedule } from "@/endpoints/api";
+import { getDeskSchedules, createDeskSchedule, updateDeskSchedule, deleteDeskSchedule, executeDeskSchedule } from "@/endpoints/api";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -52,6 +52,7 @@ export default function Automate() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [deleteScheduleId, setDeleteScheduleId] = useState(null);
+  const [executingScheduleId, setExecutingScheduleId] = useState(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -180,6 +181,26 @@ export default function Automate() {
     }));
   };
 
+  const handleExecuteNow = async (scheduleId, scheduleName) => {
+    if (!confirm(`Execute "${scheduleName}" now? This will move all available desks to the target height.`)) {
+      return;
+    }
+    
+    try {
+      setExecutingScheduleId(scheduleId);
+      const result = await executeDeskSchedule(scheduleId);
+      
+      alert(`Schedule Executed!\n${result.summary.successful} desk(s) moved successfully.\n${result.summary.skipped} skipped, ${result.summary.failed} failed.`);
+      
+      await fetchSchedules(); // Refresh to show updated last_executed time
+    } catch (error) {
+      console.error("Error executing schedule:", error);
+      alert("Failed to execute schedule. Please try again.");
+    } finally {
+      setExecutingScheduleId(null);
+    }
+  };
+
   return (
     <div className="container mx-auto py-8 space-y-6">
       <div className="flex items-center justify-between mb-4">
@@ -286,6 +307,7 @@ export default function Automate() {
                     <th className="py-2 px-4 text-left">Days</th>
                     <th className="py-2 px-4 text-left">Target Height</th>
                     <th className="py-2 px-4 text-left">Status</th>
+                    <th className="py-2 px-4 text-left">Last Executed</th>
                     <th className="py-2 px-4 text-left">Actions</th>
                   </tr>
                 </thead>
@@ -301,14 +323,24 @@ export default function Automate() {
                           {schedule.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
+                      <td className="py-2 px-4 text-sm text-muted-foreground">
+                        {schedule.last_executed ? new Date(schedule.last_executed).toLocaleString() : 'Never'}
+                      </td>
                       <td className="py-2 px-4">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm">
-                              Actions
+                            <Button variant="outline" size="sm" disabled={executingScheduleId === schedule.id}>
+                              {executingScheduleId === schedule.id ? (
+                                <><IconLoader2 className="h-4 w-4 animate-spin mr-1" /> Executing...</>
+                              ) : (
+                                'Actions'
+                              )}
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent>
+                            <DropdownMenuItem onClick={() => handleExecuteNow(schedule.id, schedule.name)}>
+                              <IconLoader2 className="mr-2 h-4 w-4" /> Execute Now
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => openEditDialog(schedule)}>
                               <IconEdit className="mr-2 h-4 w-4" /> Edit
                             </DropdownMenuItem>
