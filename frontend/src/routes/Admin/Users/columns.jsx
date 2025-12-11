@@ -70,12 +70,12 @@ export const columns = ({ setUsers, openViewDialog, openEditDialog }) => [
   },
   {
     accessorKey: "deskUsage",
-    header: "Total desk usage (hrs this week)",
+    header: "Weekly Usage (hrs)",
     cell: ({ row }) => <div className="text-right">{row.original.deskUsage}</div>,
   },
   {
     accessorKey: "deskUsageGraph",
-    header: "Weekly Usage",
+    header: "Weekly Usage Chart",
     cell: ({ row }) => (
       <Sparklines data={row.original.deskUsageHistory || [3, 4, 2, 5, 3, 6]}>
         <SparklinesLine color="blue" />

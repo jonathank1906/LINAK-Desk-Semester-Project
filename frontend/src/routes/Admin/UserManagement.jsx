@@ -4,7 +4,6 @@ import { columns as columnsFunc } from "./Users/columns";
 import {
   Dialog,
   DialogContent,
-  DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
@@ -13,7 +12,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,15 +21,24 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import { UserProfileDialog } from "@/components/UserProfileDialog";
 import { IconPlus, IconFilterX } from "@tabler/icons-react";
 import { NewAccountForm } from "@/components/new-account-form";
 import { EditUserDialog } from "@/components/EditUserDialog";
 import { Button } from "@/components/ui/button";
-
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
 
 export default function UserManagement() {
   const [usersData, setUsersData] = useState([]);
@@ -51,7 +58,7 @@ export default function UserManagement() {
 
   // Alert dialog state for "no users selected"
   const [noUsersAlertOpen, setNoUsersAlertOpen] = useState(false);
-  
+
   // State for bulk action confirmation
   const [pendingBulkAction, setPendingBulkAction] = useState(null);
 
@@ -76,7 +83,7 @@ export default function UserManagement() {
             ? new Date(user.last_login).toLocaleString()
             : "Never",
           deskUsage: user.total_usage_hours ?? 50,
-          favoriteDesk: "Desk XXXX",
+          favoriteDesk: "Unknown",
           deskUsageHistory: user.is_admin ? [1,1] : [2,2],
           status: user.is_active ? "Active" : "Disabled",
           created: new Date(user.created_at).toLocaleDateString(),
@@ -187,7 +194,7 @@ export default function UserManagement() {
         )
       );
     }
-    
+
     setSelectedUsers([]);
     setPendingBulkAction(null);
   };
@@ -197,215 +204,256 @@ export default function UserManagement() {
   if (error) return <div className="p-6 text-red-500">{error}</div>;
 
   return (
-    <SidebarInset>
-      <div className="flex flex-col gap-6 px-6 pb-12 pt-4">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8 gap-4">
+    <div className="flex flex-col gap-6 px-6 pb-12 pt-4 min-w-0 overflow-x-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4 gap-4 min-w-0">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold">User Management</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage user accounts and permissions
+          </p>
         </div>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button className="flex items-center gap-2 flex-shrink-0">
+              <IconPlus className="w-4 h-4" /> Create Account
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <NewAccountForm />
+          </DialogContent>
+        </Dialog>
+      </div>
 
-        {/* Filter Row */}
-        <div className="flex flex-wrap items-center gap-3 mb-6">
-          <input
-            type="text"
-            placeholder="Search by name or email"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="border rounded px-3 py-2"
-          />
-
-          <select
-            value={filterRole}
-            onChange={(e) => setFilterRole(e.target.value)}
-            className="border rounded px-3 py-2"
-          >
-            <option value="">All Roles</option>
-            <option value="Admin">Admin</option>
-            <option value="Employee">Employee</option>
-            <option value="Manager">Manager</option>
-          </select>
-
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="border rounded px-3 py-2"
-          >
-            <option value="">All Statuses</option>
-            <option value="Active">Active</option>
-            <option value="Disabled">Disabled</option>
-          </select>
-
-          <select
-            value={filterDepartment}
-            onChange={(e) => setFilterDepartment(e.target.value)}
-            className="border rounded px-3 py-2"
-          >
-            <option value="">All Departments</option>
-            <option value="Engineering">Engineering</option>
-            <option value="Design">Design</option>
-            <option value="Marketing">Marketing</option>
-          </select>
-
-          {/* Last Login */}
-          <div className="relative">
-            {!filterLastLoginAfter && (
-              <span className="absolute left-3 top-2 text-gray-400 text-sm pointer-events-none">
-                Last Login
-              </span>
-            )}
-            <input
-              type="date"
-              value={filterLastLoginAfter}
-              onChange={(e) => setFilterLastLoginAfter(e.target.value)}
-              className="border rounded px-3 py-2 pl-24"
+      {/* Filter Card */}
+      <Card className="bg-muted/50 py-0 min-w-0">
+        <CardContent className="px-4 py-3 min-w-0">
+          <div className="flex flex-wrap items-center gap-3 min-w-0">
+            <Input
+              type="text"
+              placeholder="Search by name or email"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="min-w-0 flex-shrink max-w-xs"
             />
-          </div>
 
-          {/* Date Created */}
-          <div className="relative">
-            {!filterCreatedAfter && (
-              <span className="absolute left-3 top-2 text-gray-400 text-sm pointer-events-none">
-                Date Created
-              </span>
-            )}
-            <input
-              type="date"
-              value={filterCreatedAfter}
-              onChange={(e) => setFilterCreatedAfter(e.target.value)}
-              className="border rounded px-3 py-2 pl-24"
+            <Select 
+              value={filterRole || "all"} 
+              onValueChange={(val) => setFilterRole(val === "all" ? "" : val)}
+            >
+              <SelectTrigger className="min-w-0 w-[150px] flex-shrink-0">
+                <SelectValue placeholder="All Roles" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
+                <SelectItem value="Admin">Admin</SelectItem>
+                <SelectItem value="Employee">Employee</SelectItem>
+                <SelectItem value="Manager">Manager</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select 
+              value={filterStatus || "all"} 
+              onValueChange={(val) => setFilterStatus(val === "all" ? "" : val)}
+            >
+              <SelectTrigger className="min-w-0 w-[150px] flex-shrink-0">
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="Active">Active</SelectItem>
+                <SelectItem value="Disabled">Disabled</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select 
+              value={filterDepartment || "all"} 
+              onValueChange={(val) => setFilterDepartment(val === "all" ? "" : val)}
+            >
+              <SelectTrigger className="min-w-0 w-[170px] flex-shrink-0">
+                <SelectValue placeholder="All Departments" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Departments</SelectItem>
+                <SelectItem value="Engineering">Engineering</SelectItem>
+                <SelectItem value="Design">Design</SelectItem>
+                <SelectItem value="Marketing">Marketing</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={
+                    "min-w-0 w-[190px] justify-start text-left flex-shrink-0 transition-none bg-transparent text-foreground"
+                  }
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {filterLastLoginAfter ? new Date(filterLastLoginAfter).toLocaleDateString() : "Last Login After"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="p-0 w-auto" align="start">
+                <Calendar
+                  mode="single"
+                  selected={filterLastLoginAfter ? new Date(filterLastLoginAfter) : undefined}
+                  onSelect={(date) =>
+                    setFilterLastLoginAfter(date)
+                  }
+                  initialFocus
+                  captionLayout="dropdown"
+                />
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={
+                    "min-w-0 w-[180px] justify-start text-left flex-shrink-0 transition-none bg-transparent text-foreground"
+                  }
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {filterCreatedAfter ? new Date(filterCreatedAfter).toLocaleDateString() : "Created After"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="p-0 w-auto" align="start">
+                <Calendar
+                  mode="single"
+                  selected={filterCreatedAfter ? new Date(filterCreatedAfter) : undefined}
+                  onSelect={(date) =>
+                    setFilterCreatedAfter(date)
+                  }
+                  initialFocus
+                  captionLayout="dropdown"
+                />
+              </PopoverContent>
+            </Popover>
+
+            <Input
+              type="text"
+              placeholder="Filter by desk"
+              value={filterDesk}
+              onChange={(e) => setFilterDesk(e.target.value)}
+              className="min-w-0 flex-shrink max-w-[150px]"
             />
+
+            <Button variant="secondary" onClick={resetFilters} className="flex-shrink-0">
+              <IconFilterX className="mr-2 h-4 w-4" /> Reset Filters
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="secondary" className="flex-shrink-0">Bulk Actions</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => handleBulkAction("disable")}>
+                  Disable Selected
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleBulkAction("activate")}>
+                  Activate Selected
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleBulkAction("delete")}>
+                  Delete Selected
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <div className="ml-auto text-sm text-muted-foreground flex-shrink-0 whitespace-nowrap">
+              Showing {filteredUsers.length} of {usersData.length} users
+            </div>
           </div>
+        </CardContent>
+      </Card>
 
-          <input
-            type="text"
-            placeholder="Search Desk #"
-            value={filterDesk}
-            onChange={(e) => setFilterDesk(e.target.value)}
-            className="border rounded px-3 py-2"
-          />
-
-          {/* Reset Filters */}
-          <Button variant="secondary" onClick={resetFilters}>
-            <IconFilterX className="mr-2 h-4 w-4" /> Reset Filters
-          </Button>
-
-          {/* Bulk Actions Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="secondary">Bulk Actions</Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => handleBulkAction("disable")}>
-                Disable Selected
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleBulkAction("activate")}>
-                Activate Selected
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleBulkAction("delete")}>
-                Delete Selected
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button className="btn btn-primary flex items-center gap-2 px-4 py-2">
-                <IconPlus className="w-5 h-5" /> Create Employee Account
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <NewAccountForm />
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        {/* Table */}
+      {/* Table */}
+      <div className="min-w-0">
         <DataTable
           columns={columns}
           data={filteredUsers}
           onSelectionChange={setSelectedUsers}
         />
-
-        {/* View Dialog */}
-        {viewingUser && (
-          <Dialog open onOpenChange={() => setViewingUser(null)}>
-            <DialogContent>
-              <UserProfileDialog
-                user={viewingUser}
-                onClose={() => setViewingUser(null)}
-              />
-            </DialogContent>
-          </Dialog>
-        )}
-
-        {/* Edit Dialog */}
-        {editingUser && (
-          <Dialog open onOpenChange={() => setEditingUser(null)}>
-            <DialogContent>
-              <EditUserDialog
-                user={editingUser}
-                onClose={() => setEditingUser(null)}
-                onSave={(updatedUser) => {
-                  setUsersData((prev) =>
-                    prev.map((user) =>
-                      user.id === updatedUser.id ? updatedUser : user
-                    )
-                  );
-                  setEditingUser(null);
-                }}
-              />
-            </DialogContent>
-          </Dialog>
-        )}
-
-        {/* No Users Selected Alert Dialog */}
-        <AlertDialog open={noUsersAlertOpen} onOpenChange={setNoUsersAlertOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>No Users Selected</AlertDialogTitle>
-              <AlertDialogDescription>
-                Please select at least one user first.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogAction onClick={() => setNoUsersAlertOpen(false)}>
-                OK
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        {/* Bulk Action Confirmation Dialog */}
-        <AlertDialog open={!!pendingBulkAction} onOpenChange={() => setPendingBulkAction(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                {pendingBulkAction === "delete" && "Delete Users"}
-                {pendingBulkAction === "disable" && "Disable Users"}
-                {pendingBulkAction === "activate" && "Activate Users"}
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                {pendingBulkAction === "delete" && 
-                  `Are you sure you want to delete ${selectedUsers.map((u) => u.name).join(", ")}? This action cannot be undone.`
-                }
-                {pendingBulkAction === "disable" && 
-                  `Are you sure you want to disable ${selectedUsers.map((u) => u.name).join(", ")}?`
-                }
-                {pendingBulkAction === "activate" && 
-                  `Are you sure you want to activate ${selectedUsers.map((u) => u.name).join(", ")}?`
-                }
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={executeBulkAction}>
-                Continue
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
       </div>
-    </SidebarInset>
+
+      {/* View Dialog */}
+      {viewingUser && (
+        <Dialog open onOpenChange={() => setViewingUser(null)}>
+          <DialogContent>
+            <UserProfileDialog
+              user={viewingUser}
+              onClose={() => setViewingUser(null)}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Edit Dialog */}
+      {editingUser && (
+        <Dialog open onOpenChange={() => setEditingUser(null)}>
+          <DialogContent>
+            <EditUserDialog
+              user={editingUser}
+              onClose={() => setEditingUser(null)}
+              onSave={(updatedUser) => {
+                setUsersData((prev) =>
+                  prev.map((user) =>
+                    user.id === updatedUser.id ? updatedUser : user
+                  )
+                );
+                setEditingUser(null);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* No Users Selected Alert Dialog */}
+      <AlertDialog open={noUsersAlertOpen} onOpenChange={setNoUsersAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>No Users Selected</AlertDialogTitle>
+            <AlertDialogDescription>
+              Please select at least one user first.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setNoUsersAlertOpen(false)}>
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Action Confirmation Dialog */}
+      <AlertDialog open={!!pendingBulkAction} onOpenChange={() => setPendingBulkAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingBulkAction === "delete" && "Delete Users"}
+              {pendingBulkAction === "disable" && "Disable Users"}
+              {pendingBulkAction === "activate" && "Activate Users"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingBulkAction === "delete" && 
+                `Are you sure you want to delete ${selectedUsers.map((u) => u.name).join(", ")}? This action cannot be undone.`
+              }
+              {pendingBulkAction === "disable" && 
+                `Are you sure you want to disable ${selectedUsers.map((u) => u.name).join(", ")}?`
+              }
+              {pendingBulkAction === "activate" && 
+                `Are you sure you want to activate ${selectedUsers.map((u) => u.name).join(", ")}?`
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={executeBulkAction}>
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 }
