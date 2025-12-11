@@ -5,6 +5,12 @@ import { toast } from "sonner";
 import { Pill, PillIndicator } from '@/components/ui/shadcn-io/pill';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { 
+  fetchPreferences, 
+  createPreference, 
+  updatePreference, 
+  deletePreference 
+} from "@/endpoints/preferences";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import {
   Card,
@@ -50,17 +56,43 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
   const pollingIntervalRef = useRef(null);
   const hasRedirected = useRef(false);
 
+  // --- USER PREFERENCE STATE ---
+  const [pref, setPref] = useState(null);
+  const [loadingPref, setLoadingPref] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [formState, setFormState] = useState({
+    custom_height_1: "",
+    custom_height_1_name: "",
+    custom_height_2: "",
+    custom_height_2_name: "",
+    custom_height_3: "",
+    custom_height_3_name: "",
+  });
+
+  const standing = pref?.custom_height_1 ?? pref?.standing_height ?? 110;
+  const standingLabel = pref?.custom_height_1_name || "Standing Position";
+  const sitting = pref?.custom_height_2 ?? pref?.sitting_height ?? 72;
+  const sittingLabel = pref?.custom_height_2_name || "Sitting Position";
+  const custom = pref?.custom_height_3;  
+  const customLabel = pref?.custom_height_3_name || "Custom Preset";
+
+  useEffect(() => {
+    setLoadingPref(true);
+    fetchPreferences()
+      .then((data) => setPref(data[0] || null))
+      .finally(() => setLoadingPref(false));
+  }, []);
+
   useEffect(() => {
     isMounted.current = true;
     return () => { 
-        isMounted.current = false; 
-        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+      isMounted.current = false; 
+      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
     };
   }, []);
 
   // --- HELPER: SAFE REDIRECT ---
   const handleSessionExpiry = () => {
-    // 1. Force the UI to show "Session Ended" immediately
     setUsageStats({ active_session: false });
     
     if (hasRedirected.current) return;
@@ -70,6 +102,85 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
       description: "Your desk reservation time has expired.",
       duration: 5000,
     });
+  };
+
+  // --- PRESET HANDLERS ---
+  const openEditPresets = () => {
+    setFormState({
+      custom_height_1: pref?.custom_height_1 ?? standing,
+      custom_height_1_name: pref?.custom_height_1_name || standingLabel,
+      custom_height_2: pref?.custom_height_2 ?? sitting,
+      custom_height_2_name: pref?.custom_height_2_name || sittingLabel,
+      custom_height_3: pref?.custom_height_3 ?? "",
+      custom_height_3_name: pref?.custom_height_3_name || "",
+    });
+    setEditOpen(true);
+  };
+
+  const handleSave = async (form) => {
+    if (pref?.id) {
+      const updated = await updatePreference(pref.id, form);
+      setPref(updated);
+    } else {
+      const created = await createPreference(form);
+      setPref(created);
+    }
+  };
+
+  const handleSubmitPresets = async () => {
+    const heights = [
+      { value: formState.custom_height_1, name: "Preset 1" },
+      { value: formState.custom_height_2, name: "Preset 2" },
+      { value: formState.custom_height_3, name: "Preset 3" }
+    ];
+  
+    for (const height of heights) {
+      if (height.value && height.value !== "") {
+        const numValue = Number(height.value);
+        if (numValue < minHeight || numValue > maxHeight) {
+          toast.error(`${height.name} must be between ${minHeight} and ${maxHeight} cm`);
+          return;
+        }
+      }
+    }
+    const payload = {
+      custom_height_1: Number(formState.custom_height_1) || null,
+      custom_height_1_name: formState.custom_height_1_name || null,
+      custom_height_2: Number(formState.custom_height_2) || null,
+      custom_height_2_name: formState.custom_height_2_name || null,
+      custom_height_3: Number(formState.custom_height_3) || null, 
+      custom_height_3_name: formState.custom_height_3_name || null,
+    };
+
+    try {
+      await handleSave(payload);
+      toast.success("Presets saved");
+      setEditOpen(false);
+    } catch (e) {
+      toast.error("Failed to save presets");
+    }
+  };
+
+  const handleResetPresets = async () => {
+    const payload = {
+      custom_height_1: null,
+      custom_height_1_name: null,
+      custom_height_2: null,
+      custom_height_2_name: null,
+      custom_height_3: null,
+      custom_height_3_name: null,
+    };
+
+    try {
+      if (pref?.id) {
+        const updated = await updatePreference(pref.id, payload);
+        setPref(updated);
+      }
+      toast.success("Presets reset to defaults");
+      setEditOpen(false);
+    } catch (e) {
+      toast.error("Failed to reset presets");
+    }
   };
 
   // --- HELPER: TIME FORMATTING ---
@@ -112,10 +223,9 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
           axios.get(`http://localhost:8000/api/desks/${deskId}/usage/`, config),
         ]);
 
-        // CHECK: If API explicitly says session is over
         if (usageRes.data.active_session === false) {
-            handleSessionExpiry();
-            return; // Stop processing, finally block will run setLoading(false)
+          handleSessionExpiry();
+          return;
         }
 
         if (isMounted.current) {
@@ -124,9 +234,8 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
         }
       } catch (err) {
         console.error("Error fetching desk data:", err);
-        // If 404/403, session is gone
         if (err.response && (err.response.status === 404 || err.response.status === 403)) {
-            handleSessionExpiry();
+          handleSessionExpiry();
         }
       } finally {
         if (isMounted.current) setLoading(false);
@@ -137,7 +246,6 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
     const interval = setInterval(fetchDeskData, 5000);
     return () => clearInterval(interval);
   }, [user, selectedDeskId]);
-
 
   // --- 2. POLLING FOR MOVEMENT ---
   const startMovementPolling = () => {
@@ -246,24 +354,18 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
     }
   };
 
-  // --- VIEW LOGIC GATES (ORDER MATTERS) ---
-
-  // 1. Session Logic Check
+  // --- VIEW LOGIC GATES ---
   const isSessionActive = () => {
     if (usageStats && usageStats.active_session === false) return false;
-    // If we have stats with an end time, check it
     if (usageStats?.reservation_end_time) {
-        const now = new Date();
-        const end = new Date(usageStats.reservation_end_time);
-        if (now > end) return false;
+      const now = new Date();
+      const end = new Date(usageStats.reservation_end_time);
+      if (now > end) return false;
     }
-    // If stats are null but we are loading, treat as active. 
-    // If stats are null and NOT loading, treat as dead.
     if (!usageStats && !loading) return false;
     return true;
   };
 
-  // 2. Render "Session Ended" Card (This prevents the skeleton from showing)
   if (!selectedDeskId || (!loading && !isSessionActive())) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center p-8 h-full">
@@ -282,9 +384,9 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
                 : "Please select a desk from the Hot Desk or Reservations page."}
             </p>
             {onNavigate && (
-                <Button onClick={() => onNavigate("hotdesk")}>
-                    Go to Hot Desk
-                </Button>
+              <Button onClick={() => onNavigate("hotdesk")}>
+                Go to Hot Desk
+              </Button>
             )}
           </CardContent>
         </Card>
@@ -292,29 +394,26 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
     );
   }
 
-  // 3. Render Loading Skeleton
   if (loading) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center p-8 h-full">
-         <Card className="w-full max-w-4xl p-8 flex flex-col items-center justify-center gap-4">
-            <Skeleton className="h-12 w-3/4" />
-            <Skeleton className="h-64 w-full" />
-            <p className="text-muted-foreground animate-pulse">Connecting to desk...</p>
-         </Card>
+        <Card className="w-full max-w-4xl p-8 flex flex-col items-center justify-center gap-4">
+          <Skeleton className="h-12 w-3/4" />
+          <Skeleton className="h-64 w-full" />
+          <p className="text-muted-foreground animate-pulse">Connecting to desk...</p>
+        </Card>
       </div>
     );
   }
 
-  // 4. Render Error / Missing Data Fallback
   if (!deskStatus) {
-      return (
-        <div className="flex flex-1 flex-col items-center justify-center p-8 h-full">
-            <p className="text-muted-foreground">Unable to load desk data.</p>
-        </div>
-      );
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center p-8 h-full">
+        <p className="text-muted-foreground">Unable to load desk data.</p>
+      </div>
+    );
   }
 
-  // --- MAIN RENDER ---
   const currentHeight = deskStatus?.current_height || 72;
   const minHeight = 60;
   const maxHeight = 120;
@@ -337,74 +436,74 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
             </div>
 
             <div className="flex items-center gap-4 self-end md:self-auto">
-                <div className="flex items-center gap-3 rounded-full bg-gray-100 dark:bg-gray-800 px-4 py-2">
+              <div className="flex items-center gap-3 rounded-full bg-gray-100 dark:bg-gray-800 px-4 py-2">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xs font-medium text-gray-500 font-sans uppercase tracking-wide">Elapsed:</span>
+                  <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
+                    {formatTime(usageStats?.started_at)}
+                  </span>
+                </div>
+                {usageStats?.reservation_end_time && (
+                  <>
+                    <span className="text-gray-300">|</span>
                     <div className="flex items-baseline gap-2">
-                        <span className="text-xs font-medium text-gray-500 font-sans uppercase tracking-wide">Elapsed:</span>
-                        <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
-                            {formatTime(usageStats?.started_at)}
-                        </span>
+                      <span className="text-xs font-medium text-gray-500 font-sans uppercase tracking-wide">Left:</span>
+                      <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
+                        {formatTime(usageStats.reservation_end_time, true)}
+                      </span>
                     </div>
-                    {usageStats?.reservation_end_time && (
-                        <>
-                            <span className="text-gray-300">|</span>
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-xs font-medium text-gray-500 font-sans uppercase tracking-wide">Left:</span>
-                                <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
-                                    {formatTime(usageStats.reservation_end_time, true)}
-                                </span>
-                            </div>
-                        </>
-                    )}
-                </div>
+                  </>
+                )}
+              </div>
 
-                <div className="hidden lg:flex items-center gap-3 rounded-full bg-gray-100 dark:bg-gray-800 px-4 py-2">
-                    <div className="flex items-center gap-2">
-                        <PersonStanding className="w-4 h-4 text-orange-500" />
-                        <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
-                            {formatMinutes(usageStats?.standing_time)}m
-                        </span>
-                    </div>
-                    <span className="text-gray-300 dark:text-gray-700">|</span>
-                    <div className="flex items-center gap-2">
-                        <Armchair className="w-4 h-4 text-blue-500" />
-                        <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
-                            {formatMinutes(usageStats?.sitting_time)}m
-                        </span>
-                    </div>
+              <div className="hidden lg:flex items-center gap-3 rounded-full bg-gray-100 dark:bg-gray-800 px-4 py-2">
+                <div className="flex items-center gap-2">
+                  <PersonStanding className="w-4 h-4 text-orange-500" />
+                  <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
+                    {formatMinutes(usageStats?.standing_time)}m
+                  </span>
                 </div>
+                <span className="text-gray-300 dark:text-gray-700">|</span>
+                <div className="flex items-center gap-2">
+                  <Armchair className="w-4 h-4 text-blue-500" />
+                  <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
+                    {formatMinutes(usageStats?.sitting_time)}m
+                  </span>
+                </div>
+              </div>
 
-                <Dialog open={reportModal} onOpenChange={setReportModal}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">
-                      Report Problem
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Report a Problem</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <textarea
-                        value={reportMessage}
-                        onChange={(e) => setReportMessage(e.target.value)}
-                        className="w-full border rounded p-3 min-h-[100px]"
-                        placeholder="Describe the issue..."
-                      />
-                      <Select value={reportCategory} onValueChange={setReportCategory}>
-                        <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="desk_doesnt_move">Desk doesn't move</SelectItem>
-                          <SelectItem value="desk_uncleaned">Desk uncleaned</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <DialogFooter>
-                      <Button variant="ghost" onClick={() => setReportModal(false)}>Cancel</Button>
-                      <Button onClick={submitReport}>Submit</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+              <Dialog open={reportModal} onOpenChange={setReportModal}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">
+                    Report Problem
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Report a Problem</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <textarea
+                      value={reportMessage}
+                      onChange={(e) => setReportMessage(e.target.value)}
+                      className="w-full border rounded p-3 min-h-[100px]"
+                      placeholder="Describe the issue..."
+                    />
+                    <Select value={reportCategory} onValueChange={setReportCategory}>
+                      <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="desk_doesnt_move">Desk doesn't move</SelectItem>
+                        <SelectItem value="desk_uncleaned">Desk uncleaned</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="ghost" onClick={() => setReportModal(false)}>Cancel</Button>
+                    <Button onClick={submitReport}>Submit</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         </CardHeader>
@@ -422,78 +521,252 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
             </div>
           </CardHeader>
           <CardContent className="flex-1 flex flex-col p-0"> 
-              <div className="flex flex-col h-full">
-                <button
-                  className="flex-1 w-full flex items-center justify-center bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors active:scale-[0.99]"
-                  onClick={moveUp}
-                  disabled={isControlling || isMoving || currentHeight >= maxHeight}
-                >
-                  <IconArrowBigUpFilled className="w-24 h-24 text-gray-700 dark:text-gray-300 opacity-80" />
-                </button>
+            <div className="flex flex-col h-full">
+              <button
+                className="flex-1 w-full flex items-center justify-center bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors active:scale-[0.99]"
+                onClick={moveUp}
+                disabled={isControlling || isMoving || currentHeight >= maxHeight}
+              >
+                <IconArrowBigUpFilled className="w-24 h-24 text-gray-700 dark:text-gray-300 opacity-80" />
+              </button>
 
-                <div className="flex-none py-8 flex flex-col items-center justify-center bg-white dark:bg-black z-10 border-y relative">
-                  <div className="text-6xl font-extrabold tracking-tight">
-                    {currentHeight}
-                    <span className="text-2xl font-medium text-muted-foreground ml-2">cm</span>
-                  </div>
-                  <Button
-                    onClick={emergencyStop}
-                    disabled={!isMoving}
-                    variant="destructive"
-                    size="lg"
-                    className="mt-4 px-12 rounded-full font-bold uppercase tracking-widest shadow-lg transition-all"
-                  >
-                    Stop
-                  </Button>
+              <div className="flex-none py-8 flex flex-col items-center justify-center bg-white dark:bg-black z-10 border-y relative">
+                <div className="text-6xl font-extrabold tracking-tight">
+                  {currentHeight}
+                  <span className="text-2xl font-medium text-muted-foreground ml-2">cm</span>
                 </div>
-
-                <button
-                  className="flex-1 w-full flex items-center justify-center bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors active:scale-[0.99]"
-                  onClick={moveDown}
-                  disabled={isControlling || isMoving || currentHeight <= minHeight}
+                <Button
+                  onClick={emergencyStop}
+                  disabled={!isMoving}
+                  variant="destructive"
+                  size="lg"
+                  className="mt-4 px-12 rounded-full font-bold uppercase tracking-widest shadow-lg transition-all"
                 >
-                  <IconArrowBigDownFilled className="w-24 h-24 text-gray-700 dark:text-gray-300 opacity-80" />
-                </button>
+                  Stop
+                </Button>
               </div>
+
+              <button
+                className="flex-1 w-full flex items-center justify-center bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors active:scale-[0.99]"
+                onClick={moveDown}
+                disabled={isControlling || isMoving || currentHeight <= minHeight}
+              >
+                <IconArrowBigDownFilled className="w-24 h-24 text-gray-700 dark:text-gray-300 opacity-80" />
+              </button>
+            </div>
           </CardContent>
         </Card>
 
-        {/* RIGHT PANEL */}
+        {/* RIGHT PANEL - PRESETS */}
         <Card className="h-full flex flex-col">
           <CardHeader>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Settings2 className="w-5 h-5" />
-              <CardTitle className="text-lg">Quick Presets</CardTitle>
+            <div className="flex items-center justify-between gap-2 text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Settings2 className="w-5 h-5" />
+                <CardTitle className="text-lg">Quick Presets</CardTitle>
+              </div>
+
+              <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={loadingPref}
+                    onClick={openEditPresets}
+                  >
+                    Edit Presets
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Desk Presets</DialogTitle>
+                  </DialogHeader>
+
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Preset 1 Name</label>
+                        <input
+                          className="w-full border rounded px-3 py-2 bg-background"
+                          placeholder="Standing Position"
+                          value={formState.custom_height_1_name}
+                          onChange={(e) =>
+                            setFormState((f) => ({
+                              ...f,
+                              custom_height_1_name: e.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Height (cm)</label>
+                        <input
+                          type="number"
+                          min={minHeight}
+                          max={maxHeight}
+                          className="w-full border rounded px-3 py-2 bg-background"
+                          value={formState.custom_height_1}
+                          onChange={(e) =>
+                            setFormState((f) => ({
+                              ...f,
+                              custom_height_1: e.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Preset 2 Name</label>
+                        <input
+                          className="w-full border rounded px-3 py-2 bg-background"
+                          placeholder="Sitting Position"
+                          value={formState.custom_height_2_name}
+                          onChange={(e) =>
+                            setFormState((f) => ({
+                              ...f,
+                              custom_height_2_name: e.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Height (cm)</label>
+                        <input
+                          type="number"
+                          min={minHeight}
+                          max={maxHeight}
+                          className="w-full border rounded px-3 py-2 bg-background"
+                          value={formState.custom_height_2}
+                          onChange={(e) =>
+                            setFormState((f) => ({
+                              ...f,
+                              custom_height_2: e.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Preset 3 Name (Optional)</label>
+                        <input
+                          className="w-full border rounded px-3 py-2 bg-background"
+                          placeholder="My Custom Height"
+                          value={formState.custom_height_3_name}
+                          onChange={(e) =>
+                            setFormState((f) => ({
+                              ...f,
+                              custom_height_3_name: e.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Height (cm)</label>
+                        <input
+                          type="number"
+                          min={minHeight}
+                          max={maxHeight}
+                          className="w-full border rounded px-3 py-2 bg-background"
+                          placeholder="Optional"
+                          value={formState.custom_height_3}
+                          onChange={(e) =>
+                            setFormState((f) => ({
+                              ...f,
+                              custom_height_3: e.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <DialogFooter className="flex justify-between">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleResetPresets}
+                      disabled={!pref?.custom_height_1 && !pref?.custom_height_2}
+                    >
+                      Reset to Defaults
+                    </Button>
+                    <div className="space-x-2">
+                      <Button type="button" variant="ghost" onClick={() => setEditOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button type="button" onClick={handleSubmitPresets}>
+                        Save
+                      </Button>
+                    </div>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           </CardHeader>
           <CardContent className="flex-1 flex flex-col gap-4">
-              <button
-                  onClick={() => controlDeskHeight(110)}
-                  disabled={isControlling || isMoving}
-                  className="flex-1 w-full relative group overflow-hidden rounded-xl border-2 border-transparent hover:border-orange-500/50 bg-orange-50 dark:bg-orange-950/20 hover:bg-orange-100 dark:hover:bg-orange-950/40 transition-all text-left p-8"
-                >
-                  <div className="flex flex-col h-full justify-between relative z-10">
-                    <span className="text-orange-600 dark:text-orange-400 font-semibold text-lg uppercase tracking-wide">Standing Position</span>
-                    <span className="text-5xl font-bold text-gray-900 dark:text-white">110<span className="text-2xl text-muted-foreground ml-1">cm</span></span>
-                  </div>
-                  <div className="absolute right-4 bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <IconArrowBigUpFilled size={120} />
-                  </div>
-                </button>
+            <button
+              onClick={() => controlDeskHeight(standing)}
+              title={standingLabel}
+              disabled={isControlling || isMoving}
+              className="flex-1 w-full relative group overflow-hidden rounded-xl border-2 border-transparent hover:border-orange-500/50 bg-orange-50 dark:bg-orange-950/20 hover:bg-orange-100 dark:hover:bg-orange-950/40 transition-all text-left p-8"
+            >
+              <div className="flex flex-col h-full justify-between relative z-10">
+                <span className="text-orange-600 dark:text-orange-400 font-semibold text-lg uppercase tracking-wide">
+                  {standingLabel}
+                </span>
+                <span className="text-5xl font-bold text-gray-900 dark:text-white">
+                  {standing}<span className="text-2xl text-muted-foreground ml-1">cm</span>
+                </span>
+              </div>
+              <div className="absolute right-4 bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <IconArrowBigUpFilled size={120} />
+              </div>
+            </button>
 
-                <button
-                  onClick={() => controlDeskHeight(72)}
-                  disabled={isControlling || isMoving}
-                  className="flex-1 w-full relative group overflow-hidden rounded-xl border-2 border-transparent hover:border-blue-500/50 bg-blue-50 dark:bg-blue-950/20 hover:bg-blue-100 dark:hover:bg-blue-950/40 transition-all text-left p-8"
-                >
-                  <div className="flex flex-col h-full justify-between relative z-10">
-                    <span className="text-blue-600 dark:text-blue-400 font-semibold text-lg uppercase tracking-wide">Sitting Position</span>
-                    <span className="text-5xl font-bold text-gray-900 dark:text-white">72<span className="text-2xl text-muted-foreground ml-1">cm</span></span>
-                  </div>
-                   <div className="absolute right-4 bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <IconArrowBigDownFilled size={120} />
-                  </div>
-                </button>
+            <button
+              onClick={() => controlDeskHeight(sitting)}
+              title={sittingLabel}
+              disabled={isControlling || isMoving}
+              className="flex-1 w-full relative group overflow-hidden rounded-xl border-2 border-transparent hover:border-blue-500/50 bg-blue-50 dark:bg-blue-950/20 hover:bg-blue-100 dark:hover:bg-blue-950/40 transition-all text-left p-8"
+            >
+              <div className="flex flex-col h-full justify-between relative z-10">
+                <span className="text-blue-600 dark:text-blue-400 font-semibold text-lg uppercase tracking-wide">
+                  {sittingLabel}
+                </span>
+                <span className="text-5xl font-bold text-gray-900 dark:text-white">
+                  {sitting}<span className="text-2xl text-muted-foreground ml-1">cm</span>
+                </span>
+              </div>
+              <div className="absolute right-4 bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <IconArrowBigDownFilled size={120} />
+              </div>
+            </button>
+            <button
+              onClick={() => controlDeskHeight(custom)}
+              title={customLabel}
+              disabled={isControlling || isMoving || !custom}  
+              className="flex-1 w-full relative group overflow-hidden rounded-xl border-2 border-transparent hover:border-purple-500/50 bg-purple-50 dark:bg-purple-950/20 hover:bg-purple-100 dark:hover:bg-purple-950/40 transition-all text-left p-8 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div className="flex flex-col h-full justify-between relative z-10">
+                <span className="text-purple-600 dark:text-purple-400 font-semibold text-lg uppercase tracking-wide">
+                  {customLabel}
+                </span>
+                <span className="text-5xl font-bold text-gray-900 dark:text-white">
+                  {custom ? (
+                    <>{custom}<span className="text-2xl text-muted-foreground ml-1">cm</span></>
+                  ) : (
+                    <span className="text-2xl text-muted-foreground">Not set</span>
+                  )}
+                </span>
+              </div>
+              <div className="absolute right-4 bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <Settings2 size={120} />
+              </div>
+            </button>
           </CardContent>
         </Card>
 

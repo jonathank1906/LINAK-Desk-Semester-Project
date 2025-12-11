@@ -4,7 +4,9 @@ from django.contrib.auth.tokens import default_token_generator
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, viewsets, permissions
+from .models import UserDeskPreference
+from .serializers import UserDeskPreferenceSerializer
 from django.db.models import Count, Sum, Max, Q, DurationField, ExpressionWrapper, F
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.token_blacklist.models import (
@@ -31,6 +33,21 @@ from .serializers import (
     DeskLogSerializer,
     ComplaintSerializer
 )
+
+# ================= USER PREFERENCE VIEWS =================
+
+class UserDeskPreferenceViewSet(viewsets.ModelViewSet):
+    serializer_class = UserDeskPreferenceSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return UserDeskPreference.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        # ensure only one preference per user (desk optional)
+        serializer.save(user=self.request.user)
+
+
 
 # ================= HELPER FUNCTIONS =================
 # These must be defined BEFORE the views that call them.

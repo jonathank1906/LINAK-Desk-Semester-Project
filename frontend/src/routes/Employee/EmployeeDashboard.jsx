@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/useAuth";
 import MyDesk from "./MyDesk";
 import Reservations from "./Reservations";
-import Hotdesk from "./Hotdesk";
+import Hotdesk from "./HotDesk";
 import { formatNiceDate } from "@/utils/date";
 import { Button } from "@/components/ui/button";
 import { Calendar, Clock } from "lucide-react";
