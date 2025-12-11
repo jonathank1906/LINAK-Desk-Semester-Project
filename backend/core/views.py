@@ -20,7 +20,7 @@ import traceback
 # --- IMPORTS ---
 from core.services.MQTTService import get_mqtt_service
 from core.models import Pico, SensorReading 
-from .models import Desk, DeskUsageLog, DeskLog, DeskReport, Reservation
+from .models import Desk, DeskUsageLog, DeskLog, DeskReport, Reservation, DeskSchedule
 from .services.WiFi2BLEService import WiFi2BLEService
 from .serializers import (
     UserRegisterSerializer,
@@ -29,6 +29,7 @@ from .serializers import (
     ReservationSerializer,
     AdminUserListSerializer,
     DeskLogSerializer,
+    DeskScheduleSerializer
 )
 
 # ================= HELPER FUNCTIONS =================
@@ -2108,4 +2109,181 @@ def user_metrics(request):
         'overall_stats': overall_stats,
         'no_shows': no_show_list,
         'healthiness': healthiness
+    })
+
+
+# ================= DESK SCHEDULE VIEWS =================
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def desk_schedules_list(request):
+    """
+    GET: List all desk schedules (admin only)
+    POST: Create a new desk schedule (admin only)
+    """
+    # Only admins can manage schedules
+    if not request.user.is_admin:
+        return Response(
+            {'error': 'Admin privileges required'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    if request.method == 'GET':
+        schedules = DeskSchedule.objects.all()
+        serializer = DeskScheduleSerializer(schedules, many=True)
+        return Response(serializer.data)
+    
+    elif request.method == 'POST':
+        serializer = DeskScheduleSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(created_by=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def desk_schedule_detail(request, schedule_id):
+    """
+    GET: Retrieve a specific schedule
+    PUT: Update a schedule (admin only)
+    DELETE: Delete a schedule (admin only)
+    """
+    # Only admins can manage schedules
+    if not request.user.is_admin:
+        return Response(
+            {'error': 'Admin privileges required'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    try:
+        schedule = DeskSchedule.objects.get(id=schedule_id)
+    except DeskSchedule.DoesNotExist:
+        return Response(
+            {'error': 'Schedule not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    if request.method == 'GET':
+        serializer = DeskScheduleSerializer(schedule)
+        return Response(serializer.data)
+    
+    elif request.method == 'PUT':
+        serializer = DeskScheduleSerializer(schedule, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    elif request.method == 'DELETE':
+        schedule.delete()
+        return Response(
+            {'message': 'Schedule deleted successfully'},
+            status=status.HTTP_204_NO_CONTENT
+        )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def execute_desk_schedule(request, schedule_id):
+    """
+    Execute a desk schedule immediately (manual trigger).
+    Moves all available desks to the target height.
+    Admin only.
+    """
+    if not request.user.is_admin:
+        return Response(
+            {'error': 'Admin privileges required'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    try:
+        schedule = DeskSchedule.objects.get(id=schedule_id)
+    except DeskSchedule.DoesNotExist:
+        return Response(
+            {'error': 'Schedule not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    # Get all desks that are available (not currently in use)
+    all_desks = Desk.objects.all()
+    wifi2ble = WiFi2BLEService()
+    
+    results = {
+        'success': [],
+        'failed': [],
+        'skipped': []
+    }
+    
+    for desk in all_desks:
+        # Skip desks that are currently in use
+        if desk.current_user is not None:
+            results['skipped'].append({
+                'desk_id': desk.id,
+                'desk_name': desk.name,
+                'reason': 'Desk currently in use'
+            })
+            continue
+        
+        # Skip desks without WiFi2BLE integration
+        if not desk.wifi2ble_id or not desk.api_endpoint:
+            results['skipped'].append({
+                'desk_id': desk.id,
+                'desk_name': desk.name,
+                'reason': 'No WiFi2BLE integration'
+            })
+            continue
+        
+        try:
+            # Send command to WiFi2BLE
+            success = wifi2ble.set_desk_height(desk.wifi2ble_id, schedule.target_height)
+            
+            if success:
+                # Update desk in database
+                desk.current_height = schedule.target_height
+                desk.current_status = 'moving'
+                desk.save()
+                
+                # Log the action
+                DeskLog.objects.create(
+                    desk=desk,
+                    user=request.user,
+                    action=f"Automated cleaning schedule executed: {schedule.name}",
+                    height=schedule.target_height
+                )
+                
+                results['success'].append({
+                    'desk_id': desk.id,
+                    'desk_name': desk.name,
+                    'target_height': schedule.target_height
+                })
+            else:
+                results['failed'].append({
+                    'desk_id': desk.id,
+                    'desk_name': desk.name,
+                    'reason': 'WiFi2BLE command failed'
+                })
+                
+        except Exception as e:
+            results['failed'].append({
+                'desk_id': desk.id,
+                'desk_name': desk.name,
+                'reason': str(e)
+            })
+    
+    # Update last_executed timestamp
+    schedule.last_executed = timezone.now()
+    schedule.save()
+    
+    return Response({
+        'message': 'Schedule execution completed',
+        'schedule_name': schedule.name,
+        'target_height': schedule.target_height,
+        'results': results,
+        'summary': {
+            'total_desks': all_desks.count(),
+            'successful': len(results['success']),
+            'failed': len(results['failed']),
+            'skipped': len(results['skipped'])
+        }
     })

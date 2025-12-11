@@ -22,6 +22,9 @@ from .views import (
     admin_dashboard_analytics,
     admin_full_analytics,
     user_metrics,
+    desk_schedules_list,
+    desk_schedule_detail,
+    execute_desk_schedule,
 )
 
 urlpatterns = [
@@ -82,4 +85,9 @@ urlpatterns = [
     path('reservations/<int:reservation_id>/edit/', edit_reservation, name='edit_reservation'),
 
     path("desks/<int:desk_id>/poll-movement/", poll_desk_movement, name="poll-desk-movement"),
+    
+    # DESK SCHEDULES (Automation)
+    path('schedules/', desk_schedules_list, name='desk_schedules_list'),
+    path('schedules/<int:schedule_id>/', desk_schedule_detail, name='desk_schedule_detail'),
+    path('schedules/<int:schedule_id>/execute/', execute_desk_schedule, name='execute_desk_schedule'),
 ]

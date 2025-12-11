@@ -145,3 +145,55 @@ export const authenticated_user = async () => {
     const response = await axios.get(AUTHENTICATED_URL, { withCredentials: true });
     return response.data;
 };
+
+// ============= DESK SCHEDULES API =============
+
+export const getDeskSchedules = async () => {
+    try {
+        const response = await axios.get(`${BASE_URL}schedules/`, { withCredentials: true });
+        return response.data;
+    } catch (error) {
+        console.error("Failed to fetch schedules:", error);
+        throw error;
+    }
+};
+
+export const createDeskSchedule = async (scheduleData) => {
+    try {
+        const response = await axios.post(`${BASE_URL}schedules/`, scheduleData, { withCredentials: true });
+        return response.data;
+    } catch (error) {
+        console.error("Failed to create schedule:", error);
+        throw error;
+    }
+};
+
+export const updateDeskSchedule = async (scheduleId, scheduleData) => {
+    try {
+        const response = await axios.put(`${BASE_URL}schedules/${scheduleId}/`, scheduleData, { withCredentials: true });
+        return response.data;
+    } catch (error) {
+        console.error("Failed to update schedule:", error);
+        throw error;
+    }
+};
+
+export const deleteDeskSchedule = async (scheduleId) => {
+    try {
+        const response = await axios.delete(`${BASE_URL}schedules/${scheduleId}/`, { withCredentials: true });
+        return response.data;
+    } catch (error) {
+        console.error("Failed to delete schedule:", error);
+        throw error;
+    }
+};
+
+export const executeDeskSchedule = async (scheduleId) => {
+    try {
+        const response = await axios.post(`${BASE_URL}schedules/${scheduleId}/execute/`, {}, { withCredentials: true });
+        return response.data;
+    } catch (error) {
+        console.error("Failed to execute schedule:", error);
+        throw error;
+    }
+};

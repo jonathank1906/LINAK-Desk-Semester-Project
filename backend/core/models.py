@@ -317,3 +317,44 @@ class SensorReading(models.Model):
         return f"{self.pico_device.desk.name} - {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}"
 
 
+
+class DeskSchedule(models.Model):
+    """
+    Automated desk cleaning schedules.
+    Moves all desks to a target height at specified times on specified days.
+    """
+    WEEKDAY_CHOICES = [
+        (0, 'Monday'),
+        (1, 'Tuesday'),
+        (2, 'Wednesday'),
+        (3, 'Thursday'),
+        (4, 'Friday'),
+        (5, 'Saturday'),
+        (6, 'Sunday'),
+    ]
+    
+    name = models.CharField(max_length=100)
+    time = models.TimeField()  # Time of day to execute (e.g., 07:00, 18:30)
+    weekdays = models.JSONField(default=list)  # List of weekday numbers [0-6] where 0=Monday
+    target_height = models.FloatField()  # Height in cm to move desks to
+    
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        UserAccount, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        related_name='created_schedules'
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_executed = models.DateTimeField(blank=True, null=True)
+    
+    class Meta:
+        ordering = ['time']
+        verbose_name = 'Desk Schedule'
+        verbose_name_plural = 'Desk Schedules'
+    
+    def __str__(self):
+        weekday_names = [self.WEEKDAY_CHOICES[day][1][:3] for day in self.weekdays]
+        return f"{self.name} - {self.time.strftime('%H:%M')} ({', '.join(weekday_names)})"
