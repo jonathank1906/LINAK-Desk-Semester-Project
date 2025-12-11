@@ -1,11 +1,10 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
-from core.models import Desk, Reservation, DeskUsageLog, Complaint, DeskReport
+from core.models import Desk, Reservation, DeskUsageLog, DeskReport
 from core.serializers import (
     UserSerializer,
     DeskSerializer,
     ReservationSerializer,
-    ComplaintSerializer,
     AdminUserListSerializer
 )
 from django.utils import timezone
@@ -163,58 +162,6 @@ class ReservationSerializerTest(TestCase):
         
         self.assertIn('user', data)
         self.assertIn('desk', data)
-
-
-class ComplaintSerializerTest(TestCase):
-    def setUp(self):
-        self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com'
-        )
-        self.desk = Desk.objects.create(
-            name='Test Desk',
-            wifi2ble_id='aa:bb:cc:dd:ee:ff'
-        )
-    
-    def test_complaint_serialization(self):
-        """Test complaint data is serialized correctly"""
-        complaint = Complaint.objects.create(
-            user=self.user,
-            desk=self.desk,
-            subject='Desk Issue',
-            message='The desk motor is making noise',
-            status='open'
-        )
-        
-        serializer = ComplaintSerializer(complaint)
-        data = serializer.data
-        
-        self.assertEqual(data['subject'], 'Desk Issue')
-        self.assertEqual(data['status'], 'open')
-        self.assertIn('created_at', data)
-    
-    def test_create_complaint_through_serializer(self):
-        """Test creating complaint through serializer"""
-        data = {
-            'desk': self.desk.id,
-            'subject': 'Another Issue',
-            'message': 'Desk height sensor not working'
-        }
-        
-        # Mock request context
-        from unittest.mock import Mock
-        request = Mock()
-        request.user = self.user
-        
-        serializer = ComplaintSerializer(
-            data=data,
-            context={'request': request}
-        )
-        
-        if serializer.is_valid():
-            complaint = serializer.save()
-            self.assertEqual(complaint.user, self.user)
-            self.assertEqual(complaint.subject, 'Another Issue')
 
 
 class AdminUserListSerializerTest(TestCase):

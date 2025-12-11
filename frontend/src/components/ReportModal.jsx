@@ -1,13 +1,34 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { toast } from "sonner";
-import {IconFileReport} from '@tabler/icons-react'
+import { IconFileReport } from "@tabler/icons-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
-
-export default function ReportModal({ user, onClose }) {
+export default function ReportModal({ user, onClose, onReportsResolved }) {
   const [reports, setReports] = useState([]);
   const [selectedReports, setSelectedReports] = useState([]);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [open, setOpen] = useState(true);
+  const resolveButtonRef = useRef(null);
 
   useEffect(() => {
     async function fetchReports() {
@@ -24,9 +45,17 @@ export default function ReportModal({ user, onClose }) {
   }, [user]);
 
   const toggleSelect = (id) => {
-    setSelectedReports((prev) =>
-      prev.includes(id) ? prev.filter((rid) => rid !== id) : [...prev, id]
-    );
+    setSelectedReports((prev) => {
+      const newSelection = prev.includes(id) 
+        ? prev.filter((rid) => rid !== id) 
+        : [...prev, id];
+      
+      if (newSelection.length === 0 && resolveButtonRef.current) {
+        resolveButtonRef.current.blur();
+      }
+      
+      return newSelection;
+    });
   };
 
   const resolveReports = async () => {
@@ -41,94 +70,129 @@ export default function ReportModal({ user, onClose }) {
       setReports((prev) => prev.filter((r) => !selectedReports.includes(r.id)));
       setSelectedReports([]);
       setShowConfirm(false);
+      
+      // Notify parent to refresh reports
+      if (onReportsResolved) {
+        onReportsResolved();
+      }
     } catch (err) {
       toast.error("Failed to resolve reports");
     }
   };
 
+  const handleOpenChange = (isOpen) => {
+    setOpen(isOpen);
+    if (!isOpen) {
+      setTimeout(() => {
+        onClose();
+      }, 200);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
-      <div
-        className="bg-white dark:bg-slate-950 w-[600px] max-h-[90vh] p-6 rounded-lg shadow-lg overflow-hidden flex flex-col animate-fade-up transition-all duration-300"
-        style={{ minHeight: "550px" }}
-      >
-        {/* Header */}
-        <div className="flex justify-between items-center mb-4 flex-shrink-0 border-b border-gray-200 dark:border-gray-800 pb-4">
-          <h2 className="text-xl font-bold flex items-center gap-2 text-gray-900 dark:text-white"> 
-            <IconFileReport size={24} className="text-blue-600 dark:text-blue-400" />
-            Desk Reports
-          </h2>
-          <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
-            ✖
-          </button>
-        </div>
+    <>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent 
+          className="sm:max-w-lg h-[600px] flex flex-col"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <IconFileReport size={24} className="text-primary" />
+              Desk Reports
+            </DialogTitle>
+            <DialogDescription>
+              Review and resolve desk reports from users
+            </DialogDescription>
+          </DialogHeader>
 
-        {/* Report List */}
-        <div className="overflow-y-auto pr-2 divide-y divide-gray-200 dark:divide-gray-800 border-t border-b border-gray-200 dark:border-gray-800 flex-1"
-             style={{ maxHeight: "65vh" }}>
-          {reports.length === 0 ? (
-            <p className="text-gray-500 dark:text-gray-400 italic p-3">No reports found</p>
-          ) : (
-            reports.map((r) => (
-              <div key={r.id} className="py-3 px-1 flex justify-between items-start gap-4 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
-                <div className="flex-1">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <b className="text-gray-900 dark:text-gray-100">{r.user}</b> • <span className="text-xs">{r.created_at}</span>
+          {/* Report List */}
+          <div className="overflow-y-auto flex-1 min-h-0 -mx-6 px-6">
+            {reports.length === 0 ? (
+              <p className="text-muted-foreground italic py-3">No reports found</p>
+            ) : (
+              <div className="space-y-1">
+                {reports.map((r) => (
+                  <div
+                    key={r.id}
+                    className="group relative py-3 px-4 flex items-start gap-3 rounded-md cursor-pointer"
+                    onClick={() => toggleSelect(r.id)}
+                  >
+                    <div className="absolute inset-0 bg-accent opacity-0 group-hover:opacity-100 transition-opacity rounded-md -mx-6" />
+                    <div className="flex items-start gap-3 flex-1 min-w-0 relative z-10">
+                      <div 
+                        className="pt-0.5 flex-shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Checkbox
+                          checked={selectedReports.includes(r.id)}
+                          onCheckedChange={() => toggleSelect(r.id)}
+                          aria-label={`Select report from ${r.user}`}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="font-medium text-foreground text-sm truncate">
+                            {r.user}
+                          </span>
+                          <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">
+                            {r.created_at}
+                          </span>
+                        </div>
+                        <div className="text-xs text-muted-foreground mb-1">
+                          Desk: <span className="font-medium text-foreground">{r.desk || 'Unknown'}</span>
+                        </div>
+                        <p className="text-sm mt-1 text-foreground break-words">{r.message}</p>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-sm mt-1 text-gray-800 dark:text-gray-200">{r.message}</p>
-                </div>
-                <div>
-                  <input
-                    type="checkbox"
-                    checked={selectedReports.includes(r.id)}
-                    onChange={() => toggleSelect(r.id)}
-                    className="mt-1 cursor-pointer accent-blue-600 dark:accent-blue-400"
-                  />
-                </div>
+                ))}
               </div>
-            ))
-          )}
-        </div>
+            )}
+          </div>
 
-        {/* Footer Actions */}
-        {selectedReports.length > 0 && (
-          <div className="mt-4 flex justify-between items-center flex-shrink-0 border-t border-gray-200 dark:border-gray-800 pt-4">
-            <p className="text-sm text-gray-700 dark:text-gray-300">{selectedReports.length} selected</p>
-            <button
+          {/* Footer Actions */}
+          <div className="flex justify-between items-center border-t pt-4 mt-4 gap-4 w-full">
+            <p className="text-sm text-muted-foreground whitespace-nowrap">
+              {selectedReports.length > 0 ? `${selectedReports.length} selected` : "No items selected"}
+            </p>
+            <Button
+              ref={resolveButtonRef}
               onClick={() => setShowConfirm(true)}
-              className="bg-red-600 dark:bg-red-700 text-white px-4 py-2 rounded hover:bg-red-700 dark:hover:bg-red-600 transition-colors"
+              variant="destructive"
+              disabled={selectedReports.length === 0}
+              className="flex-shrink-0"
+              tabIndex={selectedReports.length === 0 ? -1 : 0}
+              onMouseDown={(e) => {
+                if (selectedReports.length === 0) {
+                  e.preventDefault();
+                }
+              }}
             >
               Mark as Resolved
-            </button>
+            </Button>
           </div>
-        )}
+        </DialogContent>
+      </Dialog>
 
-        {/* Confirm Modal */}
-        {showConfirm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-950 p-6 rounded-md shadow-lg w-[350px] space-y-4 text-center animate-fade-up border border-gray-200 dark:border-gray-800">
-              <h3 className="font-semibold text-gray-900 dark:text-white">Confirm Resolve</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Are you sure you want to mark {selectedReports.length} report(s) as resolved?
-              </p>
-              <div className="flex justify-center gap-4 mt-4">
-                <button
-                  onClick={() => setShowConfirm(false)}
-                  className="px-3 py-1 bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={resolveReports}
-                  className="px-3 py-1 bg-red-600 dark:bg-red-700 text-white rounded hover:bg-red-700 dark:hover:bg-red-600 transition-colors"
-                >
-                  Confirm
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+      {/* Confirm Dialog */}
+      <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Resolve</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to mark {selectedReports.length} report(s) as
+              resolved?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={resolveReports}>
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

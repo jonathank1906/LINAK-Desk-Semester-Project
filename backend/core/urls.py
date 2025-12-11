@@ -21,8 +21,6 @@ from .views import (
     poll_desk_movement,
     admin_dashboard_analytics,
     admin_full_analytics,
-    complaints_view,
-    solve_complaint,
     user_metrics,
     desk_schedules_list,
     desk_schedule_detail,
@@ -47,8 +45,6 @@ urlpatterns = [
     path('users/<int:user_id>/', user_detail_or_update, name='user_detail'),
     path('admin/dashboard/', admin_dashboard_analytics, name='admin_dashboard_analytics'),
     path('admin/analytics/', admin_full_analytics, name='admin_full_analytics'),
-    path('complaints/', complaints_view, name='complaints'),
-    path('admin/complaints/<int:complaint_id>/solve/', solve_complaint, name='solve_complaint'),
     
     # USER METRICS
     path('user/metrics/', user_metrics, name='user_metrics'),

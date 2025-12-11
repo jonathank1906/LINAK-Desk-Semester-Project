@@ -9,6 +9,8 @@ import ResetPassword from './pages/ResetPassword';
 import ResetPasswordConfirm from './pages/ResetPasswordConfirm';
 import Activate from './pages/Activate';
 import { AuthProvider } from "./contexts/useAuth";
+import { PostureReminderProvider } from "./contexts/usePostureReminder";
+import PostureReminderModal from "./components/PostureReminderModal";
 
 import "./styles/animation.css";
 
@@ -17,13 +19,16 @@ function App() {
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
       <Router>
         <AuthProvider>
-          <Routes>
-            <Route path='/login' element={<Login />} />
-            <Route path='/reset/password' element={<ResetPassword />} />
-            <Route path='/password/reset/confirm/:uid/:token' element={<ResetPasswordConfirm />} />
-            <Route exact path='/activate/:uid/:token' element={<Activate />} />
-            <Route path='/' element={<PrivateRoute><Menu /></PrivateRoute>} />
-          </Routes>
+          <PostureReminderProvider>
+            <Routes>
+              <Route path='/login' element={<Login />} />
+              <Route path='/reset/password' element={<ResetPassword />} />
+              <Route path='/password/reset/confirm/:uid/:token' element={<ResetPasswordConfirm />} />
+              <Route exact path='/activate/:uid/:token' element={<Activate />} />
+              <Route path='/' element={<PrivateRoute><Menu /></PrivateRoute>} />
+            </Routes>
+            <PostureReminderModal />
+          </PostureReminderProvider>
         </AuthProvider>
       </Router>
       <Toaster richColors />

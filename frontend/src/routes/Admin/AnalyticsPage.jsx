@@ -177,44 +177,51 @@ export default function AnalyticsPage() {
 
       {/* Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Heatmap (larger) */}
-        <Card className="animate-fade-up lg:col-span-2 bg-muted/50 p-4 rounded-xl min-h-[250px] h-[580px]">
-          <CardHeader>
+        {/* Heatmap */}
+        <Card className="animate-fade-up lg:col-span-2 bg-muted/50 p-4 rounded-xl min-h-[250px] h-[580px] flex flex-col">
+          <CardHeader className="flex-shrink-0">
             <CardTitle className="text-lg font-semibold mb-3">Desk Usage Heatmap</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="text-sm">
-                <thead>
-                  <tr>
-                    <th className="p-2"></th>
-                    {heatmapHours.map((h) => (
-                      <th key={h} className="p-2 text-center">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {heatmapData.map((row, dayIdx) => (
-                    <tr key={dayIdx}>
-                      <td className="p-2 font-semibold">{heatmapDates[dayIdx]}</td>
-                      {row.map((value, colIdx) => (
-                        <td key={colIdx} className="p-1">
-                          <div
-                            className="h-6 w-6 text-center text-xs rounded-sm"
-                            style={{
-                              backgroundColor: `rgba(59,130,246,${value / 100})`,
-                              color: value > 0 ? "var(--foreground)" : "var(--muted-foreground)",
-                              lineHeight: "1.5rem",
-                            }}
-                          >
-                            {value}
-                          </div>
-                        </td>
-                      ))}
-                    </tr>
+          <CardContent className="flex-1 min-h-0 flex">
+            {/* Date column */}
+            <div className="flex-shrink-0 flex flex-col text-sm">
+              <div className="h-10"></div>
+              {heatmapDates.map((date, idx) => (
+                <div key={idx} className="h-10 flex items-center pr-3 font-semibold whitespace-nowrap">
+                  {date}
+                </div>
+              ))}
+            </div>
+            {/* Data area */}
+            <div className="flex-1 overflow-auto min-w-0">
+              <div className="inline-block min-w-max">
+                {/* Hour headers */}
+                <div className="flex h-10">
+                  {heatmapHours.map((h) => (
+                    <div key={h} className="w-10 text-center text-xs font-semibold flex items-center justify-center">
+                      {h}
+                    </div>
                   ))}
-                </tbody>
-              </table>
+                </div>
+                {/* Data rows */}
+                {heatmapData.map((row, dayIdx) => (
+                  <div key={dayIdx} className="flex h-10">
+                    {row.map((value, colIdx) => (
+                      <div key={colIdx} className="w-10 p-1">
+                        <div
+                          className="h-full w-full flex items-center justify-center text-xs rounded-sm"
+                          style={{
+                            backgroundColor: `rgba(59,130,246,${value / 100})`,
+                            color: value > 0 ? "var(--foreground)" : "var(--muted-foreground)",
+                          }}
+                        >
+                          {value}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>

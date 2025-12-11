@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/useAuth";
+import { usePostureReminder } from "@/contexts/usePostureReminder";
 import axios from "axios";
 import { toast } from "sonner";
 import { Pill, PillIndicator } from '@/components/ui/shadcn-io/pill';
@@ -23,18 +24,24 @@ import {
 
 import {
   Settings2,
-  ArrowUpDown,
-  Armchair,
-  PersonStanding
+  ArrowUpDown
 } from "lucide-react"
+
+import StandingIcon from "@/assets/Standing.svg";
+import SittingIcon from "@/assets/Sitting.svg";
 
 import {
   IconArrowBigUpFilled,
   IconArrowBigDownFilled,
 } from "@tabler/icons-react"
 
+// Desk height constants (in cm)
+export const STANDING_HEIGHT = 110;
+export const SITTING_HEIGHT = 72;
+
 export default function MyDesk({ selectedDeskId, onNavigate }) {
   const { user } = useAuth();
+  const { pendingHeightChange } = usePostureReminder();
   const [deskStatus, setDeskStatus] = useState(null);
   const [usageStats, setUsageStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -49,6 +56,7 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
   const isMounted = useRef(true);
   const pollingIntervalRef = useRef(null);
   const hasRedirected = useRef(false);
+  const lastPendingHeightRef = useRef(null);
 
   useEffect(() => {
     isMounted.current = true;
@@ -72,21 +80,30 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
   };
 
   // --- HELPER: TIME FORMATTING ---
+  // Format seconds as "Xh Ym" or "Xm" (no seconds)
+  const formatHM = (seconds) => {
+    if (!seconds || isNaN(seconds)) return "0m";
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    if (h > 0) {
+      return `${h}h${m > 0 ? ` ${m}m` : ''}`;
+    }
+    return `${m}m`;
+  };
+
+  // Format elapsed or remaining time (dateString) as h m
   const formatTime = (dateString, isDiff = false) => {
-    if (!dateString) return "00:00:00";
+    if (!dateString) return "0m";
     try {
       const target = new Date(dateString);
-      if (isNaN(target.getTime())) return "00:00:00"; 
+      if (isNaN(target.getTime())) return "0m";
       const now = new Date();
-      const diffInSeconds = isDiff 
-        ? Math.floor((target - now) / 1000) 
+      const diffInSeconds = isDiff
+        ? Math.floor((target - now) / 1000)
         : Math.floor((now - target) / 1000);
       const seconds = Math.max(0, diffInSeconds);
-      const h = Math.floor(seconds / 3600);
-      const m = Math.floor((seconds % 3600) / 60);
-      const s = seconds % 60;
-      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    } catch (e) { return "00:00:00"; }
+      return formatHM(seconds);
+    } catch (e) { return "0m"; }
   };
 
   const formatMinutes = (seconds) => {
@@ -199,7 +216,7 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
   };
 
   // --- ACTIONS ---
-  const controlDeskHeight = async (targetHeight) => {
+  const controlDeskHeight = useCallback(async (targetHeight) => {
     setIsControlling(true);
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
@@ -222,7 +239,22 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
     } finally {
       if (isMounted.current) setIsControlling(false);
     }
-  };
+  }, [user, selectedDeskId]);
+
+  // Handle pending height change from posture reminder
+  useEffect(() => {
+    if (pendingHeightChange && 
+        pendingHeightChange.timestamp && 
+        pendingHeightChange.timestamp !== lastPendingHeightRef.current && 
+        !loading && 
+        deskStatus && 
+        selectedDeskId) {
+      lastPendingHeightRef.current = pendingHeightChange.timestamp;
+      if (pendingHeightChange.height) {
+        controlDeskHeight(pendingHeightChange.height);
+      }
+    }
+  }, [pendingHeightChange, loading, deskStatus, selectedDeskId, controlDeskHeight]);
 
   const moveUp = () => {
     if (currentHeight == null) return;
@@ -315,7 +347,7 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
   }
 
   // --- MAIN RENDER ---
-  const currentHeight = deskStatus?.current_height || 72;
+  const currentHeight = deskStatus?.current_height || SITTING_HEIGHT;
   const minHeight = 60;
   const maxHeight = 120;
 
@@ -341,7 +373,7 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
                     <div className="flex items-baseline gap-2">
                         <span className="text-xs font-medium text-gray-500 font-sans uppercase tracking-wide">Elapsed:</span>
                         <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
-                            {formatTime(usageStats?.started_at)}
+                          {formatTime(usageStats?.started_at)}
                         </span>
                     </div>
                     {usageStats?.reservation_end_time && (
@@ -350,7 +382,7 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
                             <div className="flex items-baseline gap-2">
                                 <span className="text-xs font-medium text-gray-500 font-sans uppercase tracking-wide">Left:</span>
                                 <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
-                                    {formatTime(usageStats.reservation_end_time, true)}
+                                  {formatTime(usageStats.reservation_end_time, true)}
                                 </span>
                             </div>
                         </>
@@ -358,19 +390,35 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
                 </div>
 
                 <div className="hidden lg:flex items-center gap-3 rounded-full bg-gray-100 dark:bg-gray-800 px-4 py-2">
-                    <div className="flex items-center gap-2">
-                        <PersonStanding className="w-4 h-4 text-orange-500" />
-                        <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
-                            {formatMinutes(usageStats?.standing_time)}m
-                        </span>
-                    </div>
-                    <span className="text-gray-300 dark:text-gray-700">|</span>
-                    <div className="flex items-center gap-2">
-                        <Armchair className="w-4 h-4 text-blue-500" />
-                        <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
-                            {formatMinutes(usageStats?.sitting_time)}m
-                        </span>
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <img src={StandingIcon} alt="Standing" className="w-5 h-5" />
+                    <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
+                      {(() => {
+                        const mins = formatMinutes(usageStats?.standing_time);
+                        if (mins >= 60) {
+                          const h = Math.floor(mins / 60);
+                          const m = mins % 60;
+                          return `${h}h${m > 0 ? ` ${m}m` : ''}`;
+                        }
+                        return `${mins}m`;
+                      })()}
+                    </span>
+                  </div>
+                  <span className="text-gray-300 dark:text-gray-700">|</span>
+                  <div className="flex items-center gap-2">
+                    <img src={SittingIcon} alt="Sitting" className="w-5 h-5" />
+                    <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
+                      {(() => {
+                        const mins = formatMinutes(usageStats?.sitting_time);
+                        if (mins >= 60) {
+                          const h = Math.floor(mins / 60);
+                          const m = mins % 60;
+                          return `${h}h${m > 0 ? ` ${m}m` : ''}`;
+                        }
+                        return `${mins}m`;
+                      })()}
+                    </span>
+                  </div>
                 </div>
 
                 <Dialog open={reportModal} onOpenChange={setReportModal}>
@@ -468,13 +516,13 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
           </CardHeader>
           <CardContent className="flex-1 flex flex-col gap-4">
               <button
-                  onClick={() => controlDeskHeight(110)}
+                  onClick={() => controlDeskHeight(STANDING_HEIGHT)}
                   disabled={isControlling || isMoving}
                   className="flex-1 w-full relative group overflow-hidden rounded-xl border-2 border-transparent hover:border-orange-500/50 bg-orange-50 dark:bg-orange-950/20 hover:bg-orange-100 dark:hover:bg-orange-950/40 transition-all text-left p-8"
                 >
                   <div className="flex flex-col h-full justify-between relative z-10">
                     <span className="text-orange-600 dark:text-orange-400 font-semibold text-lg uppercase tracking-wide">Standing Position</span>
-                    <span className="text-5xl font-bold text-gray-900 dark:text-white">110<span className="text-2xl text-muted-foreground ml-1">cm</span></span>
+                    <span className="text-5xl font-bold text-gray-900 dark:text-white">{STANDING_HEIGHT}<span className="text-2xl text-muted-foreground ml-1">cm</span></span>
                   </div>
                   <div className="absolute right-4 bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
                     <IconArrowBigUpFilled size={120} />
@@ -482,13 +530,13 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
                 </button>
 
                 <button
-                  onClick={() => controlDeskHeight(72)}
+                  onClick={() => controlDeskHeight(SITTING_HEIGHT)}
                   disabled={isControlling || isMoving}
                   className="flex-1 w-full relative group overflow-hidden rounded-xl border-2 border-transparent hover:border-blue-500/50 bg-blue-50 dark:bg-blue-950/20 hover:bg-blue-100 dark:hover:bg-blue-950/40 transition-all text-left p-8"
                 >
                   <div className="flex flex-col h-full justify-between relative z-10">
                     <span className="text-blue-600 dark:text-blue-400 font-semibold text-lg uppercase tracking-wide">Sitting Position</span>
-                    <span className="text-5xl font-bold text-gray-900 dark:text-white">72<span className="text-2xl text-muted-foreground ml-1">cm</span></span>
+                    <span className="text-5xl font-bold text-gray-900 dark:text-white">{SITTING_HEIGHT}<span className="text-2xl text-muted-foreground ml-1">cm</span></span>
                   </div>
                     <div className="absolute right-4 bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
                     <IconArrowBigDownFilled size={120} />

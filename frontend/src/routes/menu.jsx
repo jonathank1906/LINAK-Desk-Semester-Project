@@ -11,9 +11,6 @@ const Menu = () => {
         await logoutUser();
     }
 
-    if (loading) return <div>Loading...</div>;
-    if (!user) return <div>No user found.</div>;
-
     return (
         <div>
             <main>

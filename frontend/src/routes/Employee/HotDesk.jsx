@@ -222,20 +222,6 @@ export default function HotDesk({ setSelectedDeskId }) {
             <CardTitle>Hot Desk</CardTitle>
             <CardDescription>See which desks are free right now</CardDescription>
           </div>
-          
-          {/* RELEASE BUTTON (Only shows if user is actively occupying a desk) */}
-          {isOccupying && activeDeskId && (
-              <Button 
-                variant="destructive" 
-                size="sm" 
-                onClick={handleReleaseActive}
-                disabled={releasing}
-                className="gap-2"
-              >
-                {releasing ? <Spinner className="w-4 h-4 text-white" /> : <LogOut className="w-4 h-4" />}
-                Release Current Desk
-              </Button>
-          )}
         </CardHeader>
         <CardContent>
           {loading ? (
