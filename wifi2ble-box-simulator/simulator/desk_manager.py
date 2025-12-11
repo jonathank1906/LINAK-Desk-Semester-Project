@@ -16,7 +16,7 @@ class DeskManager:
     NIGHT_START_HOUR = 18
     POWER_OFF_CHANCE = 0.03
 
-    def __init__(self, simulation_speed=60):
+    def __init__(self, simulation_speed=60, collision_chance=0.03, poweroff_chance=0.03):
         self.desks = {}
         self.users = {}
         self.powered_off_desks = {}
@@ -27,6 +27,8 @@ class DeskManager:
         self.lock = threading.Lock()
         self.current_time_s = 43200
         self.simulation_speed = simulation_speed
+        self.collision_chance = collision_chance
+        self.poweroff_chance = poweroff_chance
         self.load_state()
 
     def get_desk_ids(self):
@@ -65,9 +67,7 @@ class DeskManager:
         """Add a new desk with a unique ID."""
         with self.lock:
             if desk_id not in self.desks:
-                desk = Desk(desk_id, name, manufacturer)
-                if desk_id == "cd:fb:1a:53:fb:e6":
-                    desk.state["isAntiCollision"] = False  # Disable collision for desk 1
+                desk = Desk(desk_id, name, manufacturer, collision_chance=self.collision_chance)
                 self.desks[desk_id] = desk
                 self.users[desk_id] = self._create_user(desk, user_type)
                 logger.info(f"Desk ID={desk_id} added with user type {user_type}.")
@@ -128,8 +128,6 @@ class DeskManager:
             if self.is_daytime():
                 with self.lock:
                     for desk_id, user in self.users.items():
-                        if desk_id == "cd:fb:1a:53:fb:e6":
-                            continue  # Disable auto-movement for Desk #1
                         if desk_id not in self.powered_off_desks:
                             logger.debug(f"User simulation for desk {desk_id}.")
                             user.simulate(5*self.simulation_speed)
@@ -139,12 +137,12 @@ class DeskManager:
         """Randomly power off desks for a period of time."""
         while not self.stop_event.is_set():
             with self.lock:
-                eligible_desks = [desk_id for desk_id in self.desks if desk_id not in self.powered_off_desks and desk_id != "cd:fb:1a:53:fb:e6"]
-                if eligible_desks and random.random() < self.POWER_OFF_CHANCE:
-                    desk_id = random.choice(eligible_desks)
-                    power_off_duration_s = random.randint(5*60, 2*60*60)
-                    self.powered_off_desks[desk_id] = self.current_time_s + power_off_duration_s
-                    logger.warning(f"Desk ID={desk_id} powered off for {power_off_duration_s // 60} minutes.")
+                if self.desks and random.random() < self.poweroff_chance:
+                    desk_id = random.choice(list(self.desks.keys()))
+                    if desk_id not in self.powered_off_desks:
+                        power_off_duration_s = random.randint(5*60, 2*60*60)
+                        self.powered_off_desks[desk_id] = self.current_time_s + power_off_duration_s
+                        logger.warning(f"Desk ID={desk_id} powered off for {power_off_duration_s // 60} minutes.")
             time.sleep(5)
 
             with self.lock:
@@ -156,7 +154,7 @@ class DeskManager:
                     logger.info(f"Desk ID={desk_id} restored from power-off state.")
                     del self.powered_off_desks[desk_id]
 
-    def start_updates(self):
+    def start_updates(self, no_user_simulation=False):
         """Start the update and simulation threads."""
         if self.update_thread is None or not self.update_thread.is_alive():
             self.stop_event.clear()
@@ -164,10 +162,13 @@ class DeskManager:
             self.update_thread.start()
             logger.info("Update thread started.")
 
-        if self.simulation_thread is None or not self.simulation_thread.is_alive():
-            self.simulation_thread = threading.Thread(target=self._simulate_user_interactions)
-            self.simulation_thread.start()
-            logger.info("User simulation thread started.")
+        if not no_user_simulation:
+            if self.simulation_thread is None or not self.simulation_thread.is_alive():
+                self.simulation_thread = threading.Thread(target=self._simulate_user_interactions)
+                self.simulation_thread.start()
+                logger.info("User simulation thread started.")
+        else:
+            logger.info("User simulation DISABLED by configuration.")
 
         if self.power_off_thread is None or not self.power_off_thread.is_alive():
             self.power_off_thread = threading.Thread(target=self._simulate_power_off)
@@ -201,6 +202,8 @@ class DeskManager:
                 state[desk_id]["desk_data"]["clock_s"] = desk.clock_s
                 state["current_time_s"] = self.current_time_s
                 state["simulation_speed"] = self.simulation_speed
+                state["collision_chance"] = self.collision_chance
+                state["poweroff_chance"] = self.poweroff_chance
         with open(self.STATE_FILE, "w") as f:
             json.dump(state, f)
         logger.info(f"Desk Manager state saved to {self.STATE_FILE}.")
@@ -212,9 +215,11 @@ class DeskManager:
                 try:
                     data = json.load(f)
                     self.current_time_s = data.get("current_time_s", 43200)
-                    self.simulation_speed = data.get("simulation_speed", 60)
+                    self.simulation_speed = data.get("simulation_speed", self.simulation_speed)
+                    self.collision_chance = data.get("collision_chance", self.collision_chance)
+                    self.poweroff_chance = data.get("poweroff_chance", self.poweroff_chance)
                     for desk_id, saved_data in data.items():
-                        if desk_id in [ "current_time_s", "simulation_speed" ]:
+                        if desk_id in [ "current_time_s", "simulation_speed", "collision_chance", "poweroff_chance" ]:
                             continue
                         desk_data = saved_data["desk_data"]
                         user_type = UserType(saved_data["user"])
@@ -223,17 +228,18 @@ class DeskManager:
                             desk_data["config"]["name"],
                             desk_data["config"]["manufacturer"],
                             desk_data["state"]["position_mm"],
+                            collision_chance = self.collision_chance,
                         )
                         desk.config.update(desk_data["config"])
                         desk.state.update(desk_data["state"])
                         desk.usage.update(desk_data["usage"])
                         desk.lastErrors = desk_data["lastErrors"]
                         desk.clock_s = desk_data["clock_s"]
-                        if desk_id == "cd:fb:1a:53:fb:e6":
-                            desk.state["isAntiCollision"] = False  # Disable collision for desk 1
                         self.desks[desk_id] = desk
                         self.users[desk_id] = self._create_user(desk, user_type)
                     logger.info(f"Desk Manager state loaded from {self.STATE_FILE}")
+                    logger.info(f"Desk Manager current time: {self.current_time_s}, simulation speed: {self.simulation_speed}, " \
+                                f"collision chance: {self.collision_chance * 100}%, poweroff chance: {self.poweroff_chance * 100}%")
                 except (json.JSONDecodeError, KeyError, ValueError) as e:
                     logger.error(f"Failed to load state from {self.STATE_FILE}: {e}. Starting with default state.")
         else:

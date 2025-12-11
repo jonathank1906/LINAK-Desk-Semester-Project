@@ -48,6 +48,30 @@ python simulator/main.py --speed 60
 - Option:
    - __--speed__: Simulation speed (default: 60)
 
+**Desk collision chance:** To control chance of desk collision while moving:
+
+```bash
+python simulator/main.py --desk-collision-chance 3
+```
+- Option:
+   - __--desk-collision-chance__: Chance of desk collision in percent (default: 3)
+
+**Desk poweroff chance:** To control chance of desk getting disconnected/powered off:
+
+```bash
+python simulator/main.py --desk-poweroff-chance 3
+```
+- Option:
+   - __--desk-poweroff-chance__: Chance of desk poweroff in percent (default: 3)
+
+**No User Simulation:** To disable user simulation and to avoid desk changes caused by the simulated users:
+
+```bash
+python simulator/main.py --no-user-simulation
+```
+- Option:
+   - __--no-user-simulation__
+
 **Log Level**: To control logging level of the simulator modules:
 
 ```bash
@@ -55,7 +79,6 @@ python simulator/main.py --log-level INFO
 ```
 - Option:
    - __--log-level__: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-
 
 ## Data Persistence
 
