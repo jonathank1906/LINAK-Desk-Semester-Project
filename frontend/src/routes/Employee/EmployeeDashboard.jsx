@@ -146,10 +146,10 @@ export default function EmployeeDashboard() {
     }, [usageStats?.reservation_end_time]);
 
 
-    // --- 1. REFACTORED: Centralized Occupancy Check ---
-    // This allows us to re-check status after a release action
+    // Replace the checkActiveDesk useCallback and its mount effect (around lines 118-165):
+
     const checkActiveDesk = useCallback(async () => {
-        if (!user) return;
+        if (!user) return null;
         try {
             const config = {
                 headers: { Authorization: `Bearer ${user.token}` },
@@ -184,24 +184,30 @@ export default function EmployeeDashboard() {
                 }
             }
 
-            if (occupiedDesk) {
-                // If we found a desk, sync state
-                if (selectedDeskId !== occupiedDesk.id) {
-                    setSelectedDeskId(occupiedDesk.id);
-                }
-            } else {
-                // IMPORTANT: If no desk found, explicitly clear state
-                if (selectedDeskId) {
-                    setSelectedDeskId(null);
-                    setDeskStatus(null);
-                    setUsageStats(null);
-                    setSessionStartTime(null);
-                }
-            }
+            // Return the desk ID or null (don't update state here)
+            return occupiedDesk ? occupiedDesk.id : null;
+            
         } catch (err) {
             console.error("API error checking active desk:", err);
+            return null;
         }
-    }, [user, selectedDeskId]);
+    }, [user]);
+
+    // Initial check on mount - only runs ONCE
+    useEffect(() => {
+        let mounted = true;
+        
+        const initialCheck = async () => {
+            const deskId = await checkActiveDesk();
+            if (mounted) {
+                setSelectedDeskId(deskId);
+            }
+        };
+        
+        initialCheck();
+        
+        return () => { mounted = false; };
+    }, [user]); // Only depend on user, not checkActiveDesk
 
     // Initial check on mount
     useEffect(() => {
@@ -263,83 +269,91 @@ export default function EmployeeDashboard() {
     }, []);
 
     useEffect(() => {
-        if (!user || !selectedDeskId) {
-            // Ensure all desk-specific state is cleared if ID is null
-            if (deskStatus !== null) setDeskStatus(null);
-            if (usageStats !== null) setUsageStats(null);
-            setSessionStartTime(null);
-            setLastFetchTime(null);
-            return;
-        }
+    if (!user || !selectedDeskId) {
+        return;
+    }
 
-        const fetchDeskStatus = async () => {
+    let mounted = true;
+
+    const fetchDeskStatus = async () => {
+        try {
+            const config = {
+                headers: { Authorization: `Bearer ${user.token}` },
+                withCredentials: true,
+            };
+
+            // 1. Get Status
+            const statusRes = await axios.get(
+                `http://localhost:8000/api/desks/${selectedDeskId}/`,
+                config
+            );
+            
+            if (!mounted) return;
+            
+            setDeskStatus(statusRes.data);
+            setCurrentHeight(statusRes.data.current_height);
+
+            // 2. Get Usage Stats
             try {
-                const config = {
-                    headers: { Authorization: `Bearer ${user.token}` },
-                    withCredentials: true,
-                };
-
-                // 1. Get Status
-                const statusRes = await axios.get(
-                    `http://localhost:8000/api/desks/${selectedDeskId}/`,
+                const usageRes = await axios.get(
+                    `http://localhost:8000/api/desks/${selectedDeskId}/usage/`,
                     config
                 );
-                setDeskStatus(statusRes.data);
-                setCurrentHeight(statusRes.data.current_height);
 
-                // 2. Get Usage Stats
-                try {
-                    const usageRes = await axios.get(
-                        `http://localhost:8000/api/desks/${selectedDeskId}/usage/`,
-                        config
-                    );
+                if (!mounted) return;
 
-                    // --- FIX: SESSION ENDED HANDLING ---
-                    if (usageRes.data.active_session === false) {
-                        if (lastFetchTime !== null) {
-                            toast("Session Ended", {
-                                description: "Your reservation time has expired."
-                            });
-                        }
-                        // Reset all state
-                        setSelectedDeskId(null);
-                        setDeskStatus(null);
-                        setUsageStats(null);
-                        setSessionStartTime(null);
-                        setBaseSittingSeconds(0);
-                        setBaseStandingSeconds(0);
-                        setLiveSittingSeconds(0);
-                        setLiveStandingSeconds(0);
-                        setLastFetchTime(null);
-                        window.dispatchEvent(new Event('reservation-updated'));
-                        return;
+                // --- FIX: SESSION ENDED HANDLING ---
+                if (usageRes.data.active_session === false) {
+                    if (lastFetchTime !== null) {
+                        toast("Session Ended", {
+                            description: "Your reservation time has expired."
+                        });
                     }
-
-                    setUsageStats(usageRes.data);
-
-                    if (usageRes.data.active_session && usageRes.data.started_at) {
-                        setSessionStartTime(new Date(usageRes.data.started_at));
-                        setBaseSittingSeconds(usageRes.data.sitting_time || 0);
-                        setBaseStandingSeconds(usageRes.data.standing_time || 0);
-                        setLastFetchTime(new Date());
-                    }
-                } catch (err) {
+                    // Reset all state
+                    setSelectedDeskId(null);
+                    setDeskStatus(null);
                     setUsageStats(null);
                     setSessionStartTime(null);
+                    setBaseSittingSeconds(0);
+                    setBaseStandingSeconds(0);
+                    setLiveSittingSeconds(0);
+                    setLiveStandingSeconds(0);
+                    setLastFetchTime(null);
+                    window.dispatchEvent(new Event('reservation-updated'));
+                    return;
+                }
+
+                setUsageStats(usageRes.data);
+
+                if (usageRes.data.active_session && usageRes.data.started_at) {
+                    setSessionStartTime(new Date(usageRes.data.started_at));
+                    setBaseSittingSeconds(usageRes.data.sitting_time || 0);
+                    setBaseStandingSeconds(usageRes.data.standing_time || 0);
+                    setLastFetchTime(new Date());
                 }
             } catch (err) {
-                console.error("API error:", err);
-                // If the desk itself is not found/accessible, clear the ID
-                if(err.response && err.response.status === 404) {
-                    setSelectedDeskId(null);
-                }
+                if (!mounted) return;
+                setUsageStats(null);
+                setSessionStartTime(null);
             }
-        };
+        } catch (err) {
+            if (!mounted) return;
+            console.error("API error:", err);
+            // If the desk itself is not found/accessible, clear the ID
+            if(err.response && err.response.status === 404) {
+                setSelectedDeskId(null);
+            }
+        }
+    };
 
-        fetchDeskStatus();
-        const interval = setInterval(fetchDeskStatus, 5000);
-        return () => clearInterval(interval);
-    }, [user, selectedDeskId]); 
+    fetchDeskStatus();
+    const interval = setInterval(fetchDeskStatus, 5000);
+    
+    return () => {
+        mounted = false;
+        clearInterval(interval);
+    };
+}, [user, selectedDeskId]); // Removed lastFetchTime from dependencies 
 
     useEffect(() => {
         if (!sessionStartTime) {
@@ -651,8 +665,11 @@ export default function EmployeeDashboard() {
 
                                                             // 4. Double check backend state after a short delay
                                                             // This ensures hotdesk/reservations pages get fresh data
-                                                            setTimeout(() => {
-                                                                checkActiveDesk();
+                                                            setTimeout(async () => {
+                                                                const freshDeskId = await checkActiveDesk();
+                                                                if (freshDeskId && freshDeskId !== selectedDeskId) {
+                                                                    setSelectedDeskId(freshDeskId);
+                                                                }
                                                             }, 500);
 
                                                         } catch (err) {

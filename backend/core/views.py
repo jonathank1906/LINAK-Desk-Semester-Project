@@ -1744,21 +1744,20 @@ def release_desk(request, desk_id):
     try:
         desk = Desk.objects.get(id=desk_id)
         
-        # Check if user has an active usage log for this desk
+        # Authorization check - must be current user OR have an active log
         log = DeskUsageLog.objects.filter(
             user=request.user, 
             desk=desk, 
             ended_at__isnull=True
         ).order_by("-started_at").first()
         
-        # If no active log AND desk.current_user doesn't match, deny access
         if not log and desk.current_user != request.user:
             return Response(
                 {"error": "You are not using this desk"},
                 status=status.HTTP_403_FORBIDDEN,
             )
         
-        # If there's an active log, finalize it
+        # Finalize the usage log if exists
         if log:
             now = timezone.now()
             log.ended_at = now
@@ -1774,17 +1773,34 @@ def release_desk(request, desk_id):
             
             log.save()
 
-        # desk log entry for tracking desk release
+        # Cancel any active or pending_confirmation reservations for this desk
+        active_reservations = Reservation.objects.filter(
+            desk=desk,
+            user=request.user,
+            status__in=['active', 'pending_confirmation']
+        )
+        
+        now = timezone.now()
+        for reservation in active_reservations:
+            reservation.status = 'cancelled'
+            reservation.cancelled_at = now
+            reservation.cancelled_by = request.user
+            reservation.save()
+            print(f"Auto-cancelled reservation {reservation.id} during desk release")
+
+        # Desk log entry for tracking desk release
         DeskLog.objects.create(
             desk=desk,
             user=request.user,
             action="desk_released"
         )
 
-        # Release the desk
+        # Release the desk - THIS IS THE KEY FIX
         desk.current_user = None
         desk.current_status = "available"
         desk.save()
+        
+        print(f"Desk {desk.id} released - Status: {desk.current_status}, User: {desk.current_user}")
 
         # Notify Pico that desk is now available
         mqtt_service = get_mqtt_service()
