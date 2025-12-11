@@ -123,21 +123,6 @@ static const char *full_topic(MQTT_CLIENT_DATA_T *state, const char *name)
 #endif
 }
 
-static void control_led(MQTT_CLIENT_DATA_T *state, bool on)
-{
-    const char *message = on ? "On" : "Off";
-    INFO_printf("LED: %s\n", message);
-
-    if (on)
-        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
-    else
-        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
-
-    mqtt_publish(state->mqtt_client_inst, full_topic(state, "/led/state"),
-                 message, strlen(message), MQTT_PUBLISH_QOS, MQTT_PUBLISH_RETAIN,
-                 pub_request_cb, state);
-}
-
 void publish_desk_confirm(MQTT_CLIENT_DATA_T *state)
 {
     printf("DEBUG: publish_desk_confirm called\n");
@@ -203,7 +188,6 @@ static void sub_unsub_topics(MQTT_CLIENT_DATA_T *state, bool sub)
 {
     INFO_printf("%s to topics\n", sub ? "Subscribing" : "Unsubscribing");
     mqtt_request_cb_t cb = sub ? sub_request_cb : unsub_request_cb;
-    mqtt_sub_unsub(state->mqtt_client_inst, full_topic(state, "/led"), MQTT_SUBSCRIBE_QOS, cb, state, sub);
     mqtt_sub_unsub(state->mqtt_client_inst, full_topic(state, "/print"), MQTT_SUBSCRIBE_QOS, cb, state, sub);
     mqtt_sub_unsub(state->mqtt_client_inst, full_topic(state, "/ping"), MQTT_SUBSCRIBE_QOS, cb, state, sub);
     mqtt_sub_unsub(state->mqtt_client_inst, full_topic(state, "/exit"), MQTT_SUBSCRIBE_QOS, cb, state, sub);
@@ -225,14 +209,7 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
     printf("DEBUG: MQTT payload: %s\n", state->data);
     printf("DEBUG: basic_topic = '%s'\n", basic_topic);
     
-    if (strcmp(basic_topic, "/led") == 0)
-    {
-        if (lwip_stricmp(state->data, "On") == 0 || strcmp(state->data, "1") == 0)
-            control_led(state, true);
-        else if (lwip_stricmp(state->data, "Off") == 0 || strcmp(state->data, "0") == 0)
-            control_led(state, false);
-    }
-    else if (strcmp(basic_topic, "/print") == 0)
+    if (strcmp(basic_topic, "/print") == 0)
     {
         INFO_printf("Print: %.*s\n", len, data);
     }
@@ -256,15 +233,12 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
         printf("DEBUG: Handling /desk/1/display topic\n");
         printf("DEBUG: Full message: %s\n", state->data);  // Better debug
 
-        // IMPORTANT: Check show_available FIRST (before show_confirm_button)
-        // Because when user releases, we want green LED immediately
         if (strstr(state->data, "show_available"))
         {
             printf("DEBUG: Action is show_available\n");
             oled_display_text("DESK #1", "Available", "", "");
             set_pending_verification(false);
 
-            // Set GREEN LED mode
             current_led_mode = LED_MODE_SOLID_GREEN;
             current_buzzer_mode = BUZZER_MODE_NONE;
             
@@ -276,7 +250,6 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
             oled_display_text("DESK #1", "Please press", "button to", "confirm");
             set_pending_verification(true);
 
-            // Blue pulsing for confirmation
             current_led_mode = LED_MODE_GREYS_BLUE;
             current_buzzer_mode = BUZZER_MODE_NONE;
             
@@ -288,7 +261,6 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
             oled_display_text("DESK #1", "Verification", "Cancelled", "");
             set_pending_verification(false);
 
-            // Set LED to GREEN (available)
             current_led_mode = LED_MODE_SOLID_GREEN;
             current_buzzer_mode = BUZZER_MODE_NONE;
 
@@ -318,7 +290,6 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
             oled_display_text("DESK #1", user_name, height_str, "In Use");
             set_pending_verification(false);
 
-            // Solid blue LED (in use)
             current_led_mode = LED_MODE_GREYS_BLUE;
             current_buzzer_mode = BUZZER_MODE_NONE;
             
@@ -338,7 +309,6 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
                 snprintf(line3, sizeof(line3), "Height: %dcm", height);
                 oled_display_text("DESK #1", "In Use", line3, "");
 
-                // Check if moving (NOTE: Space after colon matters!)
                 bool is_moving = (strstr(state->data, "\"is_moving\": true") != NULL || 
                                  strstr(state->data, "\"is_moving\":true") != NULL);
                 
@@ -346,13 +316,13 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
                 
                 if (is_moving)
                 {
-                    current_led_mode = LED_MODE_GREYS;  // Yellow pulsing while moving
+                    current_led_mode = LED_MODE_GREYS;  
                     current_buzzer_mode = BUZZER_MODE_MOVING;
                     printf("DEBUG: Set LED to YELLOW PULSING (moving)\n");
                 }
                 else
                 {
-                    current_led_mode = LED_MODE_GREYS_BLUE;  // Blue solid when stopped
+                    current_led_mode = LED_MODE_GREYS_BLUE;
                     current_buzzer_mode = BUZZER_MODE_NONE;
                     printf("DEBUG: Set LED to BLUE SOLID (stopped)\n");
                 }
@@ -394,8 +364,7 @@ static void mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection
 
         sub_unsub_topics(state, true);
 
-        // Subscribe to desk display topic
-        const char *desk_display_topic = "/desk/1/display"; // TODO: Replace with your actual desk_id
+        const char *desk_display_topic = "/desk/1/display";
         printf("DEBUG: Subscribing to topic: %s\n", desk_display_topic);
         mqtt_sub_unsub(state->mqtt_client_inst, desk_display_topic, MQTT_SUBSCRIBE_QOS, sub_request_cb, state, true);
     }
@@ -493,7 +462,6 @@ void mqtt_init(void)
     INFO_printf("Connected to WiFi\n");
     INFO_printf("IP Address: %s\n", ip4addr_ntoa(netif_ip4_addr(netif_list)));
 
-    // NOW get MAC address (after WiFi is connected)
     uint8_t mac[6];
     cyw43_hal_get_mac(CYW43_ITF_STA, mac);
     
@@ -542,7 +510,7 @@ MQTT_CLIENT_DATA_T *get_mqtt_state(void)
     return &g_state;
 }
 
-// Non-blocking poll function
+
 void mqtt_poll(void)
 {
     cyw43_arch_poll();

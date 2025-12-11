@@ -151,10 +151,6 @@ class MQTTService:
             logger.error(f"Exception in handle_desk_confirm: {e}")
             import traceback
             traceback.print_exc()
-            
-    def handle_led_state(self, device_id, state):
-        """Handle LED state update"""
-        logger.info(f"LED state for {device_id}: {state}")
         
     def handle_online_status(self, device_id, status):
         """Handle device online/offline status"""
@@ -195,12 +191,6 @@ class MQTTService:
             logger.info(f"Published to {topic}: {message}")
         else:
             logger.warning("Cannot publish - not connected to MQTT broker")
-            
-    def control_led(self, device_id, on):
-        """Send LED control command to Pico"""
-        topic = f"/{device_id}/led"
-        message = "On" if on else "Off"
-        self.publish(topic, message)
 
     def notify_desk_moving(self, desk_id, target_height, is_moving, user_name=""):
         """
