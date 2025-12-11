@@ -24,10 +24,11 @@ import {
 
 import {
   Settings2,
-  ArrowUpDown,
-  Armchair,
-  PersonStanding
+  ArrowUpDown
 } from "lucide-react"
+
+import StandingIcon from "@/assets/Standing.svg";
+import SittingIcon from "@/assets/Sitting.svg";
 
 import {
   IconArrowBigUpFilled,
@@ -390,7 +391,7 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
 
                 <div className="hidden lg:flex items-center gap-3 rounded-full bg-gray-100 dark:bg-gray-800 px-4 py-2">
                   <div className="flex items-center gap-2">
-                    <PersonStanding className="w-4 h-4 text-orange-500" />
+                    <img src={StandingIcon} alt="Standing" className="w-5 h-5" />
                     <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
                       {(() => {
                         const mins = formatMinutes(usageStats?.standing_time);
@@ -405,7 +406,7 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
                   </div>
                   <span className="text-gray-300 dark:text-gray-700">|</span>
                   <div className="flex items-center gap-2">
-                    <Armchair className="w-4 h-4 text-blue-500" />
+                    <img src={SittingIcon} alt="Sitting" className="w-5 h-5" />
                     <span className="text-sm font-bold text-gray-900 dark:text-white font-mono tabular-nums">
                       {(() => {
                         const mins = formatMinutes(usageStats?.sitting_time);
