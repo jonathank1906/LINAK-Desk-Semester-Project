@@ -172,56 +172,56 @@ export default function AnalyticsPage() {
     <div className="flex flex-col gap-6 px-6 pb-12 pt-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-8 gap-4">
-        <h1 className="text-2xl font-bold">Analytics</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Analytics</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            View desk usage patterns and system performance metrics
+          </p>
+        </div>
       </div>
 
       {/* Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Heatmap */}
-        <Card className="animate-fade-up lg:col-span-2 bg-muted/50 p-4 rounded-xl min-h-[250px] h-[580px] flex flex-col">
-          <CardHeader className="flex-shrink-0">
-            <CardTitle className="text-lg font-semibold mb-3">Desk Usage Heatmap</CardTitle>
+        <Card className="animate-fade-up lg:col-span-2 bg-muted/50 p-4 rounded-xl transition-transform">
+          <CardHeader className="flex-shrink-0 p-0 pb-3">
+            <CardTitle className="text-lg font-semibold">Desk Usage Heatmap</CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 min-h-0 flex">
-            {/* Date column */}
-            <div className="flex-shrink-0 flex flex-col text-sm">
-              <div className="h-10"></div>
-              {heatmapDates.map((date, idx) => (
-                <div key={idx} className="h-10 flex items-center pr-3 font-semibold whitespace-nowrap">
-                  {date}
-                </div>
-              ))}
-            </div>
-            {/* Data area */}
-            <div className="flex-1 overflow-auto min-w-0">
-              <div className="inline-block min-w-max">
-                {/* Hour headers */}
-                <div className="flex h-10">
-                  {heatmapHours.map((h) => (
-                    <div key={h} className="w-10 text-center text-xs font-semibold flex items-center justify-center">
-                      {h}
-                    </div>
-                  ))}
-                </div>
-                {/* Data rows */}
-                {heatmapData.map((row, dayIdx) => (
-                  <div key={dayIdx} className="flex h-10">
-                    {row.map((value, colIdx) => (
-                      <div key={colIdx} className="w-10 p-1">
-                        <div
-                          className="h-full w-full flex items-center justify-center text-xs rounded-sm"
-                          style={{
-                            backgroundColor: `rgba(59,130,246,${value / 100})`,
-                            color: value > 0 ? "var(--foreground)" : "var(--muted-foreground)",
-                          }}
-                        >
-                          {value}
-                        </div>
-                      </div>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="text-sm w-full table-fixed" style={{ minWidth: "380px" }}>
+                <thead>
+                  <tr>
+                    <th className="px-1 py-1 text-left w-16"></th>
+                    {heatmapHours.map((h) => (
+                      <th key={h} className="p-2 text-center w-12">
+                        {h}
+                      </th>
                     ))}
-                  </div>
-                ))}
-              </div>
+                  </tr>
+                </thead>
+                <tbody>
+                  {heatmapData.map((row, dayIdx) => (
+                    <tr key={dayIdx}>
+                      <td className="px-1 py-1 font-semibold whitespace-nowrap w-16">{heatmapDates[dayIdx]}</td>
+                      {row.map((value, colIdx) => (
+                        <td key={colIdx} className="p-1 text-center w-12">
+                          <div
+                            className="h-6 w-6 text-center text-xs rounded-sm mx-auto"
+                            style={{
+                              backgroundColor: `rgba(59,130,246,${value / 100})`,
+                              color: value > 0 ? "var(--foreground)" : "var(--muted-foreground)",
+                              lineHeight: "1.5rem",
+                            }}
+                          >
+                            {value}
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>
