@@ -36,6 +36,9 @@ import { IconPlus, IconFilterX } from "@tabler/icons-react";
 import { NewAccountForm } from "@/components/new-account-form";
 import { EditUserDialog } from "@/components/EditUserDialog";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
 
 export default function UserManagement() {
   const [usersData, setUsersData] = useState([]);
@@ -80,7 +83,7 @@ export default function UserManagement() {
             ? new Date(user.last_login).toLocaleString()
             : "Never",
           deskUsage: user.total_usage_hours ?? 50,
-          favoriteDesk: "Desk XXXX",
+          favoriteDesk: "Unknown",
           deskUsageHistory: user.is_admin ? [1,1] : [2,2],
           status: user.is_active ? "Active" : "Disabled",
           created: new Date(user.created_at).toLocaleDateString(),
@@ -278,21 +281,55 @@ export default function UserManagement() {
               </SelectContent>
             </Select>
 
-            <Input
-              type="date"
-              placeholder="Last Login After"
-              value={filterLastLoginAfter}
-              onChange={(e) => setFilterLastLoginAfter(e.target.value)}
-              className="min-w-0 flex-shrink max-w-[160px]"
-            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={
+                    "min-w-0 w-[190px] justify-start text-left flex-shrink-0 transition-none bg-transparent text-foreground"
+                  }
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {filterLastLoginAfter ? new Date(filterLastLoginAfter).toLocaleDateString() : "Last Login After"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="p-0 w-auto" align="start">
+                <Calendar
+                  mode="single"
+                  selected={filterLastLoginAfter ? new Date(filterLastLoginAfter) : undefined}
+                  onSelect={(date) =>
+                    setFilterLastLoginAfter(date)
+                  }
+                  initialFocus
+                  captionLayout="dropdown"
+                />
+              </PopoverContent>
+            </Popover>
 
-            <Input
-              type="date"
-              placeholder="Created After"
-              value={filterCreatedAfter}
-              onChange={(e) => setFilterCreatedAfter(e.target.value)}
-              className="min-w-0 flex-shrink max-w-[160px]"
-            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={
+                    "min-w-0 w-[180px] justify-start text-left flex-shrink-0 transition-none bg-transparent text-foreground"
+                  }
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {filterCreatedAfter ? new Date(filterCreatedAfter).toLocaleDateString() : "Created After"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="p-0 w-auto" align="start">
+                <Calendar
+                  mode="single"
+                  selected={filterCreatedAfter ? new Date(filterCreatedAfter) : undefined}
+                  onSelect={(date) =>
+                    setFilterCreatedAfter(date)
+                  }
+                  initialFocus
+                  captionLayout="dropdown"
+                />
+              </PopoverContent>
+            </Popover>
 
             <Input
               type="text"

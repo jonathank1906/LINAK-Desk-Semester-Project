@@ -43,8 +43,8 @@ export function DataTable({ columns, data, onSelectionChange }) {
   };
 
   return (
-    <div className="rounded-md border bg-muted/50 overflow-x-auto overflow-y-auto">
-      <Table className="min-w-full">
+    <div className="rounded-md border bg-muted/50 overflow-hidden">
+      <Table className="w-full">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
