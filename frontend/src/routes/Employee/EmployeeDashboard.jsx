@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/useAuth";
 import { usePostureReminder } from "@/contexts/usePostureReminder";
 import MyDesk from "./MyDesk";
 import Reservations from "./Reservations";
-import Hotdesk from "./Hotdesk";
+import Hotdesk from "./HotDesk";
 import { formatNiceDate } from "@/utils/date";
 import { Button } from "@/components/ui/button";
 import { Calendar, Clock, LogOut } from "lucide-react"; 

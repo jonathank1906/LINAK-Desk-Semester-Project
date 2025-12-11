@@ -217,9 +217,10 @@ class UserDeskPreference(models.Model):
     standing_height = models.FloatField(default=110.0)
     custom_height_1 = models.FloatField(blank=True, null=True)
     custom_height_2 = models.FloatField(blank=True, null=True)
+    custom_height_3 = models.FloatField(blank=True, null=True)
     custom_height_1_name = models.CharField(max_length=50, blank=True, null=True)
     custom_height_2_name = models.CharField(max_length=50, blank=True, null=True)
-    
+    custom_height_3_name = models.CharField(max_length=50, blank=True, null=True)
     # Reminder preferences
     preferred_interval = models.IntegerField(default=30)  # minutes between reminders
     enable_reminders = models.BooleanField(default=True)

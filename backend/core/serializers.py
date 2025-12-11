@@ -158,11 +158,14 @@ class UserDeskPreferenceSerializer(serializers.ModelSerializer):
             "standing_height",
             "custom_height_1",
             "custom_height_2",
+            "custom_height_3",
             "custom_height_1_name",
             "custom_height_2_name",
+            "custom_height_3_name",
             "preferred_interval",
             "enable_reminders",
         ]
+        read_only_fields = ["id", "user"]
 
 class DeskReportSerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source="user.username", read_only=True)
