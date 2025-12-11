@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   flexRender,
   getCoreRowModel,
+  getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 import {
@@ -16,27 +17,34 @@ import {
 } from "@/components/ui/table";
 
 export function DataTable({ columns, data, onSelectionChange }) {
+  const [sorting, setSorting] = useState([]);
+
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: setSorting,
     getRowId: (row) => row.id,
     enableRowSelection: true,
+    state: {
+      sorting,
+    },
   });
 
   // Sync selected rows with parent state
   useEffect(() => {
     const selected = table.getSelectedRowModel().rows.map((r) => r.original);
     onSelectionChange && onSelectionChange(selected);
-  }, [table.getState().rowSelection]); // re-run whenever selection changes
+  }, [table.getState().rowSelection, onSelectionChange, table]); // re-run whenever selection changes
 
   const toggleRowSelection = (row) => {
     row.toggleSelected();
   };
 
   return (
-    <div className="rounded-md border overflow-hidden">
-      <Table>
+    <div className="rounded-md border bg-muted/50 overflow-x-auto overflow-y-auto">
+      <Table className="min-w-full">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
