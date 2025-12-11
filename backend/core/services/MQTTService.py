@@ -74,18 +74,6 @@ class MQTTService:
                 except (ValueError, IndexError) as e:
                     logger.error(f"Error parsing desk confirmation topic: {e}")
                 return
-
-            # --- Existing device topic handling ---
-            if len(parts) >= 3:
-                device_id = parts[1]  # e.g., "picof24d"
-                sensor_type = parts[2]
-                
-                if sensor_type == "temperature":
-                    self.handle_temperature(device_id, float(payload))
-                elif sensor_type == "led":
-                    self.handle_led_state(device_id, payload)
-                elif sensor_type == "online":
-                    self.handle_online_status(device_id, payload)
                     
         except Exception as e:
             logger.error(f"Error processing MQTT message: {e}")

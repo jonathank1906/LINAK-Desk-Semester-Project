@@ -21,7 +21,6 @@
 #include "buzzer_mode.h"
 #include "wifi_config.h"
 
-// FIX: Declare extern only once at the top, not inside handler blocks
 #ifdef __cplusplus
 extern "C"
 {
@@ -32,7 +31,7 @@ extern "C"
 #endif
 
 void mqtt_init();
-void mqtt_poll(); // New function for non-blocking operation
+void mqtt_poll();
 
 #ifndef MQTT_SERVER
 #error Need to define MQTT_SERVER
@@ -82,11 +81,6 @@ typedef struct
 #define MQTT_SUBSCRIBE_QOS 1
 #define MQTT_PUBLISH_QOS 1
 #define MQTT_PUBLISH_RETAIN 0
-
-// topic used for last will and testament
-#define MQTT_WILL_TOPIC "/online"
-#define MQTT_WILL_MSG "0"
-#define MQTT_WILL_QOS 1
 
 #ifndef MQTT_DEVICE_NAME
 #define MQTT_DEVICE_NAME "pico"
@@ -155,21 +149,22 @@ void publish_desk_confirm(MQTT_CLIENT_DATA_T *state)
 
 void publish_pico_ready(MQTT_CLIENT_DATA_T* state) {
     printf("DEBUG: publish_pico_ready called\n");
-    
-    // Topic: /picoXXXX/desk/1/pico/ready
+
     const char* ready_topic = full_topic(state, "/desk/1/pico/ready");
-    
-    // Message with Pico MAC and desk info
-    const char* ready_msg = "{\"status\": \"ready\", \"pico_mac\": \"AA:BB:CC:DD:EE:FF\", \"desk_id\": 1}";
-    
+
+    const char* mac_str = state->mqtt_client_info.client_id;
+    char ready_msg[128];
+    snprintf(ready_msg, sizeof(ready_msg),
+             "{\"status\": \"ready\", \"pico_mac\": \"%s\", \"desk_id\": 1}", mac_str);
+
     printf("DEBUG: Publishing ready to topic: %s\n", ready_topic);
     printf("DEBUG: Message: %s\n", ready_msg);
-    
-    mqtt_publish(state->mqtt_client_inst, ready_topic, 
-                 ready_msg, strlen(ready_msg), 
-                 MQTT_PUBLISH_QOS, MQTT_PUBLISH_RETAIN, 
+
+    mqtt_publish(state->mqtt_client_inst, ready_topic,
+                 ready_msg, strlen(ready_msg),
+                 MQTT_PUBLISH_QOS, MQTT_PUBLISH_RETAIN,
                  pub_request_cb, state);
-    
+
     printf("DEBUG: Ready message published\n");
 }
 
@@ -394,7 +389,7 @@ static void mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection
 
     if (status == MQTT_CONNECT_ACCEPTED)
     {
-        INFO_printf("✓ MQTT Connected!\n");
+        INFO_printf("MQTT Connected!\n");
         state->connect_done = true;
 
         sub_unsub_topics(state, true);
@@ -403,13 +398,6 @@ static void mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection
         const char *desk_display_topic = "/desk/1/display"; // TODO: Replace with your actual desk_id
         printf("DEBUG: Subscribing to topic: %s\n", desk_display_topic);
         mqtt_sub_unsub(state->mqtt_client_inst, desk_display_topic, MQTT_SUBSCRIBE_QOS, sub_request_cb, state, true);
-
-        // Indicate online
-        if (state->mqtt_client_info.will_topic)
-        {
-            mqtt_publish(state->mqtt_client_inst, state->mqtt_client_info.will_topic,
-                         "1", 1, MQTT_WILL_QOS, true, pub_request_cb, state);
-        }
     }
     else if (status == MQTT_CONNECT_DISCONNECTED)
     {
@@ -502,7 +490,7 @@ void mqtt_init(void)
     {
         panic("WiFi connection failed");
     }
-    INFO_printf("✓ Connected to WiFi\n");
+    INFO_printf("Connected to WiFi\n");
     INFO_printf("IP Address: %s\n", ip4addr_ntoa(netif_ip4_addr(netif_list)));
 
     // NOW get MAC address (after WiFi is connected)
@@ -529,13 +517,6 @@ void mqtt_init(void)
     g_state.mqtt_client_info.client_pass = NULL;
     INFO_printf("Auth: Anonymous (no credentials)\n");
 #endif
-
-    static char will_topic[MQTT_TOPIC_LEN];
-    strncpy(will_topic, full_topic(&g_state, MQTT_WILL_TOPIC), sizeof(will_topic));
-    g_state.mqtt_client_info.will_topic = will_topic;
-    g_state.mqtt_client_info.will_msg = MQTT_WILL_MSG;
-    g_state.mqtt_client_info.will_qos = MQTT_WILL_QOS;
-    g_state.mqtt_client_info.will_retain = true;
 
     // DNS lookup for MQTT server
     INFO_printf("\nResolving MQTT server: %s\n", MQTT_SERVER);
