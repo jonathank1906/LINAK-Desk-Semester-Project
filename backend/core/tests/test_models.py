@@ -3,7 +3,6 @@ from django.contrib.auth import get_user_model
 from core.models import (
     Desk, Reservation, DeskUsageLog, 
     UserDeskPreference, Pico, 
-    SensorReading
 )
 from django.utils import timezone
 from datetime import timedelta

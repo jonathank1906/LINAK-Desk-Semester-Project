@@ -19,7 +19,7 @@ import traceback
 
 # --- IMPORTS ---
 from core.services.MQTTService import get_mqtt_service
-from core.models import Pico, SensorReading 
+from core.models import Pico 
 from .models import Desk, DeskUsageLog, DeskLog, DeskReport, Reservation, DeskSchedule
 from .services.WiFi2BLEService import WiFi2BLEService
 from .serializers import (

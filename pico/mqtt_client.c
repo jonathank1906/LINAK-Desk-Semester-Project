@@ -34,11 +34,6 @@ extern "C"
 void mqtt_init();
 void mqtt_poll(); // New function for non-blocking operation
 
-// Temperature
-#ifndef TEMPERATURE_UNITS
-#define TEMPERATURE_UNITS 'C' // Set to 'F' for Fahrenheit
-#endif
-
 #ifndef MQTT_SERVER
 #error Need to define MQTT_SERVER
 #endif
@@ -80,9 +75,6 @@ typedef struct
 #define WARN_printf printf
 #endif
 
-// how often to measure our temperature
-#define TEMP_WORKER_TIME_S 10
-
 // keep alive in seconds
 #define MQTT_KEEP_ALIVE_S 60
 
@@ -113,22 +105,6 @@ extern uint ws2812_offset;
 extern LedMode current_led_mode;
 extern BuzzerMode current_buzzer_mode;
 
-static float read_onboard_temperature(const char unit)
-{
-    const float conversionFactor = 3.3f / (1 << 12);
-    float adc = (float)adc_read() * conversionFactor;
-    float tempC = 27.0f - (adc - 0.706f) / 0.001721f;
-
-    if (unit == 'C' || unit != 'F')
-    {
-        return tempC;
-    }
-    else if (unit == 'F')
-    {
-        return tempC * 9 / 5 + 32;
-    }
-    return -1.0f;
-}
 
 static void pub_request_cb(__unused void *arg, err_t err)
 {
@@ -195,24 +171,6 @@ void publish_pico_ready(MQTT_CLIENT_DATA_T* state) {
                  pub_request_cb, state);
     
     printf("DEBUG: Ready message published\n");
-}
-
-static void publish_temperature(MQTT_CLIENT_DATA_T *state)
-{
-    static float old_temperature = 0;
-    const char *temperature_key = full_topic(state, "/temperature");
-    float temperature = read_onboard_temperature(TEMPERATURE_UNITS);
-
-    if (temperature != old_temperature)
-    {
-        old_temperature = temperature;
-        char temp_str[16];
-        snprintf(temp_str, sizeof(temp_str), "%.2f", temperature);
-        INFO_printf("Publishing temperature: %s°%c to %s\n", temp_str, TEMPERATURE_UNITS, temperature_key);
-        mqtt_publish(state->mqtt_client_inst, temperature_key, temp_str,
-                     strlen(temp_str), MQTT_PUBLISH_QOS, MQTT_PUBLISH_RETAIN,
-                     pub_request_cb, state);
-    }
 }
 
 static void sub_request_cb(void *arg, err_t err)
@@ -301,17 +259,17 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
     else if (strcmp(state->topic, "/desk/1/display") == 0)
     {
         printf("DEBUG: Handling /desk/1/display topic\n");
-        printf("DEBUG: Full message: %s\n", state->data);  // ⭐ Better debug
+        printf("DEBUG: Full message: %s\n", state->data);  // Better debug
 
-        // ⭐ IMPORTANT: Check show_available FIRST (before show_confirm_button)
+        // IMPORTANT: Check show_available FIRST (before show_confirm_button)
         // Because when user releases, we want green LED immediately
         if (strstr(state->data, "show_available"))
         {
-            printf("DEBUG: ✅ Action is show_available\n");
+            printf("DEBUG: Action is show_available\n");
             oled_display_text("DESK #1", "Available", "", "");
             set_pending_verification(false);
 
-            // ⭐ Set GREEN LED mode
+            // Set GREEN LED mode
             current_led_mode = LED_MODE_SOLID_GREEN;
             current_buzzer_mode = BUZZER_MODE_NONE;
             
@@ -323,7 +281,7 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
             oled_display_text("DESK #1", "Please press", "button to", "confirm");
             set_pending_verification(true);
 
-            // ⭐ Blue pulsing for confirmation
+            // Blue pulsing for confirmation
             current_led_mode = LED_MODE_GREYS_BLUE;
             current_buzzer_mode = BUZZER_MODE_NONE;
             
@@ -365,7 +323,7 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
             oled_display_text("DESK #1", user_name, height_str, "In Use");
             set_pending_verification(false);
 
-            // ⭐ Solid blue LED (in use)
+            // Solid blue LED (in use)
             current_led_mode = LED_MODE_GREYS_BLUE;
             current_buzzer_mode = BUZZER_MODE_NONE;
             
@@ -385,7 +343,7 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
                 snprintf(line3, sizeof(line3), "Height: %dcm", height);
                 oled_display_text("DESK #1", "In Use", line3, "");
 
-                // ⭐ Check if moving (NOTE: Space after colon matters!)
+                // Check if moving (NOTE: Space after colon matters!)
                 bool is_moving = (strstr(state->data, "\"is_moving\": true") != NULL || 
                                  strstr(state->data, "\"is_moving\":true") != NULL);
                 
@@ -410,7 +368,7 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
             printf("DEBUG: Action is show_error\n");
             oled_display_text("DESK #1", "ERROR", "Check desk", "");
 
-            // ⭐ Red LED for error
+            // Red LED for error
             current_led_mode = LED_MODE_SOLID_RED;
             current_buzzer_mode = BUZZER_MODE_NONE;
             
@@ -418,7 +376,7 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
         }
         else
         {
-            printf("DEBUG: ⚠️ Unknown action in payload: %s\n", state->data);
+            printf("DEBUG: Unknown action in payload: %s\n", state->data);
         }
     }
 }
@@ -429,14 +387,6 @@ static void mqtt_incoming_publish_cb(void *arg, const char *topic, u32_t tot_len
     printf("DEBUG: Incoming publish: %s (%u bytes)\n", topic, tot_len);
     strncpy(state->topic, topic, sizeof(state->topic));
 }
-
-static void temperature_worker_fn(async_context_t *context, async_at_time_worker_t *worker)
-{
-    MQTT_CLIENT_DATA_T *state = (MQTT_CLIENT_DATA_T *)worker->user_data;
-    publish_temperature(state);
-    async_context_add_at_time_worker_in_ms(context, worker, TEMP_WORKER_TIME_S * 1000);
-}
-static async_at_time_worker_t temperature_worker = {.do_work = temperature_worker_fn};
 
 static void mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection_status_t status)
 {
@@ -460,10 +410,6 @@ static void mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection
             mqtt_publish(state->mqtt_client_inst, state->mqtt_client_info.will_topic,
                          "1", 1, MQTT_WILL_QOS, true, pub_request_cb, state);
         }
-
-        // Start temperature publishing
-        temperature_worker.user_data = state;
-        async_context_add_at_time_worker_in_ms(cyw43_arch_async_context(), &temperature_worker, 0);
     }
     else if (status == MQTT_CONNECT_DISCONNECTED)
     {
@@ -542,8 +488,6 @@ void mqtt_init(void)
     INFO_printf("=================================\n\n");
 
     adc_init();
-    adc_set_temp_sensor_enabled(true);
-    adc_select_input(4);
 
     if (cyw43_arch_init())
     {

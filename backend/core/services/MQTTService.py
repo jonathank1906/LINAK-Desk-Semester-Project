@@ -2,7 +2,7 @@ import paho.mqtt.client as mqtt
 import json
 import logging
 from django.conf import settings
-from core.models import Pico, SensorReading, Desk
+from core.models import Pico, Desk
 
 logger = logging.getLogger(__name__)
 _mqtt_service_instance = None
@@ -163,31 +163,6 @@ class MQTTService:
             logger.error(f"Exception in handle_desk_confirm: {e}")
             import traceback
             traceback.print_exc()
-
-    def handle_temperature(self, device_id, temperature):
-        """Store temperature reading, keeping max 10 per Pico device"""
-        try:
-            pico = Pico.objects.filter(mac_address__icontains=device_id[:8]).first()
-            if pico:
-                logger.info(f"Temperature {temperature}°C from device {device_id}")
-                from django.utils import timezone
-                pico.last_seen = timezone.now()
-                pico.save()
-                # Check count and delete oldest if needed
-                readings = SensorReading.objects.filter(pico_device_id=pico.id).order_by('timestamp')
-                if readings.count() >= 10:
-                    oldest = readings.first()
-                    oldest.delete()
-                # Save new temperature reading
-                SensorReading.objects.create(
-                    pico_device_id=pico.id,
-                    temperature=temperature,
-                    timestamp=timezone.now()
-                )
-            else:
-                logger.warning(f"Pico device not found: {device_id}")
-        except Exception as e:
-            logger.error(f"Error handling temperature: {e}")
             
     def handle_led_state(self, device_id, state):
         """Handle LED state update"""

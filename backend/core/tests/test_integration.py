@@ -1,6 +1,6 @@
 from django.test import TransactionTestCase
 from django.contrib.auth import get_user_model
-from core.models import Desk, Reservation, DeskUsageLog, Pico, SensorReading
+from core.models import Desk, Reservation, DeskUsageLog, Pico
 from django.utils import timezone
 from datetime import timedelta
 from unittest.mock import patch, Mock

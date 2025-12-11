@@ -299,25 +299,6 @@ class Pico(models.Model):
     
 
 
-class SensorReading(models.Model):
-    pico_device = models.ForeignKey(Pico, on_delete=models.CASCADE, related_name='sensor_readings')
-    
-    # Sensor data
-    temperature = models.FloatField(blank=True, null=True)
-    humidity = models.FloatField(blank=True, null=True)
-    light_level = models.IntegerField(blank=True, null=True)
-    led_color_status = models.CharField(max_length=50, blank=True, null=True)
-    
-    # Occupancy
-    person_present = models.BooleanField(default=False)
-    
-    timestamp = models.DateTimeField(auto_now_add=True)
-    
-    def __str__(self):
-        return f"{self.pico_device.desk.name} - {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}"
-
-
-
 class DeskSchedule(models.Model):
     """
     Automated desk cleaning schedules.
