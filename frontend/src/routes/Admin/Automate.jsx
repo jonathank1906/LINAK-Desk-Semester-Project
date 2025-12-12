@@ -202,7 +202,7 @@ export default function Automate() {
   };
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
+    <div className="flex flex-1 flex-col gap-6 px-6 pb-12 pt-4">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">Automation: Cleaning Schedules</h2>
         <Dialog open={showCreateDialog} onOpenChange={(open) => {

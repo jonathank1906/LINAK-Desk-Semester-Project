@@ -204,7 +204,7 @@ export default function AdminDashboard() {
       case "dashboard":
       default:
         return (
-          <div className="flex flex-1 flex-col gap-6 p-4 pt-0">
+          <div className="flex flex-1 flex-col gap-6 px-6 pb-12 pt-4">
             {/* TOP ROW: SYSTEM STATUS + DESK REPORTS */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
               <Card
