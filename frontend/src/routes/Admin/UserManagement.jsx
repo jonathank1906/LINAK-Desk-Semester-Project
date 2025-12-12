@@ -38,7 +38,7 @@ import { EditUserDialog } from "@/components/EditUserDialog";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react"; // Imported Loader2
 
 export default function UserManagement() {
   const [usersData, setUsersData] = useState([]);
@@ -198,10 +198,6 @@ export default function UserManagement() {
     setSelectedUsers([]);
     setPendingBulkAction(null);
   };
-
-  // Loading and error handling
-  if (loading) return <div className="p-6 text-muted-foreground">Loading users...</div>;
-  if (error) return <div className="p-6 text-red-500">{error}</div>;
 
   return (
     <div className="flex flex-col gap-6 px-6 pb-12 pt-4 min-w-0 overflow-x-hidden">
@@ -367,13 +363,23 @@ export default function UserManagement() {
         </CardContent>
       </Card>
 
-      {/* Table */}
-      <div className="min-w-0">
-        <DataTable
-          columns={columns}
-          data={filteredUsers}
-          onSelectionChange={setSelectedUsers}
-        />
+      {/* Table Section with Loading/Error states */}
+      <div className="min-w-0 border rounded-md">
+        {loading ? (
+          <div className="flex h-64 items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : error ? (
+          <div className="flex h-64 items-center justify-center text-red-500">
+            {error}
+          </div>
+        ) : (
+          <DataTable
+            columns={columns}
+            data={filteredUsers}
+            onSelectionChange={setSelectedUsers}
+          />
+        )}
       </div>
 
       {/* View Dialog */}
@@ -390,8 +396,8 @@ export default function UserManagement() {
 
       {/* Edit Dialog */}
       {editingUser && (
-        <Dialog open onOpenChange={() => setEditingUser(null)}>
-          <DialogContent>
+        <AlertDialog open onOpenChange={() => setEditingUser(null)}>
+          <AlertDialogContent>
             <EditUserDialog
               user={editingUser}
               onClose={() => setEditingUser(null)}
@@ -404,8 +410,8 @@ export default function UserManagement() {
                 setEditingUser(null);
               }}
             />
-          </DialogContent>
-        </Dialog>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
 
       {/* No Users Selected Alert Dialog */}
