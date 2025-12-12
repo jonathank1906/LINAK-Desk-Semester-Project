@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { IconPlus, IconEdit, IconTrash, IconRefresh, IconAlertCircle, IconCheck, IconX, IconDotsVertical } from "@tabler/icons-react";
+import { IconPlus, IconEdit, IconTrash, IconRefresh, IconAlertCircle, IconCheck, IconX, IconDotsVertical, IconTool } from "@tabler/icons-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,7 +40,7 @@ export default function DeskManagement() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [releaseOpen, setReleaseOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
-  const [deactivateOpen, setDeactivateOpen] = useState(false); // New state
+  const [maintenanceOpen, setMaintenanceOpen] = useState(false); // Renamed for clarity
 
   const [selectedDesk, setSelectedDesk] = useState(null);
   
@@ -134,15 +134,15 @@ export default function DeskManagement() {
     }
   };
 
-  // Executed after confirmation (New function)
-  const executeDeactivate = async () => {
+  // Executed after confirmation (Now toggles "maintenance")
+  const executeMaintenanceToggle = async () => {
     if (!selectedDesk) return;
-    const newStatus = selectedDesk.current_status === "out_of_service" ? "available" : "out_of_service";
+    const newStatus = selectedDesk.current_status === "maintenance" ? "available" : "maintenance";
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
       await axios.patch(`http://localhost:8000/api/admin/desks/${selectedDesk.id}/update/`, { current_status: newStatus }, config);
-      toast.success(newStatus === "out_of_service" ? "Desk deactivated" : "Desk activated");
-      setDeactivateOpen(false);
+      toast.success(newStatus === "maintenance" ? "Desk set to maintenance" : "Desk activated");
+      setMaintenanceOpen(false);
       fetchDesks();
     } catch (err) {
       toast.error("Failed to change status");
@@ -176,9 +176,9 @@ export default function DeskManagement() {
     setClearOpen(true);
   };
 
-  const openDeactivate = (desk) => {
+  const openMaintenance = (desk) => {
     setSelectedDesk(desk);
-    setDeactivateOpen(true);
+    setMaintenanceOpen(true);
   };
 
   return (
@@ -250,9 +250,9 @@ export default function DeskManagement() {
                 <tbody>
                     {desks.map((desk) => {
                         const status = desk.current_status || "available";
-                        const isError = status === "Collision" || status === "Offline" || status === "Error";
+                        const isError = status === "Collision" || status === "Offline" || status === "Error" || status === "error";
                         const isOccupied = status === "occupied" || status === "in_use";
-                        const isDeactivated = status === "out_of_service";
+                        const isMaintenance = status === "maintenance";
 
                         return (
                         <tr key={desk.id} className="border-b hover:bg-muted/30 transition-colors">
@@ -260,10 +260,10 @@ export default function DeskManagement() {
                             <td className="py-3 px-4 text-muted-foreground">{desk.location || "—"}</td>
                             <td className="py-3 px-4">
                                 <Badge variant={
-                                    isDeactivated ? "destructive" :
+                                    isMaintenance ? "destructive" :
                                     isOccupied ? "secondary" :
                                     isError ? "destructive" : "outline"
-                                } className={!isDeactivated && !isOccupied && !isError ? "bg-green-100 text-green-800 hover:bg-green-100 border-green-200" : ""}>
+                                } className={!isMaintenance && !isOccupied && !isError ? "bg-green-100 text-green-800 hover:bg-green-100 border-green-200" : ""}>
                                     {status.replace(/_/g, " ")}
                                 </Badge>
                             </td>
@@ -310,11 +310,11 @@ export default function DeskManagement() {
                                         
                                         <DropdownMenuSeparator />
                                         
-                                        <DropdownMenuItem onClick={() => openDeactivate(desk)}>
-                                            {isDeactivated ? (
+                                        <DropdownMenuItem onClick={() => openMaintenance(desk)}>
+                                            {isMaintenance ? (
                                                 <><IconCheck className="mr-2 h-4 w-4 text-green-600" /> Activate Desk</>
                                             ) : (
-                                                <><IconAlertCircle className="mr-2 h-4 w-4" /> Deactivate</>
+                                                <><IconTool className="mr-2 h-4 w-4" /> Set Maintenance</>
                                             )}
                                         </DropdownMenuItem>
                                         
@@ -364,7 +364,7 @@ export default function DeskManagement() {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="available">Available</SelectItem>
-                        <SelectItem value="out_of_service">Out of Service</SelectItem>
+                        <SelectItem value="maintenance">Maintenance</SelectItem>
                         <SelectItem value="occupied">Occupied (Manual)</SelectItem>
                     </SelectContent>
                 </Select>
@@ -439,25 +439,25 @@ export default function DeskManagement() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* DEACTIVATE / ACTIVATE CONFIRMATION */}
-      <AlertDialog open={deactivateOpen} onOpenChange={setDeactivateOpen}>
+      {/* MAINTENANCE / ACTIVATE CONFIRMATION */}
+      <AlertDialog open={maintenanceOpen} onOpenChange={setMaintenanceOpen}>
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>
-                    {selectedDesk?.current_status === "out_of_service" 
+                    {selectedDesk?.current_status === "maintenance" 
                         ? "Activate Desk?" 
-                        : "Deactivate Desk?"}
+                        : "Set to Maintenance?"}
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                    {selectedDesk?.current_status === "out_of_service" ? (
+                    {selectedDesk?.current_status === "maintenance" ? (
                         <span>
                             This will make <span className="font-bold text-foreground">{selectedDesk?.name}</span> available for check-ins again.
                         </span>
                     ) : (
                         <span className="flex flex-col gap-2">
                             <span>
-                                Are you sure you want to mark <span className="font-bold text-foreground">{selectedDesk?.name}</span> as 
-                                <span className="font-semibold text-red-600"> Out of Service</span>?
+                                Are you sure you want to mark <span className="font-bold text-foreground">{selectedDesk?.name}</span> for 
+                                <span className="font-semibold text-red-600"> Maintenance</span>?
                             </span>
                             {(selectedDesk?.current_status === 'occupied' || selectedDesk?.current_status === 'in_use') && (
                                 <span className="bg-yellow-50 text-yellow-800 p-2 rounded-md border border-yellow-200 text-xs font-semibold flex items-center">
@@ -471,8 +471,8 @@ export default function DeskManagement() {
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={executeDeactivate}>
-                    {selectedDesk?.current_status === "out_of_service" ? "Activate" : "Deactivate"}
+                <AlertDialogAction onClick={executeMaintenanceToggle}>
+                    {selectedDesk?.current_status === "maintenance" ? "Activate" : "Set Maintenance"}
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>

@@ -1356,6 +1356,9 @@ def hotdesk_status(request):
     now = timezone.now()
 
     for desk in desks:
+        if desk.current_status == 'maintenance':
+            continue
+        
         # Check if desk has a Pico (requires confirmation)
         requires_confirmation = Pico.objects.filter(desk_id=desk.id).exists()
         
@@ -1720,7 +1723,7 @@ def available_desks_for_date(request):
         return Response({"error": "Invalid date or time format"}, status=400)
     
     # Get all desks
-    all_desks = Desk.objects.all()
+    all_desks = Desk.objects.exclude(current_status='maintenance')
     
     # Find desks with conflicting reservations using correct overlap logic
     # Two time ranges overlap if: start1 < end2 AND end1 > start2
