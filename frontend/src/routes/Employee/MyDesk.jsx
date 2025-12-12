@@ -414,8 +414,7 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center p-8 h-full">
          <Card className="w-full max-w-4xl p-8 flex flex-col items-center justify-center gap-4">
-            <Skeleton className="h-12 w-3/4" />
-            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-96 w-full" />
             <p className="text-muted-foreground animate-pulse">Connecting to desk...</p>
          </Card>
       </div>
@@ -533,7 +532,7 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
 
                 <Dialog open={reportModal} onOpenChange={setReportModal}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">
+                    <Button variant="destructive" size="sm">
                       Report Problem
                     </Button>
                   </DialogTrigger>
@@ -558,7 +557,7 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
                       </Select>
                     </div>
                     <DialogFooter>
-                      <Button variant="ghost" onClick={() => setReportModal(false)}>Cancel</Button>
+                      <Button variant="outline" onClick={() => setReportModal(false)}>Cancel</Button>
                       <Button onClick={submitReport}>Submit</Button>
                     </DialogFooter>
                   </DialogContent>
@@ -754,10 +753,10 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
                       Reset to Defaults
                     </Button>
                     <div className="space-x-2">
-                      <Button type="button" variant="ghost" onClick={() => setEditOpen(false)}>
+                      <Button variant="outline" onClick={() => setEditOpen(false)}>
                         Cancel
                       </Button>
-                      <Button type="button" onClick={handleSubmitPresets}>
+                      <Button onClick={handleSubmitPresets}>
                         Save
                       </Button>
                     </div>
