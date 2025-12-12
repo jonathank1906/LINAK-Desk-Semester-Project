@@ -44,6 +44,8 @@ import {
 // Desk height constants (in cm)
 export const STANDING_HEIGHT = 110;
 export const SITTING_HEIGHT = 72;
+const DEFAULT_STANDING_NAME = "Standing Position";
+const DEFAULT_SITTING_NAME = "Sitting Position";
 
 export default function MyDesk({ selectedDeskId, onNavigate }) {
   const { user } = useAuth();
@@ -77,12 +79,16 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
     custom_height_3_name: "",
   });
 
-  const standing = pref?.custom_height_1 ?? pref?.standing_height ?? 110;
-  const standingLabel = pref?.custom_height_1_name || "Standing Position";
-  const sitting = pref?.custom_height_2 ?? pref?.sitting_height ?? 72;
-  const sittingLabel = pref?.custom_height_2_name || "Sitting Position";
+  const standing = pref?.custom_height_1 ?? pref?.standing_height ?? STANDING_HEIGHT;
+  const standingLabel = pref?.custom_height_1_name || DEFAULT_STANDING_NAME;
+  const sitting = pref?.custom_height_2 ?? pref?.sitting_height ?? SITTING_HEIGHT;
+  const sittingLabel = pref?.custom_height_2_name || DEFAULT_SITTING_NAME;
   const custom = pref?.custom_height_3;  
   const customLabel = pref?.custom_height_3_name || "Custom Preset";
+
+  const minHeight = 60;
+  const maxHeight = 120;
+  const currentHeight = deskStatus?.current_height || SITTING_HEIGHT;
 
   useEffect(() => {
     setLoadingPref(true);
@@ -123,6 +129,28 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
       custom_height_3_name: pref?.custom_height_3_name || "",
     });
     setEditOpen(true);
+  };
+
+  // Check if form currently matches system defaults exactly
+  const isAtDefaults = 
+    Number(formState.custom_height_1) === STANDING_HEIGHT &&
+    formState.custom_height_1_name === DEFAULT_STANDING_NAME &&
+    Number(formState.custom_height_2) === SITTING_HEIGHT &&
+    formState.custom_height_2_name === DEFAULT_SITTING_NAME &&
+    (formState.custom_height_3 === "" || formState.custom_height_3 === null || formState.custom_height_3 === 0) &&
+    (formState.custom_height_3_name === "" || formState.custom_height_3_name === null);
+
+  const handleResetPresets = () => {
+    // Only update the form state. Do NOT close modal. Do NOT save to API yet.
+    setFormState({
+      custom_height_1: STANDING_HEIGHT,
+      custom_height_1_name: DEFAULT_STANDING_NAME,
+      custom_height_2: SITTING_HEIGHT,
+      custom_height_2_name: DEFAULT_SITTING_NAME,
+      custom_height_3: "",
+      custom_height_3_name: "",
+    });
+    toast.info("Values reset to default. Click Save to apply.");
   };
 
   const handleSave = async (form) => {
@@ -169,30 +197,7 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
     }
   };
 
-  const handleResetPresets = async () => {
-    const payload = {
-      custom_height_1: null,
-      custom_height_1_name: null,
-      custom_height_2: null,
-      custom_height_2_name: null,
-      custom_height_3: null,
-      custom_height_3_name: null,
-    };
-
-    try {
-      if (pref?.id) {
-        const updated = await updatePreference(pref.id, payload);
-        setPref(updated);
-      }
-      toast.success("Presets reset to defaults");
-      setEditOpen(false);
-    } catch (e) {
-      toast.error("Failed to reset presets");
-    }
-  };
-
   // --- HELPER: TIME FORMATTING ---
-  // Format seconds as "Xh Ym" or "Xm" (no seconds)
   const formatHM = (seconds) => {
     if (!seconds || isNaN(seconds)) return "0m";
     const h = Math.floor(seconds / 3600);
@@ -203,7 +208,6 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
     return `${m}m`;
   };
 
-  // Format elapsed or remaining time (dateString) as h m
   const formatTime = (dateString, isDiff = false) => {
     if (!dateString) return "0m";
     try {
@@ -225,7 +229,6 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
 
   // --- 1. INITIAL FETCH & DATA SYNC ---
   useEffect(() => {
-    // Reset state when desk ID changes to ensure fresh load
     setLoading(true);
     setDeskStatus(null);
     setUsageStats(null);
@@ -241,23 +244,18 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
         const deskId = selectedDeskId;
         const config = { headers: { Authorization: `Bearer ${user.token}` } };
 
-        // We fetch status and usage. 
-        // Note: Usage failing shouldn't block the desk controls if status works.
         const statusReq = axios.get(`http://localhost:8000/api/desks/${deskId}/status/`, config);
         const usageReq = axios.get(`http://localhost:8000/api/desks/${deskId}/usage/`, config);
 
-        // Await status primarily
         const statusRes = await statusReq;
 
         if (isMounted.current) {
             setDeskStatus(statusRes.data);
         }
 
-        // Handle usage separately to prevent usage 500s from blocking UI
         try {
             const usageRes = await usageReq;
             
-            // CHECK: Only block if API EXPLICITLY says false.
             if (usageRes.data.active_session === false) {
                 if (isMounted.current) handleSessionExpiry();
                 return;
@@ -271,7 +269,6 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
 
       } catch (err) {
         console.error("Error fetching desk status:", err);
-        // If 404/403 on the STATUS endpoint, the desk is genuinely inaccessible
         if (err.response && (err.response.status === 404 || err.response.status === 403)) {
             if (isMounted.current) handleSessionExpiry();
         }
@@ -409,7 +406,6 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
 
   // --- VIEW LOGIC GATES ---
 
-  // 1. Loading State
   if (loading) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center p-8 h-full">
@@ -421,11 +417,6 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
     );
   }
 
-  // 2. Error / Session Ended State
-  // We only show this if:
-  // a) No desk is selected (shouldn't happen if parent passes ID)
-  // b) We loaded successfully, but have NO desk status (API 404/403)
-  // c) The usage stats explicitly said "active_session: false"
   const sessionExplicitlyEnded = usageStats && usageStats.active_session === false;
   
   if (!selectedDeskId || !deskStatus || sessionExplicitlyEnded) {
@@ -455,10 +446,6 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
       </div>
     );
   }
-
-  const currentHeight = deskStatus?.current_height || SITTING_HEIGHT;
-  const minHeight = 60;
-  const maxHeight = 120;
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0 h-[calc(100vh-100px)]"> 
@@ -748,7 +735,7 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
                       type="button"
                       variant="outline"
                       onClick={handleResetPresets}
-                      disabled={!pref?.custom_height_1 && !pref?.custom_height_2}
+                      disabled={isAtDefaults}
                     >
                       Reset to Defaults
                     </Button>
