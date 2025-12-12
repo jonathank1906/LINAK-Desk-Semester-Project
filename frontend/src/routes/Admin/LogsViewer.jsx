@@ -1,96 +1,164 @@
-import { useState, useEffect } from "react";
-import axios from "axios";
+import React, { useState, useEffect, useMemo } from "react";
+import { DataTable } from "./SystemLogs/data-table";
+import { columns } from "./SystemLogs/columns";
+import { Button } from "@/components/ui/button";
+import { IconFilterX, IconRefresh } from "@tabler/icons-react";
 import { useAuth } from "@/contexts/useAuth";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function LogsViewer() {
   const { user } = useAuth();
   const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [lastRefresh, setLastRefresh] = useState(null);
+
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterAction, setFilterAction] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
+
+  const fetchLogs = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("http://localhost:8000/api/logs/", {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch logs");
+      const data = await res.json();
+      setLogs(data);
+      setLastRefresh(new Date());
+      setError(null);
+      setLoading(false);
+    } catch (err) {
+      console.error("Failed to fetch logs", err);
+      setError("Could not load logs.");
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchLogs() {
-      try {
-        const config = { headers: { Authorization: `Bearer ${user.token}` }};
-        const res = await axios.get("http://localhost:8000/api/logs/", config);
-        setLogs(res.data);
-      } catch (err) {
-        console.error("Failed to fetch logs", err);
-      }
-    }
-
     fetchLogs();
     const interval = setInterval(fetchLogs, 10000); // refresh every 10s
     return () => clearInterval(interval);
   }, [user]);
 
+  // Filtering logic
+  const filteredLogs = useMemo(() => {
+    return logs.filter((log) => {
+      const searchMatch =
+        log.user_full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        log.desk_name?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const actionMatch = filterAction ? log.action === filterAction : true;
+      const categoryMatch = filterCategory
+        ? log.report_category === filterCategory
+        : true;
+
+      return searchMatch && actionMatch && categoryMatch;
+    });
+  }, [logs, searchTerm, filterAction, filterCategory]);
+
+  // Get unique values for filters
+  const uniqueActions = [...new Set(logs.map((log) => log.action))].sort();
+  const uniqueCategories = [
+    ...new Set(logs.map((log) => log.report_category).filter(Boolean)),
+  ].sort();
+
+
+  const resetFilters = () => {
+    setSearchTerm("");
+    setFilterAction("");
+    setFilterCategory("");
+  };
+
+  if (loading && logs.length === 0)
+    return <div className="p-6 text-muted-foreground">Loading logs...</div>;
+  if (error) return <div className="p-6 text-red-500">{error}</div>;
+
   return (
-    <div className="p-4 space-y-3">
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white">System Logs</h2>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-200 dark:border-gray-800">
-              <th className="text-left py-2 px-2 font-semibold text-gray-900 dark:text-gray-100">User</th>
-              <th className="text-left py-2 px-2 font-semibold text-gray-900 dark:text-gray-100">Desk</th>
-              <th className="text-left py-2 px-2 font-semibold text-gray-900 dark:text-gray-100">Action</th>
-              <th className="text-left py-2 px-2 font-semibold text-gray-900 dark:text-gray-100">Category</th>
-              <th className="text-left py-2 px-2 font-semibold text-gray-900 dark:text-gray-100">Height</th>
-              <th className="text-left py-2 px-2 font-semibold text-gray-900 dark:text-gray-100">Date & Time</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-            {logs.length === 0 && (
-              <tr>
-                <td colSpan="6" className="py-4 text-center text-gray-500 dark:text-gray-400">
-                  No logs available
-                </td>
-              </tr>
-            )}
-            {logs.map((log, i) => (
-              <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
-                <td className="py-2 px-2">
-                  <div className="text-gray-900 dark:text-gray-100 font-medium">
-                    {log.user_full_name}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    ID: {log.user_id}
-                  </div>
-                </td>
-                <td className="py-2 px-2 text-gray-900 dark:text-gray-100">
-                  {log.desk_name}
-                </td>
-                <td className="py-2 px-2">
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                    log.action === 'hotdesk_started' ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200' :
-                    log.action === 'hotdesk_ended' ? 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-200' :
-                    log.action === 'desk_released' ? 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200' :
-                    log.action === 'reservation_checked_in' ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200' :
-                    log.action === 'reservation_checked_out' ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-200' :
-                    log.action === 'desk_report_submitted' ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200' :
-                    'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200'
-                  }`}>
-                    {log.action.replace(/_/g, ' ').toUpperCase()}
-                  </span>
-                </td>
-                <td className="py-2 px-2 text-gray-700 dark:text-gray-300 text-xs">
-                  {log.report_category ? (
-                    <span className="inline-block px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-gray-700 dark:text-gray-300">
-                      {log.report_category}
-                    </span>
-                  ) : (
-                    '—'
-                  )}
-                </td>
-                <td className="py-2 px-2 text-gray-700 dark:text-gray-300">
-                  {log.height ? `${log.height}cm` : '—'}
-                </td>
-                <td className="py-2 px-2 text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">
-                  {log.timestamp_formatted}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="flex flex-col gap-6 px-6 pb-12 pt-4">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">System Logs</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Monitor desk activity and user actions
+            {` • Last updated: ${lastRefresh.toLocaleTimeString()}`}
+          </p>
+        </div>
+        <Button onClick={fetchLogs} variant="outline" size="sm">
+          <IconRefresh className="mr-2 h-4 w-4" /> Refresh
+        </Button>
       </div>
+
+      {/* Filter Row */}
+      <Card className="bg-muted/50 py-0">
+        <CardContent className="px-4 py-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              type="text"
+              placeholder="Search by user or desk"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-xs"
+            />
+
+            <Select 
+              value={filterAction || "all"} 
+              onValueChange={(val) => setFilterAction(val === "all" ? "" : val)}
+            >
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="All Actions" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Actions</SelectItem>
+                {uniqueActions.map((action) => (
+                  <SelectItem key={action} value={action}>
+                    {action.replace(/_/g, " ").toUpperCase()}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select 
+              value={filterCategory || "all"} 
+              onValueChange={(val) => setFilterCategory(val === "all" ? "" : val)}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {uniqueCategories.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button variant="secondary" onClick={resetFilters}>
+              <IconFilterX className="mr-2 h-4 w-4" /> Reset Filters
+            </Button>
+
+            <div className="ml-auto text-sm text-muted-foreground">
+              Showing {filteredLogs.length} of {logs.length} logs
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Table */}
+      <DataTable columns={columns} data={filteredLogs} />
     </div>
   );
 }
