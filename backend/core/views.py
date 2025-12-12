@@ -2301,7 +2301,7 @@ def execute_desk_schedule(request, schedule_id):
             if success:
                 # Update desk in database
                 desk.current_height = schedule.target_height
-                desk.current_status = 'moving'
+                desk.current_status = 'available'
                 desk.save()
                 
                 # Log the action
