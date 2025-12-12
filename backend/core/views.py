@@ -2347,3 +2347,77 @@ def execute_desk_schedule(request, schedule_id):
             'skipped': len(results['skipped'])
         }
     })
+
+# ================= ADMIN DESK MANAGEMENT =================
+
+@api_view(['POST'])
+@permission_classes([IsAdminUser])
+def admin_create_desk(request):
+    serializer = DeskSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['PATCH'])
+@permission_classes([IsAdminUser])
+def admin_update_desk(request, desk_id):
+    try:
+        desk = Desk.objects.get(id=desk_id)
+    except Desk.DoesNotExist:
+        return Response({'error': 'Desk not found'}, status=404)
+    
+    serializer = DeskSerializer(desk, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=400)
+
+@api_view(['DELETE'])
+@permission_classes([IsAdminUser])
+def admin_delete_desk(request, desk_id):
+    try:
+        desk = Desk.objects.get(id=desk_id)
+        desk.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    except Desk.DoesNotExist:
+        return Response({'error': 'Desk not found'}, status=404)
+
+@api_view(['POST'])
+@permission_classes([IsAdminUser])
+def admin_force_release(request, desk_id):
+    """Force release a desk, kicking off any current user."""
+    # Re-use your existing release logic but bypass the 'is this your desk' check
+    try:
+        desk = Desk.objects.get(id=desk_id)
+        
+        # Close open logs
+        log = DeskUsageLog.objects.filter(desk=desk, ended_at__isnull=True).first()
+        if log:
+            log.ended_at = timezone.now()
+            log.save()
+            
+        desk.current_user = None
+        desk.current_status = 'available'
+        desk.save()
+        
+        # Notify hardware
+        mqtt = get_mqtt_service()
+        if Pico.objects.filter(desk=desk).exists():
+            mqtt.notify_desk_available(desk.id)
+            
+        return Response({'success': True, 'message': 'Desk force released'})
+    except Desk.DoesNotExist:
+        return Response({'error': 'Desk not found'}, status=404)
+
+@api_view(['POST'])
+@permission_classes([IsAdminUser])
+def admin_clear_reservations(request, desk_id):
+    """Cancel ALL upcoming reservations for this desk."""
+    count = Reservation.objects.filter(
+        desk_id=desk_id,
+        status__in=['confirmed', 'active', 'pending_confirmation'],
+        end_time__gt=timezone.now()
+    ).update(status='cancelled', cancelled_by=request.user, cancelled_at=timezone.now())
+    
+    return Response({'success': True, 'message': f'Cancelled {count} reservations'})

@@ -4,6 +4,7 @@ from django.utils import timezone
 from django.apps import apps
 from decouple import config
 from datetime import timedelta
+from django.db import connection  # Import connection
 
 class Command(BaseCommand):
     help = "Seed initial database data"
@@ -12,7 +13,6 @@ class Command(BaseCommand):
         # -------------------------------------------------
         # Seed users
         # -------------------------------------------------
-        # Create admin user
         User = get_user_model()
         admin_user, created = User.objects.get_or_create(username='admin', defaults={'email': 'admin@example.com'})
         admin_user.first_name = 'Admin'
@@ -258,8 +258,6 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f"Updated desk {desk_obj.wifi2ble_id} -> {desk_obj.name}"))
 
 
-
-
         # -------------------------------------------------
         # Create Pico W
         # -------------------------------------------------
@@ -299,8 +297,6 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f"Created Pico {pico_obj.mac_address} -> Desk ID {pico_obj.desk_id}"))
             else:
                 self.stdout.write(self.style.SUCCESS(f"Updated Pico {pico_obj.mac_address} -> Desk ID {pico_obj.desk_id}"))
-
-
 
 
         # -------------------------------------------------
@@ -428,3 +424,23 @@ class Command(BaseCommand):
                             f"Created usage log for {log.user.email} on desk {log.desk.name}"
                         )
                     )
+        
+        # -------------------------------------------------
+        # FIX SEQUENCE IDs (AUTO-INCREMENT REPAIR)
+        # -------------------------------------------------
+        self.stdout.write(self.style.WARNING('Resetting database sequence counters...'))
+        
+        # Get all models in the 'core' app
+        core_models = apps.get_app_config('core').get_models()
+        
+        # Generate the SQL to fix the sequence counters for all tables
+        from django.core.management.color import no_style
+        sequence_sql = connection.ops.sequence_reset_sql(no_style(), core_models)
+        
+        if sequence_sql:
+            with connection.cursor() as cursor:
+                for sql in sequence_sql:
+                    cursor.execute(sql)
+            self.stdout.write(self.style.SUCCESS("Successfully reset database sequences. ID conflicts resolved."))
+        else:
+            self.stdout.write("No sequences needed resetting.")

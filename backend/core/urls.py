@@ -25,6 +25,11 @@ from .views import (
     desk_schedules_list,
     desk_schedule_detail,
     execute_desk_schedule,
+    admin_create_desk,
+    admin_update_desk,
+    admin_delete_desk,
+    admin_force_release,
+    admin_clear_reservations,
 )
 
 urlpatterns = [
@@ -90,4 +95,10 @@ urlpatterns = [
     path('schedules/', desk_schedules_list, name='desk_schedules_list'),
     path('schedules/<int:schedule_id>/', desk_schedule_detail, name='desk_schedule_detail'),
     path('schedules/<int:schedule_id>/execute/', execute_desk_schedule, name='execute_desk_schedule'),
+
+    path('admin/desks/create/', admin_create_desk),
+    path('admin/desks/<int:desk_id>/update/', admin_update_desk),
+    path('admin/desks/<int:desk_id>/delete/', admin_delete_desk),
+    path('admin/desks/<int:desk_id>/force-release/', admin_force_release),
+    path('admin/desks/<int:desk_id>/clear-reservations/', admin_clear_reservations),
 ]

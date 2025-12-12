@@ -1,4 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/useAuth";
+import axios from "axios";
+import { toast } from "sonner";
 import {
   Card,
   CardHeader,
@@ -6,12 +9,11 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { IconPlus, IconEdit, IconTrash, IconRefresh, IconAlertCircle, IconEye, IconX } from "@tabler/icons-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
+import { IconPlus, IconEdit, IconTrash, IconRefresh, IconAlertCircle, IconCheck, IconX, IconDotsVertical } from "@tabler/icons-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,199 +24,460 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-
-const mockDesks = [
-  {
-    id: 1,
-    name: "Desk 101",
-    location: "Floor 1, Room A",
-    status: "available",
-    error: null,
-    isActive: true,
-    current_user: null,
-    reservations: 2,
-  },
-  {
-    id: 2,
-    name: "Desk 102",
-    location: "Floor 1, Room B",
-    status: "occupied",
-    error: "Motor error",
-    isActive: true,
-    current_user: "John Doe",
-    reservations: 1,
-  },
-  {
-    id: 3,
-    name: "Desk 103",
-    location: "Floor 2, Room C",
-    status: "out_of_service",
-    error: "Broken leg",
-    isActive: false,
-    current_user: null,
-    reservations: 0,
-  },
-];
+} from "@/components/ui/alert-dialog";
+import { Spinner } from "@/components/ui/shadcn-io/spinner";
 
 export default function DeskManagement() {
-  const [desks, setDesks] = useState(mockDesks);
+  const { user } = useAuth();
+  const [desks, setDesks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  // --- Modals State ---
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  
+  // Confirmation Dialog States
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [releaseOpen, setReleaseOpen] = useState(false);
+  const [clearOpen, setClearOpen] = useState(false);
+  const [deactivateOpen, setDeactivateOpen] = useState(false); // New state
+
   const [selectedDesk, setSelectedDesk] = useState(null);
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  
+  // Form Data
+  const [formData, setFormData] = useState({ name: "", location: "", current_status: "available" });
+
+  useEffect(() => {
+    fetchDesks();
+  }, []);
+
+  const fetchDesks = async () => {
+    setLoading(true);
+    try {
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      const res = await axios.get("http://localhost:8000/api/desks/", config);
+      setDesks(res.data);
+    } catch (err) {
+      toast.error("Failed to load desks");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- Actions ---
+
+  const handleCreate = async () => {
+    try {
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      await axios.post("http://localhost:8000/api/admin/desks/create/", formData, config);
+      toast.success("Desk created successfully");
+      setCreateOpen(false);
+      setFormData({ name: "", location: "", current_status: "available" });
+      fetchDesks();
+    } catch (err) {
+      toast.error("Failed to create desk");
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!selectedDesk) return;
+    try {
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      await axios.patch(`http://localhost:8000/api/admin/desks/${selectedDesk.id}/update/`, formData, config);
+      toast.success("Desk updated");
+      setEditOpen(false);
+      fetchDesks();
+    } catch (err) {
+      toast.error("Failed to update desk");
+    }
+  };
+
+  // Executed after confirmation
+  const executeDelete = async () => {
+    if (!selectedDesk) return;
+    try {
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      await axios.delete(`http://localhost:8000/api/admin/desks/${selectedDesk.id}/delete/`, config);
+      toast.success("Desk deleted");
+      setDeleteOpen(false);
+      fetchDesks();
+    } catch (err) {
+      toast.error("Failed to delete desk");
+    }
+  };
+
+  // Executed after confirmation
+  const executeForceRelease = async () => {
+    if (!selectedDesk) return;
+    try {
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      await axios.post(`http://localhost:8000/api/admin/desks/${selectedDesk.id}/force-release/`, {}, config);
+      toast.success("Desk released forcefully");
+      setReleaseOpen(false);
+      fetchDesks();
+    } catch (err) {
+      toast.error("Failed to release desk");
+    }
+  };
+
+  // Executed after confirmation
+  const executeClearReservations = async () => {
+    if (!selectedDesk) return;
+    try {
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      const res = await axios.post(`http://localhost:8000/api/admin/desks/${selectedDesk.id}/clear-reservations/`, {}, config);
+      toast.success(res.data.message);
+      setClearOpen(false);
+      fetchDesks();
+    } catch (err) {
+      toast.error("Failed to clear reservations");
+    }
+  };
+
+  // Executed after confirmation (New function)
+  const executeDeactivate = async () => {
+    if (!selectedDesk) return;
+    const newStatus = selectedDesk.current_status === "out_of_service" ? "available" : "out_of_service";
+    try {
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      await axios.patch(`http://localhost:8000/api/admin/desks/${selectedDesk.id}/update/`, { current_status: newStatus }, config);
+      toast.success(newStatus === "out_of_service" ? "Desk deactivated" : "Desk activated");
+      setDeactivateOpen(false);
+      fetchDesks();
+    } catch (err) {
+      toast.error("Failed to change status");
+    }
+  };
+
+  // --- Trigger Functions (Open Modals) ---
+
+  const openEdit = (desk) => {
+    setSelectedDesk(desk);
+    setFormData({
+      name: desk.name,
+      location: desk.location || "", 
+      current_status: desk.current_status || "available"
+    });
+    setEditOpen(true);
+  };
+
+  const openDelete = (desk) => {
+    setSelectedDesk(desk);
+    setDeleteOpen(true);
+  };
+
+  const openForceRelease = (desk) => {
+    setSelectedDesk(desk);
+    setReleaseOpen(true);
+  };
+
+  const openClearReservations = (desk) => {
+    setSelectedDesk(desk);
+    setClearOpen(true);
+  };
+
+  const openDeactivate = (desk) => {
+    setSelectedDesk(desk);
+    setDeactivateOpen(true);
+  };
 
   return (
     <div className="flex flex-1 flex-col gap-6 px-6 pb-12 pt-4">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold">Desk Management</h2>
-        <AlertDialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <div>
+            <h2 className="text-2xl font-bold">Desk Management</h2>
+            <p className="text-muted-foreground">Manage inventory, assignments, and maintenance.</p>
+        </div>
+        
+        {/* CREATE DIALOG */}
+        <AlertDialog open={createOpen} onOpenChange={setCreateOpen}>
           <AlertDialogTrigger asChild>
-            <Button onClick={() => setShowCreateDialog(true)}>
-              <IconPlus className="h-5 w-5" /> New Desk
+            <Button onClick={() => setCreateOpen(true)}>
+              <IconPlus className="h-5 w-5 mr-2" /> New Desk
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
-            <AlertDialogTitle>Create New Desk</AlertDialogTitle>
-            <div className="space-y-4 mt-4">
-              <Input placeholder="Desk Name" />
-              <Input placeholder="Location" />
-              <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="available">Available</SelectItem>
-                  <SelectItem value="occupied">Occupied</SelectItem>
-                  <SelectItem value="out_of_service">Out of Service</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-                  Cancel
-                </Button>
-                <Button>Create</Button>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Create New Desk</AlertDialogTitle>
+                <AlertDialogDescription>Add a new desk to the office map.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                  <label className="text-sm font-medium">Desk Name</label>
+                  <Input 
+                    placeholder="e.g. DESK 4004" 
+                    value={formData.name} 
+                    onChange={e => setFormData({...formData, name: e.target.value})} 
+                  />
+              </div>
+              <div className="space-y-2">
+                  <label className="text-sm font-medium">Location</label>
+                  <Input 
+                    placeholder="e.g. Floor 2, North Wing" 
+                    value={formData.location} 
+                    onChange={e => setFormData({...formData, location: e.target.value})} 
+                  />
               </div>
             </div>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={(e) => { e.preventDefault(); handleCreate(); }}>Create Desk</AlertDialogAction>
+            </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>All Desks</CardTitle>
+          <CardTitle>Inventory ({desks.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="py-2 px-4 text-left">Name</th>
-                  <th className="py-2 px-4 text-left">Location</th>
-                  <th className="py-2 px-4 text-left">Status</th>
-                  <th className="py-2 px-4 text-left">Active</th>
-                  <th className="py-2 px-4 text-left">Current User</th>
-                  <th className="py-2 px-4 text-left">Reservations</th>
-                  <th className="py-2 px-4 text-left">Error</th>
-                  <th className="py-2 px-4 text-left">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {desks.map((desk) => (
-                  <tr key={desk.id} className="border-b hover:bg-muted/50">
-                    <td className="py-2 px-4">{desk.name}</td>
-                    <td className="py-2 px-4">{desk.location}</td>
-                    <td className="py-2 px-4">
-                      <Badge variant={
-                        desk.status === "available"
-                          ? "default"
-                          : desk.status === "occupied"
-                            ? "secondary"
-                            : "destructive"
-                      }>
-                        {desk.status.replace(/_/g, " ")}
-                      </Badge>
-                    </td>
-                    <td className="py-2 px-4">
-                      {desk.isActive ? (
-                        <Badge variant="default">Active</Badge>
-                      ) : (
-                        <Badge variant="destructive">Inactive</Badge>
-                      )}
-                    </td>
-                    <td className="py-2 px-4">{desk.current_user || "—"}</td>
-                    <td className="py-2 px-4">{desk.reservations}</td>
-                    <td className="py-2 px-4">
-                      {desk.error ? (
-                        <span className="flex items-center gap-1 text-red-600">
-                          <IconAlertCircle size={16} /> {desk.error}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">None</span>
-                      )}
-                    </td>
-                    <td className="py-2 px-4">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm">
-                            Actions
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem onClick={() => setSelectedDesk(desk)}>
-                            View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
-                            <IconEdit className="mr-2 h-4 w-4" /> Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <IconRefresh className="mr-2 h-4 w-4" /> Force Release
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <IconX className="mr-2 h-4 w-4" /> Clear Reservations
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <IconTrash className="mr-2 h-4 w-4" /> Delete
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <IconAlertCircle className="mr-2 h-4 w-4" /> Deactivate
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {loading ? (
+             <div className="flex justify-center p-8"><Spinner variant="circle"/></div>
+          ) : (
+            <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                <thead>
+                    <tr className="border-b bg-muted/50">
+                    <th className="py-3 px-4 text-left font-medium">Name</th>
+                    <th className="py-3 px-4 text-left font-medium">Location</th>
+                    <th className="py-3 px-4 text-left font-medium">Status</th>
+                    <th className="py-3 px-4 text-left font-medium">Current User</th>
+                    <th className="py-3 px-4 text-left font-medium">Health</th>
+                    <th className="py-3 px-4 text-right font-medium">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {desks.map((desk) => {
+                        const status = desk.current_status || "available";
+                        const isError = status === "Collision" || status === "Offline" || status === "Error";
+                        const isOccupied = status === "occupied" || status === "in_use";
+                        const isDeactivated = status === "out_of_service";
+
+                        return (
+                        <tr key={desk.id} className="border-b hover:bg-muted/30 transition-colors">
+                            <td className="py-3 px-4 font-medium">{desk.name}</td>
+                            <td className="py-3 px-4 text-muted-foreground">{desk.location || "—"}</td>
+                            <td className="py-3 px-4">
+                                <Badge variant={
+                                    isDeactivated ? "destructive" :
+                                    isOccupied ? "secondary" :
+                                    isError ? "destructive" : "outline"
+                                } className={!isDeactivated && !isOccupied && !isError ? "bg-green-100 text-green-800 hover:bg-green-100 border-green-200" : ""}>
+                                    {status.replace(/_/g, " ")}
+                                </Badge>
+                            </td>
+                            <td className="py-3 px-4">
+                                {desk.current_user ? (
+                                    <div className="flex flex-col">
+                                        <span className="font-medium">{desk.current_user.email}</span>
+                                        <span className="text-xs text-muted-foreground">ID: {desk.current_user.id}</span>
+                                    </div>
+                                ) : "—"}
+                            </td>
+                            <td className="py-3 px-4">
+                                {isError ? (
+                                    <span className="flex items-center gap-1.5 text-red-600 font-medium">
+                                        <IconAlertCircle size={16} /> {desk.last_error || "System Error"}
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center gap-1.5 text-green-600">
+                                        <IconCheck size={16} /> OK
+                                    </span>
+                                )}
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                            <IconDotsVertical className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuLabel>Manage Desk</DropdownMenuLabel>
+                                        
+                                        <DropdownMenuItem onClick={() => openEdit(desk)}>
+                                            <IconEdit className="mr-2 h-4 w-4" /> Edit Details
+                                        </DropdownMenuItem>
+                                        
+                                        <DropdownMenuItem onClick={() => openForceRelease(desk)} className="text-orange-600 focus:text-orange-600">
+                                            <IconRefresh className="mr-2 h-4 w-4" /> Force Release
+                                        </DropdownMenuItem>
+                                        
+                                        <DropdownMenuItem onClick={() => openClearReservations(desk)}>
+                                            <IconX className="mr-2 h-4 w-4" /> Clear Reservations
+                                        </DropdownMenuItem>
+                                        
+                                        <DropdownMenuSeparator />
+                                        
+                                        <DropdownMenuItem onClick={() => openDeactivate(desk)}>
+                                            {isDeactivated ? (
+                                                <><IconCheck className="mr-2 h-4 w-4 text-green-600" /> Activate Desk</>
+                                            ) : (
+                                                <><IconAlertCircle className="mr-2 h-4 w-4" /> Deactivate</>
+                                            )}
+                                        </DropdownMenuItem>
+                                        
+                                        <DropdownMenuItem onClick={() => openDelete(desk)} className="text-red-600 focus:text-red-600 focus:bg-red-50">
+                                            <IconTrash className="mr-2 h-4 w-4" /> Delete Desk
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </td>
+                        </tr>
+                        );
+                    })}
+                </tbody>
+                </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Edit Desk Dialog */}
-      <AlertDialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+      {/* EDIT DIALOG */}
+      <AlertDialog open={editOpen} onOpenChange={setEditOpen}>
         <AlertDialogContent>
-          <AlertDialogTitle>Edit Desk</AlertDialogTitle>
-          <div className="space-y-4 mt-4">
-            <Input placeholder="Desk Name" defaultValue={selectedDesk?.name} />
-            <Input placeholder="Location" defaultValue={selectedDesk?.location} />
-            <Select defaultValue={selectedDesk?.status}>
-              <SelectTrigger>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="available">Available</SelectItem>
-                <SelectItem value="occupied">Occupied</SelectItem>
-                <SelectItem value="out_of_service">Out of Service</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="flex justify-end gap-2 pt-2">
-              <AlertDialogCancel asChild>
-                <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
-              </AlertDialogCancel>
-              <Button>Save</Button>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Edit Desk</AlertDialogTitle>
+          </AlertDialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+                <label className="text-sm font-medium">Desk Name</label>
+                <Input 
+                  value={formData.name} 
+                  onChange={e => setFormData({...formData, name: e.target.value})} 
+                />
+            </div>
+            <div className="space-y-2">
+                <label className="text-sm font-medium">Location</label>
+                <Input 
+                  value={formData.location} 
+                  onChange={e => setFormData({...formData, location: e.target.value})} 
+                />
+            </div>
+            <div className="space-y-2">
+                <label className="text-sm font-medium">Status Override</label>
+                <Select 
+                    value={formData.current_status} 
+                    onValueChange={v => setFormData({...formData, current_status: v})}
+                >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="available">Available</SelectItem>
+                        <SelectItem value="out_of_service">Out of Service</SelectItem>
+                        <SelectItem value="occupied">Occupied (Manual)</SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
           </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setEditOpen(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); handleUpdate(); }}>Save Changes</AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* DELETE CONFIRMATION */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete 
+              <span className="font-bold text-foreground"> {selectedDesk?.name} </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+                onClick={executeDelete} 
+                className="bg-red-600 hover:bg-red-700"
+            >
+                Delete Desk
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* FORCE RELEASE CONFIRMATION */}
+      <AlertDialog open={releaseOpen} onOpenChange={setReleaseOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Force Release Desk?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will immediately kick off the current user from 
+              <span className="font-bold text-foreground"> {selectedDesk?.name}</span>. 
+              The desk will become available for new check-ins.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={executeForceRelease}>
+                Confirm Release
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* CLEAR RESERVATIONS CONFIRMATION */}
+      <AlertDialog open={clearOpen} onOpenChange={setClearOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear Future Reservations?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to cancel <span className="font-bold text-foreground">ALL</span> upcoming reservations for 
+              <span className="font-bold text-foreground"> {selectedDesk?.name}</span>. 
+              Affected users will be notified.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={executeClearReservations}>
+                Clear All
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* DEACTIVATE / ACTIVATE CONFIRMATION */}
+      <AlertDialog open={deactivateOpen} onOpenChange={setDeactivateOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>
+                    {selectedDesk?.current_status === "out_of_service" 
+                        ? "Activate Desk?" 
+                        : "Deactivate Desk?"}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                    {selectedDesk?.current_status === "out_of_service" ? (
+                        <span>
+                            This will make <span className="font-bold text-foreground">{selectedDesk?.name}</span> available for check-ins again.
+                        </span>
+                    ) : (
+                        <span className="flex flex-col gap-2">
+                            <span>
+                                Are you sure you want to mark <span className="font-bold text-foreground">{selectedDesk?.name}</span> as 
+                                <span className="font-semibold text-red-600"> Out of Service</span>?
+                            </span>
+                            {(selectedDesk?.current_status === 'occupied' || selectedDesk?.current_status === 'in_use') && (
+                                <span className="bg-yellow-50 text-yellow-800 p-2 rounded-md border border-yellow-200 text-xs font-semibold flex items-center">
+                                    <IconAlertCircle className="w-4 h-4 mr-1.5" />
+                                    Warning: This desk is currently occupied.
+                                </span>
+                            )}
+                        </span>
+                    )}
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={executeDeactivate}>
+                    {selectedDesk?.current_status === "out_of_service" ? "Activate" : "Deactivate"}
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }
