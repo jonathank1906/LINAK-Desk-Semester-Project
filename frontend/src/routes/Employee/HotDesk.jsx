@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/useAuth";
 import axios from "axios";
 import { toast } from "sonner";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import PendingVerificationModal from "@/components/pending-verification-modal";
 import { formatTimeFromISO } from "@/utils/date";
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
-import { Clock, LogOut } from "lucide-react";
+import { Clock } from "lucide-react";
 
 const formatLocalYYYYMMDD = (date) => {
   if (!date) return "";
@@ -24,7 +24,9 @@ export default function HotDesk({ setSelectedDeskId }) {
   const [loading, setLoading] = useState(false);
   
   const [userHasActive, setUserHasActive] = useState(false);
+  // eslint-disable-next-line no-unused-vars
   const [activeDeskId, setActiveDeskId] = useState(null);
+  // eslint-disable-next-line no-unused-vars
   const [isOccupying, setIsOccupying] = useState(false); 
   
   const [verificationModalOpen, setVerificationModalOpen] = useState(false);
@@ -32,59 +34,14 @@ export default function HotDesk({ setSelectedDeskId }) {
   const [polling, setPolling] = useState(false);
   const [selectingDeskId, setSelectingDeskId] = useState(null);
   const [selectingAnyDesk, setSelectingAnyDesk] = useState(false);
-  const [releasing, setReleasing] = useState(false);
 
-  useEffect(() => {
-    fetchHotdeskStatus();
-    // eslint-disable-next-line
-  }, []);
-
-  useEffect(() => {
-    let interval;
-    if (polling && pendingDeskId) {
-      interval = setInterval(async () => {
-        try {
-          const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
-          const res = await axios.get(`http://localhost:8000/api/desks/${pendingDeskId}/`, config);
-          if (res.data.current_status === "occupied") {
-            setVerificationModalOpen(false);
-            setPolling(false);
-            toast.success("Desk confirmed!");
-            if (setSelectedDeskId) setSelectedDeskId(pendingDeskId);
-          }
-          if (res.data.current_status === "available") {
-            if (setSelectedDeskId) setSelectedDeskId(null);
-          }
-        } catch (err) {
-          console.error("API error:", err);
-        }
-      }, 2000);
-    }
-    return () => clearInterval(interval);
-  }, [polling, pendingDeskId, user, setSelectedDeskId]);
-
-  const fetchHotdeskStatus = async () => {
-    setLoading(true);
-    try {
-      const today = formatLocalYYYYMMDD(new Date());
-      const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
-      const response = await axios.get(`http://localhost:8000/api/desks/hotdesk_status/?date=${today}`, config);
-
-      setHotdeskStatus(response.data);
-      refreshUserActive();
-    } catch (err) {
-      console.error("API error:", err);
-      toast.error("Failed to fetch hot desk status");
-      setHotdeskStatus([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  async function refreshUserActive() {
+  // 1. REFRESH USER ACTIVE STATUS
+  const refreshUserActive = useCallback(async () => {
     try {
       const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
-      const desksRes = await axios.get(`http://localhost:8000/api/desks/`, config);
+      const t = new Date().getTime(); // Cache busting
+      
+      const desksRes = await axios.get(`http://localhost:8000/api/desks/?t=${t}`, config);
       
       const activeDesk = (desksRes.data || []).find(d => {
         const isOwnedByUser = d.current_user && String(d.current_user.id) === String(user?.id) && d.current_status !== 'available';
@@ -99,7 +56,8 @@ export default function HotDesk({ setSelectedDeskId }) {
         return;
       }
 
-      const res = await axios.get(`http://localhost:8000/api/reservations/`, config);
+      // Check reservations if no physical desk found
+      const res = await axios.get(`http://localhost:8000/api/reservations/?t=${t}`, config);
       const userRes = (res.data || []).find(r => (r.status === 'active' || r.status === 'confirmed') && ((r.user_id && String(r.user_id) === String(user?.id)) || (r.user && ((typeof r.user === 'object' && r.user.id) || r.user) == user?.id)));
       
       if (userRes) {
@@ -117,45 +75,98 @@ export default function HotDesk({ setSelectedDeskId }) {
       }
 
     } catch (err) {
+      console.error("Error refreshing active user:", err);
       setUserHasActive(false);
       setIsOccupying(false);
       setActiveDeskId(null);
     }
-  }
-
-  useEffect(() => {
-    if (user) {
-      refreshUserActive();
-    }
-    // eslint-disable-next-line
   }, [user]);
 
-  const handleReleaseActive = async () => {
-      if (!activeDeskId) return;
-      setReleasing(true);
-      try {
+  // 2. FETCH HOT DESK STATUS (The Grid)
+  // We don't set global loading state on background polls to avoid UI flickering
+  const fetchHotdeskStatus = useCallback(async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
+    try {
+      const today = formatLocalYYYYMMDD(new Date());
+      const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
+      
+      const t = new Date().getTime(); // Cache busting
+      const response = await axios.get(`http://localhost:8000/api/desks/hotdesk_status/?date=${today}&t=${t}`, config);
+
+      setHotdeskStatus(response.data);
+      await refreshUserActive();
+    } catch (err) {
+      console.error("API error:", err);
+      // Only show toast on manual actions, not background polling
+      if (!isBackground) toast.error("Failed to fetch hot desk status");
+    } finally {
+      if (!isBackground) setLoading(false);
+    }
+  }, [user, refreshUserActive]);
+
+  // 3. AUTOMATION & LISTENERS
+  useEffect(() => {
+    // A. Initial Load
+    fetchHotdeskStatus(false);
+
+    // B. Listen for release events from Dashboard
+    const handleReservationUpdate = () => {
+      console.log("Auto-refreshing grid due to reservation update...");
+      fetchHotdeskStatus(true);
+    };
+
+    window.addEventListener('reservation-updated', handleReservationUpdate);
+    window.addEventListener('focus', () => fetchHotdeskStatus(true));
+
+    // C. Auto-Poll every 10 seconds to keep grid fresh automatically
+    const autoRefreshInterval = setInterval(() => {
+        fetchHotdeskStatus(true);
+    }, 10000);
+
+    return () => {
+      window.removeEventListener('reservation-updated', handleReservationUpdate);
+      window.removeEventListener('focus', () => fetchHotdeskStatus(true));
+      clearInterval(autoRefreshInterval);
+    };
+  }, [fetchHotdeskStatus]);
+
+
+  // 4. POLLING FOR PICO CONFIRMATION
+  useEffect(() => {
+    let interval;
+    if (polling && pendingDeskId) {
+      interval = setInterval(async () => {
+        try {
           const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
-          await axios.post(`http://localhost:8000/api/desks/${activeDeskId}/release/`, {}, config);
+          const t = new Date().getTime();
+          const res = await axios.get(`http://localhost:8000/api/desks/${pendingDeskId}/?t=${t}`, config);
           
-          toast.success("Desk released successfully");
-          
-          setUserHasActive(false);
-          setIsOccupying(false);
-          setActiveDeskId(null);
-          if (setSelectedDeskId) setSelectedDeskId(null);
-          
-          fetchHotdeskStatus();
-          window.dispatchEvent(new Event('reservation-updated'));
-          
-      } catch (err) {
-          toast.error("Failed to release desk", { description: err.response?.data?.error || err.message });
-      } finally {
-          setReleasing(false);
-      }
-  };
+          if (res.data.current_status === "occupied") {
+            setVerificationModalOpen(false);
+            setPolling(false);
+            toast.success("Desk confirmed!");
+            if (setSelectedDeskId) setSelectedDeskId(pendingDeskId);
+            
+            // Force refresh everything
+            fetchHotdeskStatus();
+            window.dispatchEvent(new Event('reservation-updated'));
+          }
+          if (res.data.current_status === "available") {
+            if (setSelectedDeskId) setSelectedDeskId(null);
+            setPolling(false);
+            setVerificationModalOpen(false);
+            fetchHotdeskStatus();
+          }
+        } catch (err) {
+          console.error("API error:", err);
+        }
+      }, 2000);
+    }
+    return () => clearInterval(interval);
+  }, [polling, pendingDeskId, user, setSelectedDeskId, fetchHotdeskStatus]);
+
 
   const startHotDesk = async (deskId) => {
-    // 1. Frontend Check (Immediate feedback)
     if (userHasActive) {
         toast.error('You are already using a desk.', { description: "Please release your current desk before selecting a new one." });
         return;
@@ -167,7 +178,6 @@ export default function HotDesk({ setSelectedDeskId }) {
     try {
       const config = { headers: { Authorization: `Bearer ${user?.token}` }, withCredentials: true };
       
-      // 2. Call API (Backend Check will throw 400 if user has another desk)
       const response = await axios.post(`http://localhost:8000/api/desks/${deskId}/hotdesk/start/`, {}, config);
       const { requires_confirmation } = response.data;
 
@@ -178,17 +188,17 @@ export default function HotDesk({ setSelectedDeskId }) {
         setPolling(true);
       } else {
         toast.success("Hot desk started!");
-        setSelectedDeskId(deskId);
+        if(setSelectedDeskId) setSelectedDeskId(deskId);
+        
         setUserHasActive(true);
         setIsOccupying(true);
         setActiveDeskId(deskId);
-        fetchHotdeskStatus();
+        
+        fetchHotdeskStatus(true);
         window.dispatchEvent(new Event('reservation-updated'));
       }
     } catch (err) {
-      // 3. Catch Backend Error (e.g., "You are already using Desk 1")
       toast.error("Failed to start hot desk", { description: err.response?.data?.error || err.message });
-      // Refresh state to ensure button disables if backend says we have a desk
       refreshUserActive();
     } finally {
       setSelectingDeskId(null);
@@ -222,12 +232,15 @@ export default function HotDesk({ setSelectedDeskId }) {
             <CardTitle>Hot Desk</CardTitle>
             <CardDescription>See which desks are free right now</CardDescription>
           </div>
+          {/* Refresh button removed for automatic handling */}
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <p className="text-center text-muted-foreground">Loading...</p>
+          {loading && hotdeskStatus.length === 0 ? (
+            <div className="flex justify-center items-center py-8">
+                <Spinner className="w-6 h-6 text-muted-foreground" />
+            </div>
           ) : hotdeskStatus.length === 0 ? (
-            <p className="text-center text-muted-foreground">No desk data available.</p>
+            <p className="text-center text-muted-foreground py-8">No desk data available.</p>
           ) : (
             <div className="space-y-3">
               {hotdeskStatus.map((desk) => {
@@ -237,10 +250,6 @@ export default function HotDesk({ setSelectedDeskId }) {
                   : desk.reserved_time
                     ? new Date(desk.reserved_time)
                     : null;
-
-                const threshold = reservedStart
-                  ? new Date(reservedStart.getTime() - 30 * 60 * 1000)
-                  : null;
 
                 const isOccupied = !!desk.occupied || (!!desk.current_status && desk.current_status === "occupied");
                 const isReserved = !!desk.reserved;
@@ -316,7 +325,6 @@ export default function HotDesk({ setSelectedDeskId }) {
                              <Button
                                 variant="outline"
                                 onClick={() => startHotDesk(desk.id)}
-                                // Disable if *you* are occupying another desk
                                 disabled={userHasActive || selectingAnyDesk} 
                                 style={{ width: "120px" }}
                               >
@@ -328,7 +336,6 @@ export default function HotDesk({ setSelectedDeskId }) {
                         <Button
                             variant="outline"
                             onClick={() => startHotDesk(desk.id)}
-                            // Disable if *you* are occupying another desk
                             disabled={userHasActive || selectingAnyDesk} 
                             style={{ width: "120px" }}
                           >
