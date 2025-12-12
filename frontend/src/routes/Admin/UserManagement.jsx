@@ -37,8 +37,9 @@ import { NewAccountForm } from "@/components/new-account-form";
 import { EditUserDialog } from "@/components/EditUserDialog";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Loader2 } from "lucide-react"; // Imported Loader2
+import { CalendarIcon } from "lucide-react";
 
 export default function UserManagement() {
   const [usersData, setUsersData] = useState([]);
@@ -84,7 +85,7 @@ export default function UserManagement() {
             : "Never",
           deskUsage: user.total_usage_hours ?? 50,
           favoriteDesk: "Unknown",
-          deskUsageHistory: user.is_admin ? [1,1] : [2,2],
+          deskUsageHistory: user.is_admin ? [1, 1] : [2, 2],
           status: user.is_active ? "Active" : "Disabled",
           created: new Date(user.created_at).toLocaleDateString(),
         }));
@@ -233,8 +234,8 @@ export default function UserManagement() {
               className="min-w-0 flex-shrink max-w-xs"
             />
 
-            <Select 
-              value={filterRole || "all"} 
+            <Select
+              value={filterRole || "all"}
               onValueChange={(val) => setFilterRole(val === "all" ? "" : val)}
             >
               <SelectTrigger className="min-w-0 w-[150px] flex-shrink-0">
@@ -248,8 +249,8 @@ export default function UserManagement() {
               </SelectContent>
             </Select>
 
-            <Select 
-              value={filterStatus || "all"} 
+            <Select
+              value={filterStatus || "all"}
               onValueChange={(val) => setFilterStatus(val === "all" ? "" : val)}
             >
               <SelectTrigger className="min-w-0 w-[150px] flex-shrink-0">
@@ -262,8 +263,8 @@ export default function UserManagement() {
               </SelectContent>
             </Select>
 
-            <Select 
-              value={filterDepartment || "all"} 
+            <Select
+              value={filterDepartment || "all"}
               onValueChange={(val) => setFilterDepartment(val === "all" ? "" : val)}
             >
               <SelectTrigger className="min-w-0 w-[170px] flex-shrink-0">
@@ -364,23 +365,21 @@ export default function UserManagement() {
       </Card>
 
       {/* Table Section with Loading/Error states */}
-      <div className="min-w-0 border rounded-md">
-        {loading ? (
-          <div className="flex h-64 items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : error ? (
-          <div className="flex h-64 items-center justify-center text-red-500">
-            {error}
-          </div>
-        ) : (
-          <DataTable
-            columns={columns}
-            data={filteredUsers}
-            onSelectionChange={setSelectedUsers}
-          />
-        )}
-      </div>
+      {loading ? (
+        <div className="flex h-64 items-center justify-center">
+          <Spinner variant="circle" className="h-8 w-8 text-primary" />
+        </div>
+      ) : error ? (
+        <div className="flex h-64 items-center justify-center text-red-500">
+          {error}
+        </div>
+      ) : (
+        <DataTable
+          columns={columns}
+          data={filteredUsers}
+          onSelectionChange={setSelectedUsers}
+        />
+      )}
 
       {/* View Dialog */}
       {viewingUser && (
@@ -441,13 +440,13 @@ export default function UserManagement() {
               {pendingBulkAction === "activate" && "Activate Users"}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {pendingBulkAction === "delete" && 
+              {pendingBulkAction === "delete" &&
                 `Are you sure you want to delete ${selectedUsers.map((u) => u.name).join(", ")}? This action cannot be undone.`
               }
-              {pendingBulkAction === "disable" && 
+              {pendingBulkAction === "disable" &&
                 `Are you sure you want to disable ${selectedUsers.map((u) => u.name).join(", ")}?`
               }
-              {pendingBulkAction === "activate" && 
+              {pendingBulkAction === "activate" &&
                 `Are you sure you want to activate ${selectedUsers.map((u) => u.name).join(", ")}?`
               }
             </AlertDialogDescription>

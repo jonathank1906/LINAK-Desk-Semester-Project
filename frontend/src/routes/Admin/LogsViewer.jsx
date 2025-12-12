@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { DataTable } from "./SystemLogs/data-table";
 import { columns } from "./SystemLogs/columns";
 import { Button } from "@/components/ui/button";
+import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import { IconFilterX, IconRefresh } from "@tabler/icons-react";
 import { useAuth } from "@/contexts/useAuth";
 import {
@@ -80,10 +81,6 @@ export default function LogsViewer() {
     setFilterCategory("");
   };
 
-  if (loading && logs.length === 0)
-    return <div className="p-6 text-muted-foreground">Loading logs...</div>;
-  if (error) return <div className="p-6 text-red-500">{error}</div>;
-
   return (
     <div className="flex flex-col gap-6 px-6 pb-12 pt-4">
       {/* Header */}
@@ -92,7 +89,7 @@ export default function LogsViewer() {
           <h1 className="text-2xl font-bold">System Logs</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Monitor desk activity and user actions
-            {` • Last updated: ${lastRefresh.toLocaleTimeString()}`}
+            {lastRefresh && ` • Last updated: ${lastRefresh.toLocaleTimeString()}`}
           </p>
         </div>
         <Button onClick={fetchLogs} variant="outline" size="sm">
@@ -157,8 +154,18 @@ export default function LogsViewer() {
         </CardContent>
       </Card>
 
-      {/* Table */}
-      <DataTable columns={columns} data={filteredLogs} />
+      {/* Table Section with Loading/Error states */}
+      {loading && logs.length === 0 ? (
+        <div className="flex h-64 items-center justify-center">
+          <Spinner variant="circle" className="h-8 w-8 text-primary" />
+        </div>
+      ) : error ? (
+        <div className="flex h-64 items-center justify-center text-red-500">
+          {error}
+        </div>
+      ) : (
+        <DataTable columns={columns} data={filteredLogs} />
+      )}
     </div>
   );
 }
