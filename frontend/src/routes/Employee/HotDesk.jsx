@@ -237,7 +237,7 @@ export default function HotDesk({ setSelectedDeskId }) {
         <CardContent>
           {loading && hotdeskStatus.length === 0 ? (
             <div className="flex justify-center items-center py-8">
-                <Spinner className="w-6 h-6 text-muted-foreground" />
+                <Spinner variant="circle" className="w-6 h-6 text-muted-foreground" />
             </div>
           ) : hotdeskStatus.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">No desk data available.</p>
