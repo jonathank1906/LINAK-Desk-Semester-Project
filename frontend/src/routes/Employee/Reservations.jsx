@@ -302,97 +302,107 @@ export default function Reservations({ setSelectedDeskId }) {
             <p className="text-center text-muted-foreground">No reservations found</p>
           ) : (
             <div className="space-y-3">
-              {filteredReservations.map((reservation) => {
-                const isActive = reservation.status === "active"; 
-
+              {filteredReservations.map((reservation, idx) => {
+                const isActive = reservation.status === "active";
+                const deskName = reservation.desk_name || `Desk ${reservation.desk_id}`;
+                const dateStr = new Date(reservation.start_time).toLocaleDateString("en-GB", {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                });
+                const startTime = formatTimeFromISO(reservation.start_time) || "N/A";
+                const endTime = formatTimeFromISO(reservation.end_time) || "N/A";
                 return (
-                  <div key={reservation.id} className="flex items-center justify-between p-4 border rounded-lg" style={{ minHeight: deskCardHeight, height: deskCardHeight }}>
-                    <div>
+                  <div key={reservation.id} className="flex items-center justify-between rounded-md border p-3">
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-sm font-semibold text-foreground">{dateStr}</span>
                       <div className="flex items-center gap-2">
-                          <h3 className="font-semibold">{reservation.desk_name || `Desk ${reservation.desk_id}`}</h3>
-                          {/* SHOW ACTIVE BADGE */}
-                          {isActive && (
-                              <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 text-xs font-bold border border-green-200 dark:border-green-800">
-                                  Active Session
-                              </span>
-                          )}
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(reservation.start_time).toLocaleDateString()}<br />
-                        Reserved from {formatTimeFromISO(reservation.start_time) || "N/A"} to {formatTimeFromISO(reservation.end_time) || "N/A"}
-                      </p>
-                    </div>
-                    
-                    {/* BUTTON ACTIONS */}
-                    <div className="space-x-2">
-                        {isActive ? (
-                            // SHOW RELEASE DESK BUTTON WITH LOGOUT ICON
-                            <Button 
-                                variant="destructive" 
-                                size="sm"
-                                className="gap-2"
-                                onClick={() => handleCheckOut(reservation.id)}
-                            >
-                                <LogOut className="w-4 h-4" />
-                                Release Desk
-                            </Button>
-                        ) : (
-                            // SHOW EDIT/DELETE BUTTONS
-                            <>
-                                <Dialog open={editingReservation?.id === reservation.id && editDialogOpen} onOpenChange={(open) => {
-                                if (!open) {
-                                    setEditingReservation(null);
-                                    setEditDialogOpen(false);
-                                }
-                                }}>
-                                <DialogTrigger asChild>
-                                    <Button variant="outline" onClick={() => {
-                                    setEditingReservation(reservation);
-                                    setEditStartTime(formatTimeFromISO(reservation.start_time));
-                                    setEditEndTime(formatTimeFromISO(reservation.end_time));
-                                    setEditDialogOpen(true);
-                                    }}>Edit</Button>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-md">
-                                    <DialogHeader>
-                                    <DialogTitle>Edit Reservation</DialogTitle>
-                                    </DialogHeader>
-                                    <div className="flex flex-row gap-4">
-                                    <div className="space-y-2 w-1/2">
-                                        <label className="block text-sm font-medium">Start Time</label>
-                                        <Select value={editStartTime} onValueChange={setEditStartTime}>
-                                        <SelectTrigger className="w-full border rounded px-2 py-1">
-                                            <SelectValue placeholder="Select start time" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {generateSelectTimeOptions(selectedDate, "06:00", 0)}
-                                        </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-2 w-1/2">
-                                        <label className="block text-sm font-medium">End Time</label>
-                                        <Select value={editEndTime} onValueChange={setEditEndTime}>
-                                        <SelectTrigger className="w-full border rounded px-2 py-1">
-                                            <SelectValue placeholder="Select end time" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {generateSelectTimeOptions(selectedDate, editStartTime, 30)}
-                                        </SelectContent>
-                                        </Select>
-                                    </div>
-                                    </div>
-                                    <DialogFooter>
-                                    <Button variant="outline" onClick={() => {
-                                        setEditingReservation(null);
-                                        setEditDialogOpen(false);
-                                    }}>Cancel</Button>
-                                    <Button onClick={handleEditReservation}>Save</Button>
-                                    </DialogFooter>
-                                </DialogContent>
-                                </Dialog>
-                                <Button variant="destructive" onClick={() => cancelReservation(reservation.id)}>Delete</Button>
-                            </>
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-secondary text-secondary-foreground text-xs font-medium">
+                          {deskName}
+                        </div>
+                        {reservation.start_time && reservation.end_time && (
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md border border-border text-muted-foreground text-xs font-medium">
+                            <Clock className="w-3 h-3" />
+                            <span>
+                              {startTime} - {endTime}
+                            </span>
+                          </div>
                         )}
+                        {isActive && (
+                          <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 text-xs font-bold border border-green-200 dark:border-green-800">
+                            Active Session
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {isActive ? (
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          className="gap-2"
+                          onClick={() => handleCheckOut(reservation.id)}
+                        >
+                          <LogOut className="w-4 h-4" />
+                          Release Desk
+                        </Button>
+                      ) : (
+                        <>
+                          <Dialog open={editingReservation?.id === reservation.id && editDialogOpen} onOpenChange={(open) => {
+                            if (!open) {
+                              setEditingReservation(null);
+                              setEditDialogOpen(false);
+                            }
+                          }}>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" onClick={() => {
+                                setEditingReservation(reservation);
+                                setEditStartTime(formatTimeFromISO(reservation.start_time));
+                                setEditEndTime(formatTimeFromISO(reservation.end_time));
+                                setEditDialogOpen(true);
+                              }}>Edit</Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-md">
+                              <DialogHeader>
+                                <DialogTitle>Edit Reservation</DialogTitle>
+                              </DialogHeader>
+                              <div className="flex flex-row gap-4">
+                                <div className="space-y-2 w-1/2">
+                                  <label className="block text-sm font-medium">Start Time</label>
+                                  <Select value={editStartTime} onValueChange={setEditStartTime}>
+                                    <SelectTrigger className="w-full border rounded px-2 py-1">
+                                      <SelectValue placeholder="Select start time" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {generateSelectTimeOptions(selectedDate, "06:00", 0)}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-2 w-1/2">
+                                  <label className="block text-sm font-medium">End Time</label>
+                                  <Select value={editEndTime} onValueChange={setEditEndTime}>
+                                    <SelectTrigger className="w-full border rounded px-2 py-1">
+                                      <SelectValue placeholder="Select end time" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {generateSelectTimeOptions(selectedDate, editStartTime, 30)}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                              <DialogFooter>
+                                <Button variant="outline" onClick={() => {
+                                  setEditingReservation(null);
+                                  setEditDialogOpen(false);
+                                }}>Cancel</Button>
+                                <Button onClick={handleEditReservation}>Save</Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                          <Button variant="destructive" onClick={() => cancelReservation(reservation.id)}>Delete</Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 );
