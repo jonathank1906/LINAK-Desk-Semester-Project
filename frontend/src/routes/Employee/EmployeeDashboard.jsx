@@ -161,7 +161,7 @@ export default function EmployeeDashboard() {
             let occupiedDesk = desksRes.data.find((desk) => {
                 const deskUserId = desk.current_user?.id || desk.current_user;
                 const isOwnedByUser = deskUserId && String(deskUserId) === String(user.id);
-                const isOccupied = ["occupied", "in_use", "pending_verification"].includes(desk.current_status);
+                const isOccupied = ["occupied", "in_use", "pending_verification", "moving"].includes(desk.current_status);
                 return isOwnedByUser && isOccupied;
             });
 
