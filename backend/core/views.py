@@ -653,6 +653,26 @@ def poll_desk_movement(request, desk_id):
     try:
         desk = Desk.objects.get(id=desk_id)
         
+        # CRITICAL FIX: If desk has been released, return immediately without updating
+        if not desk.current_user:
+            print(f"Poll called on released desk {desk_id}, returning available status")
+            return Response({
+                "height": desk.current_height,
+                "is_moving": False,
+                "speed": 0,
+                "status": "available"
+            })
+        
+        # ALSO: Check if requesting user is the current user
+        if desk.current_user != request.user:
+            print(f"Poll called by non-owner on desk {desk_id}")
+            return Response({
+                "height": desk.current_height,
+                "is_moving": False,
+                "speed": 0,
+                "status": desk.current_status
+            })
+        
         # Get live state from WiFi2BLE simulator
         wifi2ble = WiFi2BLEService()
         live_state = wifi2ble.get_desk_state(desk.wifi2ble_id)
@@ -668,11 +688,18 @@ def poll_desk_movement(request, desk_id):
         speed = live_state.get("speed_mms", 0)
         is_moving = abs(speed) > 0
         
-        # Update database
-        desk.current_height = current_height
-        if not is_moving:
-            desk.current_status = 'occupied'
-        desk.save()
+        # ONLY update database if desk still has the same user
+        desk.refresh_from_db()  # Double check
+        if desk.current_user == request.user:
+            desk.current_height = current_height
+            if not is_moving:
+                desk.current_status = 'occupied'
+            else:
+                desk.current_status = 'moving'
+            desk.save()
+            print(f"Updated desk {desk_id} status to {desk.current_status}")
+        else:
+            print(f"Desk {desk_id} user changed during poll, not updating")
         
         # Notify Pico with current movement status
         mqtt_service = get_mqtt_service()
@@ -683,7 +710,7 @@ def poll_desk_movement(request, desk_id):
             mqtt_service.notify_desk_moving(
                 desk_id=desk.id,
                 target_height=int(current_height),
-                is_moving=is_moving,  # False = stop buzzer, blue LED
+                is_moving=is_moving,
                 user_name=user_name
             )
         
