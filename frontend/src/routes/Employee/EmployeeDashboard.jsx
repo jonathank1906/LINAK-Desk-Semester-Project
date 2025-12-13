@@ -684,16 +684,18 @@ export default function EmployeeDashboard() {
                                                     }}
                                                     variant="destructive"
                                                     size="sm"
-                                                    className="gap-2"
+                                                    className="gap-2 min-w-[130px]"
                                                     disabled={releasingDesk}
                                                 >
                                                     {releasingDesk ? (
-                                                        <Spinner variant="circle" className="h-4 w-4" />
+                                                        <span className="flex items-center justify-center w-full">
+                                                            <Spinner variant="circle" className="h-4 w-4" />
+                                                        </span>
                                                     ) : (
-                                                        <>
+                                                        <span className="flex items-center gap-2 w-full justify-center">
                                                             <LogOut className="w-4 h-4" />
                                                             Release Desk
-                                                        </>
+                                                        </span>
                                                     )}
                                                 </Button>
                                             </>
