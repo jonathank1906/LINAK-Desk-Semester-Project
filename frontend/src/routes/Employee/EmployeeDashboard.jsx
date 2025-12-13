@@ -65,6 +65,7 @@ export default function EmployeeDashboard() {
     const [verificationModalOpen, setVerificationModalOpen] = useState(false);
     const [pendingDeskId, setPendingDeskId] = useState(null);
     const [pendingReservationId, setPendingReservationId] = useState(null);
+    const [pendingDeskName, setPendingDeskName] = useState(null);
 
     const [releasingDesk, setReleasingDesk] = useState(false);
     const [checkingInReservation, setCheckingInReservation] = useState({});
@@ -476,6 +477,7 @@ export default function EmployeeDashboard() {
                 if (deskId) {
                     const deskRes = await axios.get(`http://localhost:8000/api/desks/${deskId}/`, config);
                     requiresConfirmation = !!deskRes.data.requires_confirmation;
+                    setPendingDeskName(deskRes.data.name); 
                 }
             } catch (err) {}
 
@@ -894,6 +896,7 @@ export default function EmployeeDashboard() {
                 <PendingVerificationModal
                     open={verificationModalOpen}
                     deskId={pendingDeskId}
+                    deskName={pendingDeskName}
                     onClose={async () => {
                         // Clean up pending state when modal is closed
                         if (pendingReservationId) {
@@ -931,6 +934,7 @@ export default function EmployeeDashboard() {
                         setVerificationModalOpen(false);
                         setPendingDeskId(null);
                         setPendingReservationId(null);
+                        setPendingDeskName(null);
                     }}
                 />
             </SidebarInset>

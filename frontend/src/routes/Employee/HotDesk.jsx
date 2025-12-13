@@ -31,6 +31,7 @@ export default function HotDesk({ setSelectedDeskId }) {
   
   const [verificationModalOpen, setVerificationModalOpen] = useState(false);
   const [pendingDeskId, setPendingDeskId] = useState(null);
+  const [pendingDeskName, setPendingDeskName] = useState(null); 
   const [polling, setPolling] = useState(false);
   const [selectingDeskId, setSelectingDeskId] = useState(null);
   const [selectingAnyDesk, setSelectingAnyDesk] = useState(false);
@@ -183,6 +184,10 @@ export default function HotDesk({ setSelectedDeskId }) {
 
       if (requires_confirmation) {
         toast.success("Hot desk started! Please confirm at the desk.");
+
+        const deskRes = await axios.get(`http://localhost:8000/api/desks/${deskId}/`, config);
+        setPendingDeskName(deskRes.data.name || `Desk #${deskId}`);
+
         setPendingDeskId(deskId);
         setVerificationModalOpen(true);
         setPolling(true);
@@ -349,7 +354,7 @@ export default function HotDesk({ setSelectedDeskId }) {
             </div>
           )}
         </CardContent>
-        <PendingVerificationModal open={verificationModalOpen} deskId={pendingDeskId} onClose={() => setVerificationModalOpen(false)} />
+        <PendingVerificationModal open={verificationModalOpen} deskId={pendingDeskId} deskName={pendingDeskName} onClose={() => setVerificationModalOpen(false)} />
       </Card>
     </div>
   );

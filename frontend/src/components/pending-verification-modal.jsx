@@ -14,7 +14,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
-export default function PendingVerificationModal({ open, deskId, onClose }) {
+export default function PendingVerificationModal({ open, deskId, onClose, deskName }) {
   // Cancel handler
   const handleCancel = async () => {
     try {
@@ -34,7 +34,7 @@ export default function PendingVerificationModal({ open, deskId, onClose }) {
         <div className="text-center space-y-4">
           <h2 className="text-lg font-bold">Confirm Desk Usage</h2>
           <p>
-            Please press the physical push button on Desk #{deskId} to confirm you're at the desk.
+            Please press the physical push button on {deskName} to confirm you're at the desk.
           </p>
           <p className="text-sm text-muted-foreground">
             Waiting for button press...
