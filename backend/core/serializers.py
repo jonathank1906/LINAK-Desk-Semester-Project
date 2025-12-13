@@ -79,6 +79,7 @@ class DeskSerializer(serializers.ModelSerializer):
     is_available_for_hot_desk = serializers.SerializerMethodField()
     requires_confirmation = serializers.SerializerMethodField()
 
+    current_user = UserSerializer(read_only=True)
     pico = PicoSerializer(many=True, read_only=True)
 
     class Meta:
