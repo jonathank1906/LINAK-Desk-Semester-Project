@@ -15,6 +15,9 @@ LedMode current_led_mode = LED_MODE_NONE;
 BuzzerMode current_buzzer_mode = BUZZER_MODE_NONE;
 static volatile bool flash_led_flag = false;
 
+// Global desk name storage (non-static so mqtt_client.c can access it)
+char desk_display_name[32] = "DESK #1";  // Default fallback
+
 extern "C"
 {
     void oled_init();
@@ -33,6 +36,16 @@ PIO ws2812_pio;
 uint ws2812_sm;
 uint ws2812_offset;
 
+// Helper function to set desk name
+extern "C" void set_desk_name(const char *name)
+{
+    if (name && strlen(name) > 0)
+    {
+        snprintf(desk_display_name, sizeof(desk_display_name), "%s", name);
+        printf("DEBUG: Desk name updated to: %s\n", desk_display_name);
+    }
+}
+
 // Allow mqtt_client.c to set pending_verification
 extern "C" void set_pending_verification(bool state)
 {
@@ -40,12 +53,12 @@ extern "C" void set_pending_verification(bool state)
     printf("DEBUG: set_pending_verification called, state = %s\n", state ? "true" : "false");
     if (state)
     {
-        oled_display_text("DESK #1", "Verification", "Pending...", "");
+        oled_display_text(desk_display_name, "Verification", "Pending...", "");
         printf("DEBUG: OLED updated for pending verification\n");
     }
     else
     {
-        oled_display_text("DESK #1", "Available", "", "");
+        oled_display_text(desk_display_name, "Available", "", "");
         printf("DEBUG: OLED updated for desk available/released\n");
     }
 }
@@ -122,7 +135,7 @@ void MyApp()
                 printf("DEBUG: Pending verification detected, publishing desk confirmation via MQTT\n");
                 publish_desk_confirm(get_mqtt_state());
                 pending_verification = false;
-                oled_display_text("DESK #1", "Confirmed!", "", "");
+                oled_display_text(desk_display_name, "Confirmed!", "", "");
                 printf("DEBUG: Desk confirmation published via MQTT and OLED updated\n");
             }
             else

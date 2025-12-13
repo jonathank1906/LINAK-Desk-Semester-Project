@@ -99,6 +99,11 @@ extern uint ws2812_offset;
 extern LedMode current_led_mode;
 extern BuzzerMode current_buzzer_mode;
 
+// Desk name from MyApp.cpp
+extern char desk_display_name[32];
+extern void set_desk_name(const char *name);
+static bool desk_name_initialized = false;
+
 
 static void pub_request_cb(__unused void *arg, err_t err)
 {
@@ -209,6 +214,36 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
     printf("DEBUG: MQTT payload: %s\n", state->data);
     printf("DEBUG: basic_topic = '%s'\n", basic_topic);
     
+    // Extract desk name ONCE from the first message that contains it
+    if (!desk_name_initialized)
+    {
+        char *desk_name_start = strstr(state->data, "\"desk_name\"");
+        if (desk_name_start)
+        {
+            // Find the opening quote of the value (after "desk_name": )
+            char *value_start = strchr(desk_name_start + 11, '"');  // Skip past "desk_name"
+            if (value_start)
+            {
+                value_start++;  // Move past the opening quote
+                
+                // Find the closing quote
+                char *end_quote = strchr(value_start, '"');
+                if (end_quote)
+                {
+                    int name_len = end_quote - value_start;
+                    if (name_len > 0 && name_len < 32)
+                    {
+                        strncpy(desk_display_name, value_start, name_len);
+                        desk_display_name[name_len] = '\0';
+                        
+                        desk_name_initialized = true;
+                        printf("DEBUG: Desk name initialized to: %s\n", desk_display_name);
+                    }
+                }
+            }
+        }
+    }
+    
     if (strcmp(basic_topic, "/print") == 0)
     {
         INFO_printf("Print: %.*s\n", len, data);
@@ -236,7 +271,7 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
         if (strstr(state->data, "show_available"))
         {
             printf("DEBUG: Action is show_available\n");
-            oled_display_text("DESK #1", "Available", "", "");
+            oled_display_text(desk_display_name, "Available", "", "");
             set_pending_verification(false);
 
             current_led_mode = LED_MODE_SOLID_GREEN;
@@ -247,7 +282,7 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
         else if (strstr(state->data, "show_confirm_button"))
         {
             printf("DEBUG: Action is show_confirm_button\n");
-            oled_display_text("DESK #1", "Please press", "button to", "confirm");
+            oled_display_text(desk_display_name, "Please press", "button to", "confirm");
             set_pending_verification(true);
 
             current_led_mode = LED_MODE_GREYS_BLUE;
@@ -258,7 +293,7 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
         else if (strstr(state->data, "cancel_pending_verification"))
         {
             printf("DEBUG: Action is cancel_pending_verification\n");
-            oled_display_text("DESK #1", "Verification", "Cancelled", "");
+            oled_display_text(desk_display_name, "Verification", "Cancelled", "");
             set_pending_verification(false);
 
             current_led_mode = LED_MODE_SOLID_GREEN;
@@ -287,7 +322,7 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
                 snprintf(height_str, sizeof(height_str), "%dcm", height);
             }
 
-            oled_display_text("DESK #1", user_name, height_str, "In Use");
+            oled_display_text(desk_display_name, user_name, height_str, "In Use");
             set_pending_verification(false);
 
             current_led_mode = LED_MODE_GREYS_BLUE;
@@ -307,7 +342,7 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
 
                 char line3[20];
                 snprintf(line3, sizeof(line3), "Height: %dcm", height);
-                oled_display_text("DESK #1", "In Use", line3, "");
+                oled_display_text(desk_display_name, "In Use", line3, "");
 
                 bool is_moving = (strstr(state->data, "\"is_moving\": true") != NULL || 
                                  strstr(state->data, "\"is_moving\":true") != NULL);
@@ -331,7 +366,7 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
         else if (strstr(state->data, "show_error") || strstr(state->data, "error"))
         {
             printf("DEBUG: Action is show_error\n");
-            oled_display_text("DESK #1", "ERROR", "Check desk", "");
+            oled_display_text(desk_display_name, "ERROR", "Check desk", "");
 
             // Red LED for error
             current_led_mode = LED_MODE_SOLID_RED;
