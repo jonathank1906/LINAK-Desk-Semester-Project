@@ -264,7 +264,7 @@ export default function DeskManagement() {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-2xl font-bold">Desk Management</h2>
-          <p className="text-muted-foreground">Manage inventory, assignments, and hardware.</p>
+          <p className="text-sm text-muted-foreground mt-1">Manage inventory, assignments, and hardware.</p>
         </div>
 
         {/* CREATE DIALOG */}
