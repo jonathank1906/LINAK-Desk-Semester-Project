@@ -286,6 +286,7 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
   const startMovementPolling = () => {
     if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
     setIsMoving(true);
+    let stoppedCount = 0; // Track consecutive stopped states
 
     pollingIntervalRef.current = setInterval(async () => {
       try {
@@ -307,9 +308,20 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
             };
           });
 
-          if (!data.is_moving) stopMovementPolling();
+          // CRITICAL FIX: Continue polling for 2 more cycles after movement stops
+          if (!data.is_moving) {
+            stoppedCount++;
+            console.log(`Movement stopped, count: ${stoppedCount}/2`);
+            if (stoppedCount >= 2) {
+              console.log('Stopping polling after confirmation');
+              stopMovementPolling();
+            }
+          } else {
+            stoppedCount = 0; // Reset if movement resumes
+          }
         }
       } catch (error) {
+        console.error('Polling error:', error);
         stopMovementPolling();
       }
     }, 500);

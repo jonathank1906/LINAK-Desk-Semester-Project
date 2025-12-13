@@ -557,12 +557,12 @@ def desk_usage(request, desk_id):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def control_desk_height(request, desk_id):
-    print(f"\n🔧 CONTROL_DESK_HEIGHT CALLED - Desk ID: {desk_id}")
+    print(f"\nCONTROL_DESK_HEIGHT CALLED - Desk ID: {desk_id}")
     print(f"   Request data: {request.data}")
     
     try:
         desk = Desk.objects.get(id=desk_id)
-        print(f"   Current desk height in DB: {desk.current_height}")
+        print(f"Current desk height in DB: {desk.current_height}")
         
         # Authorization check
         if desk.current_user != request.user:
@@ -724,53 +724,6 @@ def poll_desk_movement(request, desk_id):
         
     except Desk.DoesNotExist:
         return Response({"error": "Desk not found"}, status=status.HTTP_404_NOT_FOUND)
-
-# ================= OTHER ENDPOINTS (LED, SENSORS, ETC) =================
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def control_pico_led(request, pico_id):
-    try:
-        pico = Pico.objects.get(id=pico_id)
-        on = request.data.get("on", False)
-        mqtt_service = get_mqtt_service()
-        mqtt_service.control_led(pico.mac_address, on)
-        return Response(
-            {"success": True, "message": f"LED turned {'on' if on else 'off'}"}
-        )
-    except Pico.DoesNotExist:
-        return Response(
-            {"error": "Pico device not found"}, status=status.HTTP_404_NOT_FOUND
-        )
-    except Exception as e:
-        print("LED Control Error:", e) 
-        traceback.print_exc() 
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def get_pico_sensor_data(request, pico_id):
-    """Get recent sensor readings from Pico"""
-    try:
-        pico = Pico.objects.get(id=pico_id)
-        readings = pico.sensor_readings.order_by("-timestamp")[:10]
-
-        data = [
-            {
-                "temperature": r.temperature,
-                "light_level": r.light_level,
-                "timestamp": r.timestamp,
-            }
-            for r in readings
-        ]
-
-        return Response({"readings": data})
-    except Pico.DoesNotExist:
-        return Response(
-            {"error": "Pico device not found"}, status=status.HTTP_404_NOT_FOUND
-        )
-
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
