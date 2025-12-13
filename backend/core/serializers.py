@@ -63,6 +63,17 @@ class PicoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pico
         fields = ['id', 'mac_address', 'ip_address', 'status', 'last_seen', 'firmware_version']
+    
+    def validate_mac_address(self, value):
+        """Validate MAC address format (XX:XX:XX:XX:XX:XX)"""
+        import re
+        # Accept common MAC address formats (colon or hyphen separated)
+        mac_pattern = r'^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$'
+        if not re.match(mac_pattern, value):
+            raise serializers.ValidationError(
+                "Enter a valid MAC address (format: XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX)"
+            )
+        return value.upper()  # Normalize to uppercase
 
 class DeskSerializer(serializers.ModelSerializer):
     is_available_for_hot_desk = serializers.SerializerMethodField()

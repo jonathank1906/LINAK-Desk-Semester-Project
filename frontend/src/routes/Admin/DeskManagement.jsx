@@ -99,49 +99,62 @@ export default function DeskManagement() {
     }
   };
 
-  // --- Pico Actions ---
+    // --- Pico Actions ---
 
-  const handleSavePico = async () => {
+    const [deletePicoOpen, setDeletePicoOpen] = useState(false); // Pico delete dialog state
+
+    const handleSavePico = async () => {
     if (!selectedDesk) return;
     // Check if updating existing or adding new
     const existingPico = selectedDesk.pico && selectedDesk.pico.length > 0 ? selectedDesk.pico[0] : null;
-    
     const config = { headers: { Authorization: `Bearer ${user.token}` } };
-    
     try {
-        if (existingPico) {
-            // Update
-            await axios.patch(`http://localhost:8000/api/admin/picos/${existingPico.id}/update/`, picoData, config);
-            toast.success("Pico updated");
-        } else {
-            // Create
-            await axios.post(`http://localhost:8000/api/admin/desks/${selectedDesk.id}/add-pico/`, picoData, config);
-            toast.success("Pico added to desk");
-        }
-        setPicoOpen(false);
-        fetchDesks();
+      if (existingPico) {
+        // Update
+        await axios.patch(`http://localhost:8000/api/admin/pico/${existingPico.id}/update/`, picoData, config);
+        toast.success("Pico updated");
+      } else {
+        // Create
+        await axios.post(`http://localhost:8000/api/admin/desks/${selectedDesk.id}/add-pico/`, picoData, config);
+        toast.success("Pico added to desk");
+      }
+      setPicoOpen(false);
+      fetchDesks();
     } catch (err) {
-        toast.error(err.response?.data?.error || "Failed to save Pico settings");
+      // Extract validation errors from response
+      const errorData = err.response?.data;
+      if (errorData && typeof errorData === 'object') {
+        const errors = [];
+        if (errorData.ip_address) errors.push(`IP: ${Array.isArray(errorData.ip_address) ? errorData.ip_address[0] : errorData.ip_address}`);
+        if (errorData.mac_address) errors.push(`MAC: ${Array.isArray(errorData.mac_address) ? errorData.mac_address[0] : errorData.mac_address}`);
+        if (errorData.error) errors.push(errorData.error);
+        
+        if (errors.length > 0) {
+          toast.error(errors.join(' | '));
+        } else {
+          toast.error("Failed to save Pico settings");
+        }
+      } else {
+        toast.error("Failed to save Pico settings");
+      }
     }
-  };
+    };
 
-  const handleDeletePico = async () => {
+    const handleDeletePico = async () => {
     if (!selectedDesk) return;
     const existingPico = selectedDesk.pico && selectedDesk.pico.length > 0 ? selectedDesk.pico[0] : null;
     if (!existingPico) return;
-
-    if (!confirm("Are you sure you want to remove this Pico device?")) return;
-
     try {
-        const config = { headers: { Authorization: `Bearer ${user.token}` } };
-        await axios.delete(`http://localhost:8000/api/admin/pico/${existingPico.id}/remove/`, config);
-        toast.success("Pico removed");
-        setPicoOpen(false);
-        fetchDesks();
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      await axios.delete(`http://localhost:8000/api/admin/pico/${existingPico.id}/remove/`, config);
+      toast.success("Pico removed");
+      setPicoOpen(false);
+      fetchDesks();
     } catch (err) {
-        toast.error("Failed to remove Pico");
+      toast.error("Failed to remove Pico");
     }
-  };
+    setDeletePicoOpen(false);
+    };
 
   // --- Standard Actions ---
 
@@ -502,9 +515,27 @@ export default function DeskManagement() {
 
             <DialogFooter className="flex justify-between sm:justify-between w-full">
                 {selectedDesk?.pico && selectedDesk.pico.length > 0 ? (
-                    <Button variant="destructive" onClick={handleDeletePico}>Remove Pico</Button>
+                    <>
+                        <Button variant="destructive" onClick={() => setDeletePicoOpen(true)}>Remove Pico</Button>
+                        {/* Pico Remove Confirmation Dialog */}
+                        <AlertDialog open={deletePicoOpen} onOpenChange={setDeletePicoOpen}>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Remove Pico Device?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to remove this Pico device from <span className="font-bold text-foreground">{selectedDesk?.name}</span>? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={handleDeletePico}>
+                                Remove Pico
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                    </>
                 ) : <div></div>}
-                
                 <div className="flex gap-2">
                     <Button variant="outline" onClick={() => setPicoOpen(false)}>Cancel</Button>
                     <Button onClick={handleSavePico}>Save</Button>
