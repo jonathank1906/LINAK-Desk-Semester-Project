@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/useAuth";
 import axios from "axios";
 import { toast } from "sonner";
-import { CalendarIcon, Clock, LogOut } from "lucide-react"; // LogOut imported here
+import { CalendarIcon, Clock, LogOut } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -248,7 +248,12 @@ export default function Reservations({ setSelectedDeskId }) {
       fetchUserReservations();
       fetchAvailableDesks();
       window.dispatchEvent(new Event("reservation-updated"));
-      if (setSelectedDeskId) setSelectedDeskId(null);
+      
+      // FIX: Removed the line below. We should NOT force the desk ID to null here.
+      // If the user cancelled their ACTIVE reservation, the Dashboard's polling loop 
+      // will detect the status change and clear it automatically. 
+      // if (setSelectedDeskId) setSelectedDeskId(null); 
+
     } catch (err) {
       console.error("API error:", err);
       toast.error("Failed to cancel reservation");
@@ -266,6 +271,7 @@ export default function Reservations({ setSelectedDeskId }) {
         fetchAvailableDesks();
         window.dispatchEvent(new Event("reservation-updated"));
         
+        // This is fine to keep here because Check Out explicitly implies ending the current session
         if (setSelectedDeskId) setSelectedDeskId(null);
     } catch (err) {
         console.error("API error:", err);
