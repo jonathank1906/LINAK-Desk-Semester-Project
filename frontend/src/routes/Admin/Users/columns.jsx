@@ -1,5 +1,3 @@
-"use client";
-
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -90,7 +88,10 @@ export const columns = ({ setUsers, openViewDialog, openEditDialog }) => [
     accessorKey: "status",
     header: "Account status",
     cell: ({ row }) => (
-      <Badge variant={row.original.status === "Active" ? "default" : "destructive"}>
+      <Badge 
+        variant={row.original.status === "Active" ? "default" : "secondary"}
+        className={row.original.status === "Active" ? "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20" : ""}
+      >
         {row.original.status}
       </Badge>
     ),

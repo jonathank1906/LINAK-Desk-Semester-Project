@@ -1,10 +1,4 @@
 import React, { useState, useEffect } from "react";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,13 +7,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
-import { IconPlus, IconEdit, IconTrash, IconLoader2 } from "@tabler/icons-react";
+import { IconPlus, IconLoader2 } from "@tabler/icons-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,11 +17,22 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { getDeskSchedules, createDeskSchedule, updateDeskSchedule, deleteDeskSchedule, executeDeskSchedule } from "@/endpoints/api";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TimePicker } from "@/components/ui/time-picker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
+import { DataTable } from "./Automate/data-table";
+import { columns as columnsFunc } from "./Automate/columns";
 
 const WEEKDAYS = [
   { value: 0, label: 'Monday', short: 'Mon' },
@@ -77,6 +76,9 @@ export default function Automate() {
       setSchedules(data);
     } catch (error) {
       console.error("Error fetching schedules:", error);
+      toast.error("Failed to load schedules", {
+        description: "Please refresh the page and try again.",
+      });
     } finally {
       setLoading(false);
     }
@@ -124,9 +126,14 @@ export default function Automate() {
       await fetchSchedules();
       setShowCreateDialog(false);
       resetForm();
+      toast.success("Schedule created", {
+        description: `"${formData.name}" has been added successfully.`,
+      });
     } catch (error) {
       console.error("Error creating schedule:", error);
-      alert("Failed to create schedule. Please try again.");
+      toast.error("Failed to create schedule", {
+        description: "Please check your input and try again.",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -142,9 +149,14 @@ export default function Automate() {
       setShowEditDialog(false);
       resetForm();
       setSelectedSchedule(null);
+      toast.success("Schedule updated", {
+        description: `"${formData.name}" has been updated successfully.`,
+      });
     } catch (error) {
       console.error("Error updating schedule:", error);
-      alert("Failed to update schedule. Please try again.");
+      toast.error("Failed to update schedule", {
+        description: "Please check your input and try again.",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -152,12 +164,32 @@ export default function Automate() {
 
   const handleDelete = async (scheduleId) => {
     try {
+      const schedule = schedules.find(s => s.id === scheduleId);
       await deleteDeskSchedule(scheduleId);
       await fetchSchedules();
       setDeleteScheduleId(null);
+      toast.success("Schedule deleted", {
+        description: `"${schedule?.name || 'Schedule'}" has been removed.`,
+      });
     } catch (error) {
       console.error("Error deleting schedule:", error);
-      alert("Failed to delete schedule. Please try again.");
+      toast.error("Failed to delete schedule", {
+        description: "Please try again.",
+      });
+    }
+  };
+
+  const toggleActive = async (scheduleId, isActive) => {
+    try {
+      const schedule = schedules.find(s => s.id === scheduleId);
+      await updateDeskSchedule(scheduleId, { is_active: isActive });
+      await fetchSchedules();
+      toast.success(isActive ? "Schedule activated" : "Schedule deactivated", {
+        description: `"${schedule?.name || 'Schedule'}" is now ${isActive ? 'active' : 'inactive'}.`,
+      });
+    } catch (error) {
+      console.error("Error toggling schedule:", error);
+      toast.error("Failed to update schedule status");
     }
   };
 
@@ -182,66 +214,116 @@ export default function Automate() {
   };
 
   const handleExecuteNow = async (scheduleId, scheduleName) => {
-    if (!confirm(`Execute "${scheduleName}" now? This will move all available desks to the target height.`)) {
-      return;
-    }
-    
     try {
       setExecutingScheduleId(scheduleId);
       const result = await executeDeskSchedule(scheduleId);
       
-      alert(`Schedule Executed!\n${result.summary.successful} desk(s) moved successfully.\n${result.summary.skipped} skipped, ${result.summary.failed} failed.`);
+      toast.success("Schedule executed", {
+        description: `${result.summary.successful} desk(s) moved successfully. ${result.summary.skipped} skipped, ${result.summary.failed} failed.`,
+      });
       
-      await fetchSchedules(); // Refresh to show updated last_executed time
+      await fetchSchedules();
     } catch (error) {
       console.error("Error executing schedule:", error);
-      alert("Failed to execute schedule. Please try again.");
+      toast.error("Failed to execute schedule", {
+        description: "Please try again later.",
+      });
     } finally {
       setExecutingScheduleId(null);
     }
   };
 
+  // Create columns with handlers
+  const columns = columnsFunc({
+    handleExecuteNow,
+    openEditDialog,
+    setDeleteScheduleId,
+    executingScheduleId,
+    toggleActive,
+  });
+
   return (
-    <div className="flex flex-1 flex-col gap-6 px-6 pb-12 pt-4">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold">Automation: Cleaning Schedules</h2>
+    <div className="flex flex-col gap-6 px-6 pb-12 pt-4 min-w-0 overflow-x-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4 gap-4 min-w-0">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold">Automation</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Configure automated desk cleaning schedules
+          </p>
+        </div>
         <Dialog open={showCreateDialog} onOpenChange={(open) => {
           setShowCreateDialog(open);
           if (!open) resetForm();
         }}>
           <DialogTrigger asChild>
-            <Button>
-              <IconPlus className="h-5 w-5 mr-2"/> New Schedule
+            <Button className="flex items-center gap-2 flex-shrink-0">
+              <IconPlus className="w-4 h-4" /> Create Schedule
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogTitle>Create Cleaning Schedule</DialogTitle>
-            <div className="space-y-4 mt-4">
+            <div className="space-y-5 mt-6">
               <div>
-                <Label htmlFor="name" className="mb-2 block">Schedule Name</Label>
+                <Label htmlFor="name" className="mb-2 block font-medium">Schedule Name</Label>
                 <Input 
                   id="name"
-                  placeholder="e.g., Morning Cleaning" 
+                  placeholder="e.g., Morning Cleaning"
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  className={formErrors.name ? "border-destructive" : ""}
                 />
-                {formErrors.name && <p className="text-sm text-red-500 mt-1">{formErrors.name}</p>}
+                {formErrors.name && (
+                  <p className="text-sm text-destructive mt-1.5">{formErrors.name}</p>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="time" className="mb-2 block font-medium">Execution Time</Label>
+                  <TimePicker
+                    id="time"
+                    value={formData.time || "00:00"}
+                    onChange={(time) => setFormData({...formData, time})}
+                    className={formErrors.time ? "border-destructive" : ""}
+                  />
+                  {formErrors.time && (
+                    <p className="text-sm text-destructive mt-1.5">{formErrors.time}</p>
+                  )}
+                </div>
+                
+                <div>
+                  <Label htmlFor="height" className="mb-2 block font-medium">Target Height (cm)</Label>
+                  <Select
+                    value={formData.target_height?.toString() || "120"}
+                    onValueChange={(value) => setFormData({...formData, target_height: parseInt(value)})}
+                  >
+                    <SelectTrigger 
+                      id="height"
+                      className={formErrors.target_height ? "border-destructive" : ""}
+                    >
+                      <SelectValue placeholder="Select height" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 15 }, (_, i) => {
+                        const height = 60 + (i * 5);
+                        return (
+                          <SelectItem key={height} value={height.toString()}>
+                            {height} cm
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                  {formErrors.target_height && (
+                    <p className="text-sm text-destructive mt-1.5">{formErrors.target_height}</p>
+                  )}
+                </div>
               </div>
               
               <div>
-                <Label htmlFor="time" className="mb-2 block">Time</Label>
-                <Input 
-                  id="time"
-                  type="time"
-                  value={formData.time}
-                  onChange={(e) => setFormData({...formData, time: e.target.value})}
-                />
-                {formErrors.time && <p className="text-sm text-red-500 mt-1">{formErrors.time}</p>}
-              </div>
-              
-              <div>
-                <Label className="mb-2 block">Days</Label>
-                <div className="grid grid-cols-2 gap-2 mt-2">
+                <Label className="mb-2 block font-medium">Recurring Days</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2 p-4 border rounded-lg bg-muted/30">
                   {WEEKDAYS.map(day => (
                     <div key={day.value} className="flex items-center space-x-2">
                       <Checkbox 
@@ -249,41 +331,40 @@ export default function Automate() {
                         checked={formData.weekdays.includes(day.value)}
                         onCheckedChange={() => toggleWeekday(day.value)}
                       />
-                      <label htmlFor={`day-${day.value}`} className="text-sm cursor-pointer">
-                        {day.label}
+                      <label 
+                        htmlFor={`day-${day.value}`} 
+                        className="text-sm font-medium cursor-pointer flex-1"
+                      >
+                        {day.short}
                       </label>
                     </div>
                   ))}
                 </div>
-                {formErrors.weekdays && <p className="text-sm text-red-500 mt-1">{formErrors.weekdays}</p>}
-              </div>
-              
-              <div>
-                <Label htmlFor="height" className="mb-2 block">Target Height (cm)</Label>
-                <Input 
-                  id="height"
-                  type="number"
-                  min="60"
-                  max="130"
-                  value={formData.target_height}
-                  onChange={(e) => setFormData({...formData, target_height: parseInt(e.target.value)})}
-                />
-                {formErrors.target_height && <p className="text-sm text-red-500 mt-1">{formErrors.target_height}</p>}
+                {formErrors.weekdays && (
+                  <p className="text-sm text-destructive mt-1.5">{formErrors.weekdays}</p>
+                )}
               </div>
             </div>
-            <div className="flex justify-end gap-2 mt-6">
+            <div className="flex justify-end gap-3 mt-8 pt-4 border-t">
               <Button variant="outline" onClick={() => setShowCreateDialog(false)} disabled={submitting}>
                 Cancel
               </Button>
               <Button onClick={handleCreate} disabled={submitting}>
-                {submitting ? <IconLoader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                Create
+                {submitting ? (
+                  <>
+                    <IconLoader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  "Create Schedule"
+                )}
               </Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
 
+      {/* Table Section */}
       <Card>
         <CardHeader>
           <CardTitle>Cleaning Schedules</CardTitle>
@@ -294,67 +375,11 @@ export default function Automate() {
               <IconLoader2 className="h-8 w-8 animate-spin" />
             </div>
           ) : schedules.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No schedules configured. Create one to automate desk cleaning.
+            <div className="flex items-center justify-center py-16 text-center">
+              <p className="text-muted-foreground">No schedules yet</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="py-2 px-4 text-left">Name</th>
-                    <th className="py-2 px-4 text-left">Time</th>
-                    <th className="py-2 px-4 text-left">Days</th>
-                    <th className="py-2 px-4 text-left">Target Height</th>
-                    <th className="py-2 px-4 text-left">Status</th>
-                    <th className="py-2 px-4 text-left">Last Executed</th>
-                    <th className="py-2 px-4 text-left">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {schedules.map((schedule) => (
-                    <tr key={schedule.id} className="border-b hover:bg-muted/50">
-                      <td className="py-2 px-4">{schedule.name}</td>
-                      <td className="py-2 px-4">{schedule.time}</td>
-                      <td className="py-2 px-4">{schedule.weekday_names?.join(", ")}</td>
-                      <td className="py-2 px-4">{schedule.target_height} cm</td>
-                      <td className="py-2 px-4">
-                        <span className={`px-2 py-1 rounded text-xs ${schedule.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                          {schedule.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td className="py-2 px-4 text-sm text-muted-foreground">
-                        {schedule.last_executed ? new Date(schedule.last_executed).toLocaleString() : 'Never'}
-                      </td>
-                      <td className="py-2 px-4">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" disabled={executingScheduleId === schedule.id}>
-                              {executingScheduleId === schedule.id ? (
-                                <><IconLoader2 className="h-4 w-4 animate-spin mr-1" /> Executing...</>
-                              ) : (
-                                'Actions'
-                              )}
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent>
-                            <DropdownMenuItem onClick={() => handleExecuteNow(schedule.id, schedule.name)}>
-                              <IconLoader2 className="mr-2 h-4 w-4" /> Execute Now
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openEditDialog(schedule)}>
-                              <IconEdit className="mr-2 h-4 w-4" /> Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setDeleteScheduleId(schedule.id)}>
-                              <IconTrash className="mr-2 h-4 w-4" /> Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <DataTable columns={columns} data={schedules} />
           )}
         </CardContent>
       </Card>
@@ -367,34 +392,69 @@ export default function Automate() {
           setSelectedSchedule(null);
         }
       }}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogTitle>Edit Cleaning Schedule</DialogTitle>
-          <div className="space-y-4 mt-4">
+          <div className="space-y-5 mt-6">
             <div>
-              <Label htmlFor="edit-name" className="mb-2 block">Schedule Name</Label>
+              <Label htmlFor="edit-name" className="mb-2 block font-medium">Schedule Name</Label>
               <Input 
                 id="edit-name"
-                placeholder="e.g., Morning Cleaning" 
+                placeholder="e.g., Morning Cleaning, End of Day Reset" 
                 value={formData.name}
                 onChange={(e) => setFormData({...formData, name: e.target.value})}
+                className={formErrors.name ? "border-destructive" : ""}
               />
-              {formErrors.name && <p className="text-sm text-red-500 mt-1">{formErrors.name}</p>}
+              {formErrors.name && (
+                <p className="text-sm text-destructive mt-1.5">{formErrors.name}</p>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-time" className="mb-2 block font-medium">Execution Time</Label>
+                <TimePicker
+                  id="edit-time"
+                  value={formData.time || "00:00"}
+                  onChange={(time) => setFormData({...formData, time})}
+                  className={formErrors.time ? "border-destructive" : ""}
+                />
+                {formErrors.time && (
+                  <p className="text-sm text-destructive mt-1.5">{formErrors.time}</p>
+                )}
+              </div>
+              
+              <div>
+                <Label htmlFor="edit-height" className="mb-2 block font-medium">Target Height (cm)</Label>
+                <Select
+                  value={formData.target_height?.toString() || "120"}
+                  onValueChange={(value) => setFormData({...formData, target_height: parseInt(value)})}
+                >
+                  <SelectTrigger 
+                    id="edit-height"
+                    className={formErrors.target_height ? "border-destructive" : ""}
+                  >
+                    <SelectValue placeholder="Select height" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 15 }, (_, i) => {
+                      const height = 60 + (i * 5);
+                      return (
+                        <SelectItem key={height} value={height.toString()}>
+                          {height} cm
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                {formErrors.target_height && (
+                  <p className="text-sm text-destructive mt-1.5">{formErrors.target_height}</p>
+                )}
+              </div>
             </div>
             
             <div>
-              <Label htmlFor="edit-time" className="mb-2 block">Time</Label>
-              <Input 
-                id="edit-time"
-                type="time"
-                value={formData.time}
-                onChange={(e) => setFormData({...formData, time: e.target.value})}
-              />
-              {formErrors.time && <p className="text-sm text-red-500 mt-1">{formErrors.time}</p>}
-            </div>
-            
-            <div>
-              <Label className="mb-2 block">Days</Label>
-              <div className="grid grid-cols-2 gap-2 mt-2">
+              <Label className="mb-2 block font-medium">Recurring Days</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2 p-4 border rounded-lg bg-muted/30">
                 {WEEKDAYS.map(day => (
                   <div key={day.value} className="flex items-center space-x-2">
                     <Checkbox 
@@ -402,35 +462,33 @@ export default function Automate() {
                       checked={formData.weekdays.includes(day.value)}
                       onCheckedChange={() => toggleWeekday(day.value)}
                     />
-                    <label htmlFor={`edit-day-${day.value}`} className="text-sm cursor-pointer">
-                      {day.label}
+                    <label 
+                      htmlFor={`edit-day-${day.value}`} 
+                      className="text-sm font-medium cursor-pointer flex-1"
+                    >
+                      {day.short}
                     </label>
                   </div>
                 ))}
               </div>
-              {formErrors.weekdays && <p className="text-sm text-red-500 mt-1">{formErrors.weekdays}</p>}
-            </div>
-            
-            <div>
-              <Label htmlFor="edit-height" className="mb-2 block">Target Height (cm)</Label>
-              <Input 
-                id="edit-height"
-                type="number"
-                min="60"
-                max="130"
-                value={formData.target_height}
-                onChange={(e) => setFormData({...formData, target_height: parseInt(e.target.value)})}
-              />
-              {formErrors.target_height && <p className="text-sm text-red-500 mt-1">{formErrors.target_height}</p>}
+              {formErrors.weekdays && (
+                <p className="text-sm text-destructive mt-1.5">{formErrors.weekdays}</p>
+              )}
             </div>
           </div>
-          <div className="flex justify-end gap-2 mt-6">
+          <div className="flex justify-end gap-3 mt-8 pt-4 border-t">
             <Button variant="outline" onClick={() => setShowEditDialog(false)} disabled={submitting}>
               Cancel
             </Button>
             <Button onClick={handleEdit} disabled={submitting}>
-              {submitting ? <IconLoader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-              Save
+              {submitting ? (
+                <>
+                  <IconLoader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
             </Button>
           </div>
         </DialogContent>
@@ -447,7 +505,12 @@ export default function Automate() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setDeleteScheduleId(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => handleDelete(deleteScheduleId)}>Delete</AlertDialogAction>
+            <AlertDialogAction 
+              onClick={() => handleDelete(deleteScheduleId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Schedule
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
