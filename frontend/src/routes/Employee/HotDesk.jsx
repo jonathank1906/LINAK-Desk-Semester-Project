@@ -245,7 +245,7 @@ export default function HotDesk({ setSelectedDeskId }) {
                 <Spinner variant="circle" className="w-6 h-6 text-muted-foreground" />
             </div>
           ) : hotdeskStatus.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">No desk data available.</p>
+            <p className="text-center text-muted-foreground py-8">No desk data available</p>
           ) : (
             <div className="space-y-3">
               {hotdeskStatus.map((desk) => {

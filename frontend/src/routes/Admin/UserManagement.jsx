@@ -94,7 +94,7 @@ export default function UserManagement() {
         setLoading(false);
       } catch (err) {
         console.error(err);
-        setError("Could not load user list.");
+        setError("Could not load user list");
         setLoading(false);
       }
     };
@@ -370,7 +370,7 @@ export default function UserManagement() {
           <Spinner variant="circle" className="h-8 w-8 text-primary" />
         </div>
       ) : error ? (
-        <div className="flex h-64 items-center justify-center text-red-500">
+        <div className="flex h-64 items-center justify-center">
           {error}
         </div>
       ) : (

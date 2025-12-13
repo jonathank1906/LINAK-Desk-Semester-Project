@@ -41,7 +41,7 @@ export default function LogsViewer() {
       setLoading(false);
     } catch (err) {
       console.error("Failed to fetch logs", err);
-      setError("Could not load logs.");
+      setError("Could not load logs");
       setLoading(false);
     }
   };
@@ -160,7 +160,7 @@ export default function LogsViewer() {
           <Spinner variant="circle" className="h-8 w-8 text-primary" />
         </div>
       ) : error ? (
-        <div className="flex h-64 items-center justify-center text-red-500">
+        <div className="flex h-64 items-center justify-center">
           {error}
         </div>
       ) : (

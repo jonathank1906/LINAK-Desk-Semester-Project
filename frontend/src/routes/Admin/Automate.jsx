@@ -375,7 +375,7 @@ export default function Automate() {
             </div>
           ) : schedules.length === 0 ? (
             <div className="flex items-center justify-center py-16 text-center">
-              <p className="text-muted-foreground">No active schedules found.</p>
+              <p className="text-muted-foreground">No active schedules found</p>
             </div>
           ) : (
             <DataTable columns={columns} data={schedules} />
