@@ -1,11 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { IconPlus, IconLoader2 } from "@tabler/icons-react";
 import {
@@ -249,125 +243,130 @@ export default function Automate() {
         <div className="min-w-0">
           <h1 className="text-2xl font-bold">Automation</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Configure automated desk cleaning schedules
+            Configure automated desk alignment schedules.
           </p>
         </div>
-        <Dialog open={showCreateDialog} onOpenChange={(open) => {
-          setShowCreateDialog(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button className="flex items-center gap-2 flex-shrink-0">
-              <IconPlus className="w-4 h-4" /> Create Schedule
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogTitle>Create Cleaning Schedule</DialogTitle>
-            <div className="space-y-5 mt-6">
-              <div>
-                <Label htmlFor="name" className="mb-2 block font-medium">Schedule Name</Label>
-                <Input 
-                  id="name"
-                  placeholder="e.g., Morning Cleaning"
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className={formErrors.name ? "border-destructive" : ""}
-                />
-                {formErrors.name && (
-                  <p className="text-sm text-destructive mt-1.5">{formErrors.name}</p>
-                )}
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="time" className="mb-2 block font-medium">Execution Time</Label>
-                  <TimePicker
-                    id="time"
-                    value={formData.time || "00:00"}
-                    onChange={(time) => setFormData({...formData, time})}
-                    className={formErrors.time ? "border-destructive" : ""}
-                  />
-                  {formErrors.time && (
-                    <p className="text-sm text-destructive mt-1.5">{formErrors.time}</p>
-                  )}
-                </div>
-                
-                <div>
-                  <Label htmlFor="height" className="mb-2 block font-medium">Target Height (cm)</Label>
-                  <Select
-                    value={formData.target_height?.toString() || "120"}
-                    onValueChange={(value) => setFormData({...formData, target_height: parseInt(value)})}
-                  >
-                    <SelectTrigger 
-                      id="height"
-                      className={formErrors.target_height ? "border-destructive" : ""}
-                    >
-                      <SelectValue placeholder="Select height" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 15 }, (_, i) => {
-                        const height = 60 + (i * 5);
-                        return (
-                          <SelectItem key={height} value={height.toString()}>
-                            {height} cm
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  {formErrors.target_height && (
-                    <p className="text-sm text-destructive mt-1.5">{formErrors.target_height}</p>
-                  )}
-                </div>
-              </div>
-              
-              <div>
-                <Label className="mb-2 block font-medium">Recurring Days</Label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2 p-4 border rounded-lg bg-muted/30">
-                  {WEEKDAYS.map(day => (
-                    <div key={day.value} className="flex items-center space-x-2">
-                      <Checkbox 
-                        id={`day-${day.value}`}
-                        checked={formData.weekdays.includes(day.value)}
-                        onCheckedChange={() => toggleWeekday(day.value)}
-                      />
-                      <label 
-                        htmlFor={`day-${day.value}`} 
-                        className="text-sm font-medium cursor-pointer flex-1"
-                      >
-                        {day.short}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-                {formErrors.weekdays && (
-                  <p className="text-sm text-destructive mt-1.5">{formErrors.weekdays}</p>
-                )}
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-8 pt-4 border-t">
-              <Button variant="outline" onClick={() => setShowCreateDialog(false)} disabled={submitting}>
-                Cancel
-              </Button>
-              <Button onClick={handleCreate} disabled={submitting}>
-                {submitting ? (
-                  <>
-                    <IconLoader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  "Create Schedule"
-                )}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button 
+          className="flex items-center gap-2 flex-shrink-0"
+          onClick={() => setShowCreateDialog(true)}
+        >
+          <IconPlus className="w-4 h-4" /> Create Schedule
+        </Button>
       </div>
+
+      {/* Create Dialog */}
+      <AlertDialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Create Automation Schedule</AlertDialogTitle>
+          </AlertDialogHeader>
+          <div className="space-y-5 mt-6">
+            <div>
+              <Label htmlFor="name" className="mb-2 block font-medium">Schedule Name</Label>
+              <Input 
+                id="name"
+                placeholder="e.g., Morning Cleaning, Visit Preparation, Nightly Reset"
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                className={formErrors.name ? "border-destructive" : ""}
+              />
+              {formErrors.name && (
+                <p className="text-sm text-destructive mt-1.5">{formErrors.name}</p>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="time" className="mb-2 block font-medium">Execution Time</Label>
+                <TimePicker
+                  id="time"
+                  value={formData.time || "00:00"}
+                  onChange={(time) => setFormData({...formData, time})}
+                  className={formErrors.time ? "border-destructive" : ""}
+                />
+                {formErrors.time && (
+                  <p className="text-sm text-destructive mt-1.5">{formErrors.time}</p>
+                )}
+              </div>
+              
+              <div>
+                <Label htmlFor="height" className="mb-2 block font-medium">Target Height (cm)</Label>
+                <Select
+                  value={formData.target_height?.toString() || "120"}
+                  onValueChange={(value) => setFormData({...formData, target_height: parseInt(value)})}
+                >
+                  <SelectTrigger 
+                    id="height"
+                    className={formErrors.target_height ? "border-destructive" : ""}
+                  >
+                    <SelectValue placeholder="Select height" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 15 }, (_, i) => {
+                      const height = 60 + (i * 5);
+                      return (
+                        <SelectItem key={height} value={height.toString()}>
+                          {height} cm
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                {formErrors.target_height && (
+                  <p className="text-sm text-destructive mt-1.5">{formErrors.target_height}</p>
+                )}
+              </div>
+            </div>
+            
+            <div>
+              <Label className="mb-2 block font-medium">Recurring Days</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2 p-4 border rounded-lg bg-muted/30">
+                {WEEKDAYS.map(day => (
+                  <div key={day.value} className="flex items-center space-x-2">
+                    <Checkbox 
+                      id={`day-${day.value}`}
+                      checked={formData.weekdays.includes(day.value)}
+                      onCheckedChange={() => toggleWeekday(day.value)}
+                    />
+                    <label 
+                      htmlFor={`day-${day.value}`} 
+                      className="text-sm font-medium cursor-pointer flex-1"
+                    >
+                      {day.short}
+                    </label>
+                  </div>
+                ))}
+              </div>
+              {formErrors.weekdays && (
+                <p className="text-sm text-destructive mt-1.5">{formErrors.weekdays}</p>
+              )}
+            </div>
+          </div>
+          <AlertDialogFooter className="mt-8 pt-4 border-t">
+            <AlertDialogCancel onClick={() => {
+              setShowCreateDialog(false);
+              resetForm();
+            }} disabled={submitting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleCreate} disabled={submitting}>
+              {submitting ? (
+                <>
+                  <IconLoader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Schedule"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Table Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Cleaning Schedules</CardTitle>
+          <CardTitle>Automation Schedules</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -376,7 +375,7 @@ export default function Automate() {
             </div>
           ) : schedules.length === 0 ? (
             <div className="flex items-center justify-center py-16 text-center">
-              <p className="text-muted-foreground">No schedules yet</p>
+              <p className="text-muted-foreground">No active schedules found.</p>
             </div>
           ) : (
             <DataTable columns={columns} data={schedules} />
@@ -385,21 +384,17 @@ export default function Automate() {
       </Card>
 
       {/* Edit Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={(open) => {
-        setShowEditDialog(open);
-        if (!open) {
-          resetForm();
-          setSelectedSchedule(null);
-        }
-      }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogTitle>Edit Cleaning Schedule</DialogTitle>
+      <AlertDialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Edit Automation Schedule</AlertDialogTitle>
+          </AlertDialogHeader>
           <div className="space-y-5 mt-6">
             <div>
               <Label htmlFor="edit-name" className="mb-2 block font-medium">Schedule Name</Label>
               <Input 
                 id="edit-name"
-                placeholder="e.g., Morning Cleaning, End of Day Reset" 
+                placeholder="e.g., Morning Alignment, Visit Prep" 
                 value={formData.name}
                 onChange={(e) => setFormData({...formData, name: e.target.value})}
                 className={formErrors.name ? "border-destructive" : ""}
@@ -476,11 +471,15 @@ export default function Automate() {
               )}
             </div>
           </div>
-          <div className="flex justify-end gap-3 mt-8 pt-4 border-t">
-            <Button variant="outline" onClick={() => setShowEditDialog(false)} disabled={submitting}>
+          <AlertDialogFooter className="mt-8 pt-4 border-t">
+            <AlertDialogCancel onClick={() => {
+              setShowEditDialog(false);
+              resetForm();
+              setSelectedSchedule(null);
+            }} disabled={submitting}>
               Cancel
-            </Button>
-            <Button onClick={handleEdit} disabled={submitting}>
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleEdit} disabled={submitting}>
               {submitting ? (
                 <>
                   <IconLoader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -489,10 +488,10 @@ export default function Automate() {
               ) : (
                 "Save Changes"
               )}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteScheduleId} onOpenChange={(open) => !open && setDeleteScheduleId(null)}>
@@ -500,7 +499,7 @@ export default function Automate() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Schedule?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this cleaning schedule? This action cannot be undone.
+              Are you sure you want to delete this schedule? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -271,13 +271,13 @@ export default function DeskManagement() {
         <AlertDialog open={createOpen} onOpenChange={setCreateOpen}>
           <AlertDialogTrigger asChild>
             <Button onClick={() => setCreateOpen(true)}>
-              <IconPlus className="h-5 w-5 mr-2" /> New Desk
+              <IconPlus className="h-5 w-5 mr-2" /> Create Desk
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Create New Desk</AlertDialogTitle>
-              <AlertDialogDescription>Add a new desk to the office map.</AlertDialogDescription>
+              <AlertDialogTitle>Create Desk</AlertDialogTitle>
+              <AlertDialogDescription>Add a new desk to the system.</AlertDialogDescription>
             </AlertDialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
