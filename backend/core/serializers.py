@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
 from djoser.serializers import UserCreateSerializer
-from .models import Desk, Reservation, DeskUsageLog, UserDeskPreference, DeskSchedule
+from .models import Desk, Reservation, DeskUsageLog, UserDeskPreference, DeskSchedule, Pico
 from django.utils import timezone
 from .models import DeskReport, DeskLog
 
@@ -59,10 +59,16 @@ class UserCreateSerializer(UserCreateSerializer):
         model = User
         fields = ['id', 'email', 'name', 'password']
 
+class PicoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Pico
+        fields = ['id', 'mac_address', 'ip_address', 'status', 'last_seen', 'firmware_version']
 
 class DeskSerializer(serializers.ModelSerializer):
     is_available_for_hot_desk = serializers.SerializerMethodField()
     requires_confirmation = serializers.SerializerMethodField()
+
+    pico = PicoSerializer(many=True, read_only=True)
 
     class Meta:
         model = Desk
@@ -78,6 +84,7 @@ class DeskSerializer(serializers.ModelSerializer):
             "current_user",
             "is_available_for_hot_desk",
             "requires_confirmation",
+            "pico",
         ]
 
     def get_is_available_for_hot_desk(self, obj):

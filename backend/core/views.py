@@ -31,7 +31,8 @@ from .serializers import (
     ReservationSerializer,
     AdminUserListSerializer,
     DeskLogSerializer,
-    DeskScheduleSerializer
+    DeskScheduleSerializer,
+    PicoSerializer
 )
 
 # ================= USER PREFERENCE VIEWS =================
@@ -2424,3 +2425,52 @@ def admin_clear_reservations(request, desk_id):
     ).update(status='cancelled', cancelled_by=request.user, cancelled_at=timezone.now())
     
     return Response({'success': True, 'message': f'Cancelled {count} reservations'})
+
+@api_view(['POST'])
+@permission_classes([IsAdminUser])
+def admin_add_pico(request, desk_id):
+    """Add a Pico to a desk (Enforce Max 1 limit)"""
+    try:
+        desk = Desk.objects.get(id=desk_id)
+        
+        # Enforce Max 1 Pico per desk
+        if Pico.objects.filter(desk=desk).exists():
+            return Response(
+                {"error": "This desk already has a Pico assigned. Remove it first."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = PicoSerializer(data=request.data)
+        if serializer.is_valid():
+            # Create the Pico linked to this desk, default status offline
+            serializer.save(desk=desk, status='offline') 
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    except Desk.DoesNotExist:
+        return Response({"error": "Desk not found"}, status=404)
+
+@api_view(['PATCH'])
+@permission_classes([IsAdminUser])
+def admin_update_pico(request, pico_id):
+    """Update IP or Mac address"""
+    try:
+        pico = Pico.objects.get(id=pico_id)
+        serializer = PicoSerializer(pico, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+    except Pico.DoesNotExist:
+        return Response({"error": "Pico not found"}, status=404)
+
+@api_view(['DELETE'])
+@permission_classes([IsAdminUser])
+def admin_remove_pico(request, pico_id):
+    """Unlink/Delete a Pico"""
+    try:
+        pico = Pico.objects.get(id=pico_id)
+        pico.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    except Pico.DoesNotExist:
+        return Response({"error": "Pico not found"}, status=404)

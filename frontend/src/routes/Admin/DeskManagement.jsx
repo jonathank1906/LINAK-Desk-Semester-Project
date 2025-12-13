@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { IconPlus, IconEdit, IconTrash, IconRefresh, IconAlertCircle, IconCheck, IconX, IconDotsVertical, IconTool } from "@tabler/icons-react";
+import { IconPlus, IconEdit, IconTrash, IconRefresh, IconAlertCircle, IconCheck, IconX, IconDotsVertical, IconTool, IconCpu } from "@tabler/icons-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +26,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
+// Ensure you have a standard Dialog component or reuse AlertDialog if necessary, 
+// but standard Dialog is better for forms.
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"; 
 
 export default function DeskManagement() {
   const { user } = useAuth();
@@ -35,17 +38,21 @@ export default function DeskManagement() {
   // --- Modals State ---
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [picoOpen, setPicoOpen] = useState(false); // New Pico Modal
   
   // Confirmation Dialog States
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [releaseOpen, setReleaseOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
-  const [maintenanceOpen, setMaintenanceOpen] = useState(false); // Renamed for clarity
+  const [maintenanceOpen, setMaintenanceOpen] = useState(false);
 
   const [selectedDesk, setSelectedDesk] = useState(null);
   
   // Form Data
   const [formData, setFormData] = useState({ name: "", location: "", current_status: "available" });
+  
+  // Pico Form Data
+  const [picoData, setPicoData] = useState({ ip_address: "", mac_address: "" });
 
   useEffect(() => {
     fetchDesks();
@@ -92,7 +99,52 @@ export default function DeskManagement() {
     }
   };
 
-  // Executed after confirmation
+  // --- Pico Actions ---
+
+  const handleSavePico = async () => {
+    if (!selectedDesk) return;
+    // Check if updating existing or adding new
+    const existingPico = selectedDesk.pico && selectedDesk.pico.length > 0 ? selectedDesk.pico[0] : null;
+    
+    const config = { headers: { Authorization: `Bearer ${user.token}` } };
+    
+    try {
+        if (existingPico) {
+            // Update
+            await axios.patch(`http://localhost:8000/api/admin/picos/${existingPico.id}/update/`, picoData, config);
+            toast.success("Pico updated");
+        } else {
+            // Create
+            await axios.post(`http://localhost:8000/api/admin/desks/${selectedDesk.id}/add-pico/`, picoData, config);
+            toast.success("Pico added to desk");
+        }
+        setPicoOpen(false);
+        fetchDesks();
+    } catch (err) {
+        toast.error(err.response?.data?.error || "Failed to save Pico settings");
+    }
+  };
+
+  const handleDeletePico = async () => {
+    if (!selectedDesk) return;
+    const existingPico = selectedDesk.pico && selectedDesk.pico.length > 0 ? selectedDesk.pico[0] : null;
+    if (!existingPico) return;
+
+    if (!confirm("Are you sure you want to remove this Pico device?")) return;
+
+    try {
+        const config = { headers: { Authorization: `Bearer ${user.token}` } };
+        await axios.delete(`http://localhost:8000/api/admin/pico/${existingPico.id}/remove/`, config);
+        toast.success("Pico removed");
+        setPicoOpen(false);
+        fetchDesks();
+    } catch (err) {
+        toast.error("Failed to remove Pico");
+    }
+  };
+
+  // --- Standard Actions ---
+
   const executeDelete = async () => {
     if (!selectedDesk) return;
     try {
@@ -106,7 +158,6 @@ export default function DeskManagement() {
     }
   };
 
-  // Executed after confirmation
   const executeForceRelease = async () => {
     if (!selectedDesk) return;
     try {
@@ -120,7 +171,6 @@ export default function DeskManagement() {
     }
   };
 
-  // Executed after confirmation
   const executeClearReservations = async () => {
     if (!selectedDesk) return;
     try {
@@ -134,7 +184,6 @@ export default function DeskManagement() {
     }
   };
 
-  // Executed after confirmation (Now toggles "maintenance")
   const executeMaintenanceToggle = async () => {
     if (!selectedDesk) return;
     const newStatus = selectedDesk.current_status === "maintenance" ? "available" : "maintenance";
@@ -161,6 +210,22 @@ export default function DeskManagement() {
     setEditOpen(true);
   };
 
+  const openPicoManagement = (desk) => {
+    setSelectedDesk(desk);
+    // Check if desk already has a pico (assuming serializer returns a list 'pico')
+    const existingPico = desk.pico && desk.pico.length > 0 ? desk.pico[0] : null;
+    
+    if (existingPico) {
+        setPicoData({
+            ip_address: existingPico.ip_address,
+            mac_address: existingPico.mac_address
+        });
+    } else {
+        setPicoData({ ip_address: "", mac_address: "" });
+    }
+    setPicoOpen(true);
+  }
+
   const openDelete = (desk) => {
     setSelectedDesk(desk);
     setDeleteOpen(true);
@@ -186,7 +251,7 @@ export default function DeskManagement() {
       <div className="flex items-center justify-between mb-4">
         <div>
             <h2 className="text-2xl font-bold">Desk Management</h2>
-            <p className="text-muted-foreground">Manage inventory, assignments, and maintenance.</p>
+            <p className="text-muted-foreground">Manage inventory, assignments, and hardware.</p>
         </div>
         
         {/* CREATE DIALOG */}
@@ -241,6 +306,7 @@ export default function DeskManagement() {
                     <tr className="border-b bg-muted/50">
                     <th className="py-3 px-4 text-left font-medium">Name</th>
                     <th className="py-3 px-4 text-left font-medium">Location</th>
+                    <th className="py-3 px-4 text-left font-medium">Hardware</th>
                     <th className="py-3 px-4 text-left font-medium">Status</th>
                     <th className="py-3 px-4 text-left font-medium">Current User</th>
                     <th className="py-3 px-4 text-left font-medium">Health</th>
@@ -253,11 +319,27 @@ export default function DeskManagement() {
                         const isError = status === "Collision" || status === "Offline" || status === "Error" || status === "error";
                         const isOccupied = status === "occupied" || status === "in_use";
                         const isMaintenance = status === "maintenance";
+                        
+                        // Check for Pico
+                        const pico = desk.pico && desk.pico.length > 0 ? desk.pico[0] : null;
 
                         return (
                         <tr key={desk.id} className="border-b hover:bg-muted/30 transition-colors">
                             <td className="py-3 px-4 font-medium">{desk.name}</td>
                             <td className="py-3 px-4 text-muted-foreground">{desk.location || "—"}</td>
+                            <td className="py-3 px-4">
+                                {pico ? (
+                                    <div className="flex items-center gap-2" title={`MAC: ${pico.mac_address}`}>
+                                        <IconCpu className={`h-4 w-4 ${
+                                            pico.status === 'online' ? 'text-green-500' : 
+                                            pico.status === 'error' ? 'text-red-500' : 'text-gray-400'
+                                        }`} />
+                                        <span className="text-xs font-mono text-muted-foreground">{pico.ip_address}</span>
+                                    </div>
+                                ) : (
+                                    <span className="text-xs text-muted-foreground italic">None</span>
+                                )}
+                            </td>
                             <td className="py-3 px-4">
                                 <Badge variant={
                                     isMaintenance ? "destructive" :
@@ -299,7 +381,13 @@ export default function DeskManagement() {
                                         <DropdownMenuItem onClick={() => openEdit(desk)}>
                                             <IconEdit className="mr-2 h-4 w-4" /> Edit Details
                                         </DropdownMenuItem>
+
+                                        <DropdownMenuItem onClick={() => openPicoManagement(desk)}>
+                                            <IconCpu className="mr-2 h-4 w-4" /> {pico ? 'Manage Pico' : 'Add Pico'}
+                                        </DropdownMenuItem>
                                         
+                                        <DropdownMenuSeparator />
+
                                         <DropdownMenuItem onClick={() => openForceRelease(desk)} className="text-orange-600 focus:text-orange-600">
                                             <IconRefresh className="mr-2 h-4 w-4" /> Force Release
                                         </DropdownMenuItem>
@@ -376,6 +464,54 @@ export default function DeskManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* PICO MANAGEMENT DIALOG (Using Dialog instead of AlertDialog for forms) */}
+      <Dialog open={picoOpen} onOpenChange={setPicoOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Manage Pico Device</DialogTitle>
+                <DialogDescription>
+                    {selectedDesk?.pico && selectedDesk.pico.length > 0 
+                        ? `Managing Pico for ${selectedDesk.name}` 
+                        : `Add a new Pico controller to ${selectedDesk?.name}`}
+                </DialogDescription>
+            </DialogHeader>
+            
+            <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <label htmlFor="ip" className="text-right text-sm font-medium">IP Address</label>
+                    <Input 
+                        id="ip" 
+                        value={picoData.ip_address} 
+                        onChange={(e) => setPicoData({...picoData, ip_address: e.target.value})}
+                        className="col-span-3" 
+                        placeholder="192.168.x.x" 
+                    />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <label htmlFor="mac" className="text-right text-sm font-medium">MAC Address</label>
+                    <Input 
+                        id="mac" 
+                        value={picoData.mac_address} 
+                        onChange={(e) => setPicoData({...picoData, mac_address: e.target.value})}
+                        className="col-span-3" 
+                        placeholder="00:00:00:00:00:00" 
+                    />
+                </div>
+            </div>
+
+            <DialogFooter className="flex justify-between sm:justify-between w-full">
+                {selectedDesk?.pico && selectedDesk.pico.length > 0 ? (
+                    <Button variant="destructive" onClick={handleDeletePico}>Remove Pico</Button>
+                ) : <div></div>}
+                
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setPicoOpen(false)}>Cancel</Button>
+                    <Button onClick={handleSavePico}>Save</Button>
+                </div>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* DELETE CONFIRMATION */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>

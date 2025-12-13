@@ -30,6 +30,7 @@ from .views import (
     admin_delete_desk,
     admin_force_release,
     admin_clear_reservations,
+    admin_add_pico, admin_update_pico, admin_remove_pico,
 )
 
 urlpatterns = [
@@ -101,4 +102,8 @@ urlpatterns = [
     path('admin/desks/<int:desk_id>/delete/', admin_delete_desk),
     path('admin/desks/<int:desk_id>/force-release/', admin_force_release),
     path('admin/desks/<int:desk_id>/clear-reservations/', admin_clear_reservations),
+    path('admin/desks/<int:desk_id>/add-pico/', admin_add_pico, name='admin_add_pico'),
+    path('admin/pico/<int:pico_id>/update/', admin_update_pico, name='admin_update_pico'),
+    path('admin/pico/<int:pico_id>/remove/', admin_remove_pico, name='admin_remove_pico'),
+
 ]
