@@ -12,8 +12,8 @@ from .views import (
     control_desk_height,
     desk_usage,
     desk_detail,
-    control_pico_led, cancel_reservation, edit_reservation,      
-    get_pico_sensor_data, list_all_users, user_detail_or_update,
+    cancel_reservation, edit_reservation,      
+    list_all_users, user_detail_or_update,
     list_available_hot_desks, start_hot_desk, confirm_hot_desk, end_hot_desk,
     list_user_reservations, create_reservation, cancel_pending_verification,
     check_in_reservation, check_out_reservation, hotdesk_status, available_desks_for_date, release_desk,
@@ -61,10 +61,6 @@ urlpatterns = [
     path("desks/<int:desk_id>/", desk_detail, name="desk-detail"),
     path('desks/<int:desk_id>/usage/', desk_usage, name='desk_usage'),
     path('desks/<int:desk_id>/control/', control_desk_height, name='control_desk'),
-    
-    # PICO CONTROLS
-    path('pico/<int:pico_id>/led/', control_pico_led, name='control_pico_led'),
-    path('pico/<int:pico_id>/sensors/', get_pico_sensor_data, name='pico_sensor_data'),
     
     # HOT DESK
     path('desks/hotdesk/', list_available_hot_desks, name='hotdesk_list'),
