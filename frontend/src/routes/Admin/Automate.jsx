@@ -243,7 +243,7 @@ export default function Automate() {
         <div className="min-w-0">
           <h1 className="text-2xl font-bold">Automation</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Configure automated desk alignment schedules.
+            Configure automated desk alignment schedules
           </p>
         </div>
         <Button 
