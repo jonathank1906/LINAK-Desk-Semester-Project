@@ -20,6 +20,8 @@ services:
       - 8000:8000
     volumes:
       - ./backend:/backend
+    env_file:
+      - .env
     command: >
       sh -c "python manage.py makemigrations core &&
              python manage.py migrate &&

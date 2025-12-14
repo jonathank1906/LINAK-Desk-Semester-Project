@@ -99,7 +99,6 @@ class Command(BaseCommand):
         now = timezone.now()
         sample_desks = [
             {
-                "id": 1,
                 "wifi2ble_id": "cd:fb:1a:53:fb:e6",
                 "name": "DESK 4486",
                 "location": "Unknown",
@@ -119,7 +118,6 @@ class Command(BaseCommand):
                 "updated_at": now,
             },
             {
-                "id": 2,
                 "wifi2ble_id": "ee:62:5b:b8:73:1d",
                 "name": "DESK 6743",
                 "location": "Unknown",
@@ -139,7 +137,6 @@ class Command(BaseCommand):
                 "updated_at": now,
             },
             {
-                "id": 3,
                 "wifi2ble_id": "70:9e:d5:e7:8c:98",
                 "name": "DESK 3677",
                 "location": "Unknown",
@@ -159,7 +156,6 @@ class Command(BaseCommand):
                 "updated_at": now,
             },
             {
-                "id": 4,
                 "wifi2ble_id": "00:ec:eb:50:c2:c8",
                 "name": "DESK 3050",
                 "location": "Unknown",
@@ -179,7 +175,6 @@ class Command(BaseCommand):
                 "updated_at": now,
             },
             {
-                "id": 5,
                 "wifi2ble_id": "f1:50:c2:b8:bf:22",
                 "name": "DESK 8294",
                 "location": "Unknown",
@@ -199,7 +194,6 @@ class Command(BaseCommand):
                 "updated_at": now,
             },
             {
-                "id": 6,
                 "wifi2ble_id": "ce:38:a6:30:af:1d",
                 "name": "DESK 7380",
                 "location": "Unknown",
@@ -219,7 +213,6 @@ class Command(BaseCommand):
                 "updated_at": now,
             },
             {
-                "id": 7,
                 "wifi2ble_id": "91:17:a4:3b:f4:4d",
                 "name": "DESK 6782",
                 "location": "Unknown",
@@ -269,7 +262,6 @@ class Command(BaseCommand):
 
         pico_data = [
             {
-                "id": 1,
                 "mac_address": config('PICO_MAC_ADDRESS', default='00:00:00:00:00:00'),
                 "ip_address": config('PICO_IP_ADDRESS', default='0.0.0.0'),
                 "status": "nothing",
@@ -424,23 +416,3 @@ class Command(BaseCommand):
                             f"Created usage log for {log.user.email} on desk {log.desk.name}"
                         )
                     )
-        
-        # -------------------------------------------------
-        # FIX SEQUENCE IDs (AUTO-INCREMENT REPAIR)
-        # -------------------------------------------------
-        self.stdout.write(self.style.WARNING('Resetting database sequence counters...'))
-        
-        # Get all models in the 'core' app
-        core_models = apps.get_app_config('core').get_models()
-        
-        # Generate the SQL to fix the sequence counters for all tables
-        from django.core.management.color import no_style
-        sequence_sql = connection.ops.sequence_reset_sql(no_style(), core_models)
-        
-        if sequence_sql:
-            with connection.cursor() as cursor:
-                for sql in sequence_sql:
-                    cursor.execute(sql)
-            self.stdout.write(self.style.SUCCESS("Successfully reset database sequences. ID conflicts resolved."))
-        else:
-            self.stdout.write("No sequences needed resetting.")
