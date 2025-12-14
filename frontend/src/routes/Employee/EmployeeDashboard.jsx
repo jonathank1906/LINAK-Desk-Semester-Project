@@ -79,6 +79,17 @@ export default function EmployeeDashboard() {
     const [metricsTimeRange, setMetricsTimeRange] = useState("7");
     const [lastUpdated, setLastUpdated] = useState(null);
 
+    // --- FIX: GRACE PERIOD REF ---
+    // We track when the desk was selected to prevent immediate "session ended" errors due to DB lag
+    const lastSelectionTimeRef = useRef(0);
+
+    // Update the timestamp whenever selectedDeskId changes (User selects a desk)
+    useEffect(() => {
+        if (selectedDeskId) {
+            lastSelectionTimeRef.current = Date.now();
+        }
+    }, [selectedDeskId]);
+
     function formatMinutes(mins) {
         if (mins >= 60) {
             const h = Math.floor(mins / 60);
@@ -200,8 +211,10 @@ export default function EmployeeDashboard() {
         
         const initialCheck = async () => {
             const deskId = await checkActiveDesk();
-            if (mounted) {
+            if (mounted && deskId) {
                 setSelectedDeskId(deskId);
+                // Also set timestamp on initial load
+                lastSelectionTimeRef.current = Date.now();
             }
         };
         
@@ -303,8 +316,19 @@ export default function EmployeeDashboard() {
 
                 if (!mounted) return;
 
-                // --- FIX: SESSION ENDED HANDLING ---
+                // --- FIX: SESSION ENDED HANDLING WITH GRACE PERIOD ---
                 if (usageRes.data.active_session === false) {
+                    
+                    // Check if we selected this desk very recently (last 5 seconds)
+                    // If so, we assume the DB is still propagating the "active" status
+                    // and we IGNORE this failure.
+                    const gracePeriodActive = (Date.now() - lastSelectionTimeRef.current) < 5000;
+
+                    if (gracePeriodActive) {
+                        console.log("Grace period active: Ignoring session ended signal");
+                        return;
+                    }
+
                     if (lastFetchTime !== null) {
                         toast("Session Ended", {
                             description: "Your reservation time has expired."
@@ -334,6 +358,7 @@ export default function EmployeeDashboard() {
                 }
             } catch (err) {
                 if (!mounted) return;
+                // Don't clear deskId on API error, just stats
                 setUsageStats(null);
                 setSessionStartTime(null);
             }
@@ -341,8 +366,11 @@ export default function EmployeeDashboard() {
             if (!mounted) return;
             console.error("API error:", err);
             // If the desk itself is not found/accessible, clear the ID
+            // Also apply grace period here just in case
             if(err.response && err.response.status === 404) {
-                setSelectedDeskId(null);
+                 if ((Date.now() - lastSelectionTimeRef.current) > 5000) {
+                    setSelectedDeskId(null);
+                 }
             }
         }
     };
@@ -498,7 +526,11 @@ export default function EmployeeDashboard() {
                         r.id === reservationId ? { ...r, checkedIn: true, pendingConfirmation: false } : r
                     )
                 );
-                if (deskId) setSelectedDeskId(deskId);
+                if (deskId) {
+                    // Force update selection time to now
+                    lastSelectionTimeRef.current = Date.now();
+                    setSelectedDeskId(deskId);
+                }
                 toast.success("Checked in successfully");
             }
 
@@ -860,14 +892,25 @@ export default function EmployeeDashboard() {
                     </div>
                 );
             case "reservations":
-                return <Reservations setSelectedDeskId={setSelectedDeskId} />;
+                return <Reservations setSelectedDeskId={(id) => {
+                    // Update timestamp on manual selection to protect against race conditions
+                    lastSelectionTimeRef.current = Date.now();
+                    setSelectedDeskId(id);
+                }} />;
             case "hotdesk":
-                return <Hotdesk setSelectedDeskId={setSelectedDeskId} />;
+                return <Hotdesk setSelectedDeskId={(id) => {
+                    // Update timestamp on manual selection to protect against race conditions
+                    lastSelectionTimeRef.current = Date.now();
+                    setSelectedDeskId(id);
+                }} />;
             case "mydesk":
                 return (
                     <MyDesk
                         selectedDeskId={selectedDeskId}
                         onNavigate={setSelectedSection}
+                        // We still pass these to allow initial render, but the parent now protects the state
+                        initialDeskStatus={deskStatus}
+                        initialUsageStats={usageStats}
                     />
                 );
         }

@@ -47,12 +47,16 @@ export const SITTING_HEIGHT = 72;
 const DEFAULT_STANDING_NAME = "Standing Position";
 const DEFAULT_SITTING_NAME = "Sitting Position";
 
-export default function MyDesk({ selectedDeskId, onNavigate }) {
+export default function MyDesk({ selectedDeskId, onNavigate, initialDeskStatus, initialUsageStats }) {
   const { user } = useAuth();
   const { pendingHeightChange } = usePostureReminder();
-  const [deskStatus, setDeskStatus] = useState(null);
-  const [usageStats, setUsageStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  
+  // Initialize state with props if available to prevent flash/race conditions
+  const [deskStatus, setDeskStatus] = useState(initialDeskStatus || null);
+  const [usageStats, setUsageStats] = useState(initialUsageStats || null);
+  
+  // Only load if we don't have initial data
+  const [loading, setLoading] = useState(!initialDeskStatus);
   
   const [isControlling, setIsControlling] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
@@ -65,6 +69,9 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
   const pollingIntervalRef = useRef(null);
   const hasRedirected = useRef(false);
   const lastPendingHeightRef = useRef(null);
+  
+  // Track mount time to ignore immediate "session ended" errors due to race conditions
+  const mountTimeRef = useRef(Date.now());
 
   // --- USER PREFERENCE STATE ---
   const [pref, setPref] = useState(null);
@@ -229,9 +236,11 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
 
   // --- 1. INITIAL FETCH & DATA SYNC ---
   useEffect(() => {
-    setLoading(true);
-    setDeskStatus(null);
-    setUsageStats(null);
+    // Only set loading if we didn't receive initial data props
+    if (!initialDeskStatus) {
+      setLoading(true);
+    }
+    
     hasRedirected.current = false;
 
     if (!user || !selectedDeskId) {
@@ -257,6 +266,15 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
             const usageRes = await usageReq;
             
             if (usageRes.data.active_session === false) {
+                // RACE CONDITION FIX:
+                // If the user just navigated here (within last 3 seconds), ignore the "active_session: false"
+                // signal from the backend, as the DB might still be committing the transaction from the Dashboard.
+                // We trust the props passed from Dashboard initially.
+                if (Date.now() - mountTimeRef.current < 3000) {
+                   console.log("Ignoring premature session end signal due to race condition");
+                   return;
+                }
+
                 if (isMounted.current) handleSessionExpiry();
                 return;
             }
@@ -270,6 +288,8 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
       } catch (err) {
         console.error("Error fetching desk status:", err);
         if (err.response && (err.response.status === 404 || err.response.status === 403)) {
+            // Also apply race condition guard here
+            if (Date.now() - mountTimeRef.current < 3000) return;
             if (isMounted.current) handleSessionExpiry();
         }
       } finally {
@@ -280,7 +300,7 @@ export default function MyDesk({ selectedDeskId, onNavigate }) {
     fetchDeskData();
     const interval = setInterval(fetchDeskData, 5000);
     return () => clearInterval(interval);
-  }, [user, selectedDeskId]);
+  }, [user, selectedDeskId]); // Removed initialDeskStatus from dependency array to avoid loops
 
   // --- 2. POLLING FOR MOVEMENT ---
   const startMovementPolling = () => {
