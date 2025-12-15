@@ -181,8 +181,10 @@ class UserDeskPreferenceSerializer(serializers.ModelSerializer):
             "custom_height_1_name",
             "custom_height_2_name",
             "custom_height_3_name",
-            "preferred_interval",
-            "enable_reminders",
+            "enable_posture_cycles",
+            "posture_sitting_duration",
+            "posture_standing_duration",
+            "posture_automatic_movement",
         ]
         read_only_fields = ["id", "user"]
 

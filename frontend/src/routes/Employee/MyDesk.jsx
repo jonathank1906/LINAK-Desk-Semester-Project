@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/useAuth";
-import { usePostureReminder } from "@/contexts/usePostureReminder";
+import { usePostureCycle } from "@/contexts/usePostureCycle";
 import axios from "axios";
 import { toast } from "sonner";
 import { Pill, PillIndicator } from '@/components/ui/shadcn-io/pill';
@@ -27,10 +27,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import PostureCycleSettings from "@/components/PostureCycleSettings";
 
 import {
   Settings2,
-  ArrowUpDown
+  ArrowUpDown,
+  Repeat
 } from "lucide-react"
 
 import StandingIcon from "@/assets/Standing.svg";
@@ -49,7 +51,7 @@ const DEFAULT_SITTING_NAME = "Sitting Position";
 
 export default function MyDesk({ selectedDeskId, onNavigate, initialDeskStatus, initialUsageStats }) {
   const { user } = useAuth();
-  const { pendingHeightChange } = usePostureReminder();
+  const { pendingHeightChange, pendingHeightChangeIsAutomatic, updateStanceFromHeight, updateConfiguredHeights } = usePostureCycle();
   
   // Initialize state with props if available to prevent flash/race conditions
   const [deskStatus, setDeskStatus] = useState(initialDeskStatus || null);
@@ -64,6 +66,7 @@ export default function MyDesk({ selectedDeskId, onNavigate, initialDeskStatus, 
   const [reportModal, setReportModal] = useState(false);
   const [reportMessage, setReportMessage] = useState("");
   const [reportCategory, setReportCategory] = useState("other");
+  const [reminderSettingsOpen, setReminderSettingsOpen] = useState(false);
 
   const isMounted = useRef(true);
   const pollingIntervalRef = useRef(null);
@@ -100,9 +103,20 @@ export default function MyDesk({ selectedDeskId, onNavigate, initialDeskStatus, 
   useEffect(() => {
     setLoadingPref(true);
     fetchPreferences()
-      .then((data) => setPref(data[0] || null))
+      .then((data) => {
+        const preference = data[0] || null;
+        setPref(preference);
+        // Update configured heights in posture cycle context
+        if (preference) {
+          const standing = preference.custom_height_1 ?? preference.standing_height ?? STANDING_HEIGHT;
+          const sitting = preference.custom_height_2 ?? preference.sitting_height ?? SITTING_HEIGHT;
+          updateConfiguredHeights(standing, sitting);
+        } else {
+          updateConfiguredHeights(STANDING_HEIGHT, SITTING_HEIGHT);
+        }
+      })
       .finally(() => setLoadingPref(false));
-  }, []);
+  }, [updateConfiguredHeights]);
 
   useEffect(() => {
     isMounted.current = true;
@@ -161,13 +175,18 @@ export default function MyDesk({ selectedDeskId, onNavigate, initialDeskStatus, 
   };
 
   const handleSave = async (form) => {
+    let savedPref;
     if (pref?.id) {
-      const updated = await updatePreference(pref.id, form);
-      setPref(updated);
+      savedPref = await updatePreference(pref.id, form);
+      setPref(savedPref);
     } else {
-      const created = await createPreference(form);
-      setPref(created);
+      savedPref = await createPreference(form);
+      setPref(savedPref);
     }
+    // Update configured heights in posture cycle context
+    const standing = savedPref.custom_height_1 ?? savedPref.standing_height ?? STANDING_HEIGHT;
+    const sitting = savedPref.custom_height_2 ?? savedPref.sitting_height ?? SITTING_HEIGHT;
+    updateConfiguredHeights(standing, sitting);
   };
 
   const handleSubmitPresets = async () => {
@@ -260,6 +279,10 @@ export default function MyDesk({ selectedDeskId, onNavigate, initialDeskStatus, 
 
         if (isMounted.current) {
             setDeskStatus(statusRes.data);
+            // Update stance based on actual desk height
+            if (statusRes.data?.current_height !== undefined) {
+              updateStanceFromHeight(statusRes.data.current_height);
+            }
         }
 
         try {
@@ -327,6 +350,10 @@ export default function MyDesk({ selectedDeskId, onNavigate, initialDeskStatus, 
               status: data.status
             };
           });
+          // Update stance based on actual desk height
+          if (data.height !== undefined) {
+            updateStanceFromHeight(data.height);
+          }
 
           // CRITICAL FIX: Continue polling for 2 more cycles after movement stops
           if (!data.is_moving) {
@@ -356,7 +383,7 @@ export default function MyDesk({ selectedDeskId, onNavigate, initialDeskStatus, 
   };
 
   // --- ACTIONS ---
-  const controlDeskHeight = useCallback(async (targetHeight) => {
+  const controlDeskHeight = useCallback(async (targetHeight, isAutomatic = false) => {
     setIsControlling(true);
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
@@ -371,7 +398,13 @@ export default function MyDesk({ selectedDeskId, onNavigate, initialDeskStatus, 
       if (isMounted.current) {
         setDeskStatus(prev => ({ ...prev, is_moving: true }));
       }
-      toast.success(`Moving desk to ${targetHeight}cm`);
+      
+      if (isAutomatic) {
+        const stance = targetHeight >= 95 ? 'standing' : 'sitting';
+        toast.success(`Posture cycle: Switching to ${stance} position (${targetHeight}cm)`);
+      } else {
+        toast.success(`Moving desk to ${targetHeight}cm`);
+      }
 
     } catch (err) {
       toast.error("Failed to control desk");
@@ -390,11 +423,14 @@ export default function MyDesk({ selectedDeskId, onNavigate, initialDeskStatus, 
         deskStatus && 
         selectedDeskId) {
       lastPendingHeightRef.current = pendingHeightChange.timestamp;
+      
       if (pendingHeightChange.height) {
-        controlDeskHeight(pendingHeightChange.height);
+        if (pendingHeightChange.height !== deskStatus?.current_height) {
+          controlDeskHeight(pendingHeightChange.height, pendingHeightChangeIsAutomatic);
+        }
       }
     }
-  }, [pendingHeightChange, loading, deskStatus, selectedDeskId, controlDeskHeight]);
+  }, [pendingHeightChange, pendingHeightChangeIsAutomatic, loading, deskStatus, selectedDeskId, controlDeskHeight]);
 
   const moveUp = () => {
     if (currentHeight == null) return;
@@ -548,6 +584,19 @@ export default function MyDesk({ selectedDeskId, onNavigate, initialDeskStatus, 
                     </span>
                   </div>
                 </div>
+
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setReminderSettingsOpen(true)}
+                >
+                  <Repeat className="h-4 w-4" />
+                </Button>
+
+                <PostureCycleSettings
+                  open={reminderSettingsOpen}
+                  onOpenChange={setReminderSettingsOpen}
+                />
 
                 <Dialog open={reportModal} onOpenChange={setReportModal}>
                   <DialogTrigger asChild>
