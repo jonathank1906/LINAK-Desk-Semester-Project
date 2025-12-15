@@ -1,11 +1,10 @@
 import { AppSidebar } from "@/components/app-sidebar-employee";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { ModeToggle } from "@/components/mode-toggle";
-import { PostureTestButton } from "@/components/PostureTestButton";
 import { NavUser } from "@/components/nav-user";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/useAuth";
-import { usePostureReminder } from "@/contexts/usePostureReminder";
+import { usePostureCycle } from "@/contexts/usePostureCycle";
 import MyDesk from "./MyDesk";
 import Reservations from "./Reservations";
 import Hotdesk from "./HotDesk";
@@ -39,7 +38,7 @@ import { toast } from "sonner";
 export default function EmployeeDashboard() {
     const [selectedSection, setSelectedSection] = useState("dashboard");
     const { user } = useAuth();
-    const { registerCallbacks, setActiveDeskStatus } = usePostureReminder();
+    const { registerCallbacks, setActiveDeskStatus, triggerTestReminder } = usePostureCycle();
 
     const [selectedDeskId, setSelectedDeskId] = useState(null);
     const [deskStatus, setDeskStatus] = useState(null);
@@ -82,6 +81,30 @@ export default function EmployeeDashboard() {
     // --- FIX: GRACE PERIOD REF ---
     // We track when the desk was selected to prevent immediate "session ended" errors due to DB lag
     const lastSelectionTimeRef = useRef(0);
+
+    // Keyboard shortcuts
+    useEffect(() => {
+        const handleKeyPress = (e) => {
+            // Only trigger if not typing in an input/textarea
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return;
+            }
+
+            if (e.key === 'T' || e.key === 't') {
+                e.preventDefault();
+                triggerTestReminder();
+            } else if (e.key === 'R' || e.key === 'r') {
+                e.preventDefault();
+                document.documentElement.style.animation = 'barrelRoll 0.5s ease-in-out';
+                setTimeout(() => {
+                    document.documentElement.style.animation = '';
+                }, 500);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyPress);
+        return () => window.removeEventListener('keydown', handleKeyPress);
+    }, [triggerTestReminder]);
 
     // Update the timestamp whenever selectedDeskId changes (User selects a desk)
     useEffect(() => {
@@ -920,7 +943,6 @@ export default function EmployeeDashboard() {
         <SidebarProvider>
             <div className="absolute top-4 right-4 z-50">
                 <div className="flex items-center gap-3">
-                    <PostureTestButton />
                     <ModeToggle />
                     <NavUser user={user} />
                 </div>

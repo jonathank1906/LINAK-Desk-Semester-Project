@@ -221,9 +221,11 @@ class UserDeskPreference(models.Model):
     custom_height_1_name = models.CharField(max_length=50, blank=True, null=True)
     custom_height_2_name = models.CharField(max_length=50, blank=True, null=True)
     custom_height_3_name = models.CharField(max_length=50, blank=True, null=True)
-    # Reminder preferences
-    preferred_interval = models.IntegerField(default=30)  # minutes between reminders
-    enable_reminders = models.BooleanField(default=True)
+    # Posture cycle preferences
+    enable_posture_cycles = models.BooleanField(default=True)
+    posture_sitting_duration = models.IntegerField(default=30)  # minutes
+    posture_standing_duration = models.IntegerField(default=5)  # minutes
+    posture_automatic_movement = models.BooleanField(default=False)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

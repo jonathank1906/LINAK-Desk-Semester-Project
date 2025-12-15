@@ -1,30 +1,44 @@
+import { usePostureCycle } from '@/contexts/usePostureCycle';
+import { useAuth } from '@/contexts/useAuth';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { usePostureReminder } from "@/contexts/usePostureReminder";
-import { useAuth } from "@/contexts/useAuth";
-import { ArrowUp, ArrowDown } from "lucide-react";
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { ArrowUp, ArrowDown } from 'lucide-react';
+import { toast } from 'sonner';
 
-export default function PostureReminderModal() {
+export default function PostureCycleModal() {
   const { user } = useAuth();
-  const { currentStance, showReminder, changeStanceAndSetDesk, dismissReminder, disableReminders } = usePostureReminder();
+  const {
+    showReminder,
+    currentStance,
+    changeStanceAndSetDesk,
+    dismissReminder,
+    disablePostureCycles,
+    sittingDuration,
+    standingDuration
+  } = usePostureCycle();
 
-  // Only allow to show reminders when user is authenticated and is an employee (not admin)
   if (!user || user.is_admin) {
     return null;
   }
 
   const nextStance = currentStance === 'sitting' ? 'standing' : 'sitting';
   const nextStanceLabel = nextStance === 'standing' ? 'Standing' : 'Sitting';
+  const currentDuration = currentStance === 'sitting' ? sittingDuration : standingDuration;
 
   const handleConfirm = () => {
-    changeStanceAndSetDesk(nextStance);
+    changeStanceAndSetDesk(nextStance, false);
+    toast.success(`Switching to ${nextStanceLabel.toLowerCase()} position`);
+  };
+
+  const handleDisable = async () => {
+    await disablePostureCycles();
+    toast.success('Posture cycles disabled. You can re-enable them in settings.');
   };
 
   return (
@@ -40,7 +54,7 @@ export default function PostureReminderModal() {
             Posture Reminder
           </DialogTitle>
           <DialogDescription className="pt-2">
-            You have been {currentStance} for 30 minutes. Consider adjusting your desk to the {nextStanceLabel.toLowerCase()} position.
+            You have been {currentStance} for {currentDuration} minutes. Consider adjusting your desk to the {nextStanceLabel.toLowerCase()} position.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-3 pt-4">
@@ -52,7 +66,7 @@ export default function PostureReminderModal() {
           </Button>
           <div className="flex justify-center">
             <button
-              onClick={disableReminders}
+              onClick={handleDisable}
               className="text-xs text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
             >
               Do not show again
@@ -63,4 +77,3 @@ export default function PostureReminderModal() {
     </Dialog>
   );
 }
-
