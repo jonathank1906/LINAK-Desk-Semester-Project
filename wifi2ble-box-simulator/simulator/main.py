@@ -2,6 +2,7 @@ import argparse
 import ssl
 import random
 import logging
+import os
 from http.server import HTTPServer
 from users import UserType
 from desk_manager import DeskManager
@@ -46,7 +47,10 @@ def run(server_class=HTTPServer, handler_class=SimpleRESTServer, port=8000, use_
     def handler(*args, **kwargs):
         handler_class(desk_manager, *args, **kwargs)
 
-    server_address = ("localhost", port)
+    # Dynamically set the server address based on an environment variable
+    use_docker = os.environ.get('USE_DOCKER', '0')  # Default to '0' (not using Docker)
+    server_host = "0.0.0.0" if use_docker == '1' else "localhost"
+    server_address = (server_host, port)
     SimpleRESTServer.initialize_api_keys()
     httpd = server_class(server_address, handler)
 

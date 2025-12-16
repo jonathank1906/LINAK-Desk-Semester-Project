@@ -1,6 +1,7 @@
 import paho.mqtt.client as mqtt
 import json
 import logging
+import os
 from django.conf import settings
 from core.models import Pico, Desk
 
@@ -11,7 +12,13 @@ class MQTTService:
     """Service to handle MQTT communication with Pico devices"""
     
     def __init__(self):
-        self.broker = getattr(settings, 'MQTT_BROKER', 'localhost')
+        # Determine the broker based on the USE_DOCKER environment variable
+        use_docker = os.environ.get('USE_DOCKER', '0')  # Default to '0' if not set
+        if use_docker == '1':
+            self.broker = 'wifi2ble-simulator'
+        else:
+            self.broker = 'localhost'
+        
         self.port = getattr(settings, 'MQTT_PORT', 1883)
         self.client = mqtt.Client()
         self.client.on_connect = self.on_connect

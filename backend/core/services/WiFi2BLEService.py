@@ -1,5 +1,6 @@
 import requests
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -7,7 +8,13 @@ class WiFi2BLEService:
     """Service to communicate with WiFi2BLE Box simulator"""
     
     def __init__(self):
-        self.base_url = "http://localhost:8001"
+         # Dynamically set the base URL based on the USE_DOCKER environment variable
+        use_docker = os.environ.get('USE_DOCKER', '0')  # Default to '0' if not set
+        if use_docker == '1':
+            self.base_url = "http://wifi2ble-simulator:8001"
+        else:
+            self.base_url = "http://localhost:8001"
+
         self.api_key = "E9Y2LxT4g1hQZ7aD8nR3mWx5P0qK6pV7"
         self.version = "v2"
     

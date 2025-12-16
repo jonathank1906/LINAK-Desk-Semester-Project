@@ -36,6 +36,19 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - app-network
+
+  wifi2ble-simulator:
+    build:
+      context: ./wifi2ble-box-simulator
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - USE_DOCKER=1
+    networks:
+      - app-network
 
   db:
     image: postgres:17.6
@@ -52,6 +65,12 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - app-network
 
 volumes:
   db-data:
+
+networks:
+  app-network:
+    driver: bridge
