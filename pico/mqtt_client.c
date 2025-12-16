@@ -21,6 +21,13 @@
 #include "buzzer_mode.h"
 #include "wifi_config.h"
 
+#ifdef USE_DOCKER
+#define MQTT_SERVER "192.168.0.143"  // Docker host IP
+#else
+#define MQTT_SERVER "prod.mqtt.server.com"
+#endif
+
+
 #ifdef __cplusplus
 extern "C"
 {

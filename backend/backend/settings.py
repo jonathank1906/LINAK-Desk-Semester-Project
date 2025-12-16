@@ -205,8 +205,8 @@ DJOSER = {
 }
 
 # MQTT Configuration
-MQTT_BROKER = config('MQTT_BROKER', default='localhost')
-MQTT_PORT = config('MQTT_PORT', default=1883, cast=int)
+MQTT_BROKER = os.environ.get('USE_DOCKER') == '1' and 'mosquitto' or 'localhost'
+MQTT_PORT = int(os.environ.get('MQTT_PORT', 1883))
 
 
 # Default primary key field type

@@ -15,7 +15,7 @@ class MQTTService:
         # Determine the broker based on the USE_DOCKER environment variable
         use_docker = os.environ.get('USE_DOCKER', '0')  # Default to '0' if not set
         if use_docker == '1':
-            self.broker = 'wifi2ble-simulator'
+            self.broker = 'mosquitto'
         else:
             self.broker = 'localhost'
         
