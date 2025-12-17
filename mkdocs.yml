@@ -6,12 +6,14 @@ theme:
 
 nav:
   - README: index.md
-  - Setup & Dev Guide:
-    - Frontend and Backend: setup/frontend and backend.md 
-    - Pico: setup/pico.md
-  - Run: run.md
+  - Setup Guide:
+    - Frontend & Backend: setup/frontend and backend.md 
+    - Pico W: setup/pico.md
+    - Docker: setup/docker.md
+  - Run: 
+    - Run Locally: run/local.md
+    - Run with Docker: run/docker.md
   - Test: test.md
-  - Docker: docker.md
   - API Reference:
     - Simulator API:
         - Overview: api/simulator/index.md

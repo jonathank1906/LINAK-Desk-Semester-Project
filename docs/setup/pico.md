@@ -1,15 +1,4 @@
-# Recommended Pico Dev Workflow
-- Open one VS Code instance at the root folder of the project.
-- Open a second VS Code instance.
-    - Go to File > Open Folder and select the pico folder.
-    - Set this instance to use the Pico-specific VS Code profile (with the required extensions).
-
-<div align="center">
-    <img src="../../assets/Pico_Profile.jpg" width="250">
-</div>
-
-
-# Setup Project
+# Raspberry Pi Pico W Project Setup
 ## 1. Pico SDK Install
 1. Create a new VS Code profile dedicated to Raspberry Pi Pico development.
 2. Install the Raspberry Pi Pico SDK extensions in that profile.
@@ -26,7 +15,7 @@ Add this to `pico/.vscode/settings.json`:
 },
 ```
 
-## 2. MQTT Setup
+## 2. Code Configuration for Local
 
 ### Install Mosquitto MQTT Broker
 [Download Link](https://mosquitto.org)
@@ -38,7 +27,7 @@ listener 1883 0.0.0.0
 allow_anonymous true
 ```
 
-### Code Configuration
+
 - At this point, build and flash the code onto the pico (see section 3 below). Open the serial monitor and copy the Pico's MAC and IP address to update it into the database and the `.env` file.
 - To find the `MQTT_BROKER` (computer ip) on windows in a command prompt:
 ```
@@ -56,6 +45,7 @@ MQTT_BROKER=0.0.0.0
 MQTT_PORT=1883
 PICO_MAC_ADDRESS=00:00:00:00:00:00
 PICO_IP_ADDRESS=0.0.0.0
+TIME_ZONE=Europe/Copenhagen
 ```
 3.Copy the wifi config template :
 ```shell
@@ -75,11 +65,11 @@ env/Scripts/activate
 cd backend
 py manage.py seed_data
 ```
+## 2. Code Configuration for Docker
+
 
 ## 3. Build and Uploading Code
 ### With Debug Probe (Recommended)
-- Benefit monitor serial monitor with com port. Easier and faster to flash new code.
-- The 
 <!-- -->
 1. First build the project from the cmake extension. 
     - A successful build will show the message: `[Build] Build finished with exit code 0`
@@ -92,7 +82,6 @@ py manage.py seed_data
     </div>
 
 ### Without Debug Probe
-- Doesnt allow the serial monitor without additional configuration (Stdio support: Console over USB (disables other USB use))
 <!-- -->
 1. First build the project from the cmake extension. 
     - A successful build will show the message: `[Build] Build finished with exit code 0`
@@ -111,3 +100,13 @@ py manage.py seed_data
 ```shell
 cmake --no-warn-unused-cli -S . -B build -G Ninja
 ```
+
+# Recommended Pico Dev Workflow with VS Code
+- Open one VS Code instance at the root folder of the project.
+- Open a second VS Code instance.
+    - Go to File > Open Folder and select the pico folder.
+    - Set this instance to use the Pico-specific VS Code profile (with the required extensions).
+
+<div align="center">
+    <img src="../../assets/Pico_Profile.jpg" width="250">
+</div>

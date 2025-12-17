@@ -1,9 +1,14 @@
-# Setup Guide for Local Dev
+# Frontend and Backend Setup Guide
 
-## Prerequisites
+## Prerequisites to Install
 - Python
 - Node.js & npm
 - PostgreSQL
+
+## 0. Clone or Download the Source Code from GitHub
+```sh
+git clone https://github.com/jonathank1906/LINAK-Desk-Semester-Project.git
+```
 
 
 ## 1. Frontend Setup
