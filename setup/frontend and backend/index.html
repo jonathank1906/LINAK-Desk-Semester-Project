@@ -8,7 +8,7 @@
         
         
         <link rel="shortcut icon" href="../../img/favicon.ico">
-        <title>Frontend and Backend - Project Documentation</title>
+        <title>Frontend & Backend - Project Documentation</title>
         <link href="../../css/bootstrap.min.css" rel="stylesheet">
         <link href="../../css/fontawesome.min.css" rel="stylesheet">
         <link href="../../css/brands.min.css" rel="stylesheet">
@@ -39,26 +39,37 @@
                                 <a href="../.." class="nav-link">README</a>
                             </li>
                             <li class="nav-item dropdown">
-                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Setup & Dev Guide</a>
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Setup Guide</a>
                                 <ul class="dropdown-menu">
                                     
 <li>
-    <a href="./" class="dropdown-item active" aria-current="page">Frontend and Backend</a>
+    <a href="./" class="dropdown-item active" aria-current="page">Frontend & Backend</a>
 </li>
                                     
 <li>
-    <a href="../pico/" class="dropdown-item">Pico</a>
+    <a href="../pico/" class="dropdown-item">Pico W</a>
+</li>
+                                    
+<li>
+    <a href="../docker/" class="dropdown-item">Docker</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Run</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../run/local/" class="dropdown-item">Run Locally</a>
+</li>
+                                    
+<li>
+    <a href="../../run/docker/" class="dropdown-item">Run with Docker</a>
 </li>
                                 </ul>
                             </li>
                             <li class="nav-item">
-                                <a href="../../run/" class="nav-link">Run</a>
-                            </li>
-                            <li class="nav-item">
                                 <a href="../../test/" class="nav-link">Test</a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="../../docker/" class="nav-link">Docker</a>
                             </li>
                             <li class="nav-item dropdown">
                                 <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">API Reference</a>
@@ -174,9 +185,13 @@
     <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
         <ul class="nav flex-column">
             
-            <li class="nav-item" data-bs-level="1"><a href="#setup-guide-for-local-dev" class="nav-link">Setup Guide for Local Dev</a>
+            <li class="nav-item" data-bs-level="1"><a href="#frontend-and-backend-setup-guide" class="nav-link">Frontend and Backend Setup Guide</a>
               <ul class="nav flex-column">
-            <li class="nav-item" data-bs-level="2"><a href="#prerequisites" class="nav-link">Prerequisites</a>
+            <li class="nav-item" data-bs-level="2"><a href="#prerequisites-to-install" class="nav-link">Prerequisites to Install</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#0-clone-or-download-the-source-code-from-github" class="nav-link">0. Clone or Download the Source Code from GitHub</a>
               <ul class="nav flex-column">
               </ul>
             </li>
@@ -199,13 +214,16 @@
 </div></div>
                     <div class="col-md-9" role="main">
 
-<h1 id="setup-guide-for-local-dev">Setup Guide for Local Dev</h1>
-<h2 id="prerequisites">Prerequisites</h2>
+<h1 id="frontend-and-backend-setup-guide">Frontend and Backend Setup Guide</h1>
+<h2 id="prerequisites-to-install">Prerequisites to Install</h2>
 <ul>
 <li>Python</li>
 <li>Node.js &amp; npm</li>
 <li>PostgreSQL</li>
 </ul>
+<h2 id="0-clone-or-download-the-source-code-from-github">0. Clone or Download the Source Code from GitHub</h2>
+<pre><code class="language-sh">git clone https://github.com/jonathank1906/LINAK-Desk-Semester-Project.git
+</code></pre>
 <h2 id="1-frontend-setup">1. Frontend Setup</h2>
 <p>Install frontend dependencies:</p>
 <pre><code class="language-sh">cd frontend

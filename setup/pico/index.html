@@ -8,7 +8,7 @@
         
         
         <link rel="shortcut icon" href="../../img/favicon.ico">
-        <title>Pico - Project Documentation</title>
+        <title>Pico W - Project Documentation</title>
         <link href="../../css/bootstrap.min.css" rel="stylesheet">
         <link href="../../css/fontawesome.min.css" rel="stylesheet">
         <link href="../../css/brands.min.css" rel="stylesheet">
@@ -39,26 +39,37 @@
                                 <a href="../.." class="nav-link">README</a>
                             </li>
                             <li class="nav-item dropdown">
-                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Setup & Dev Guide</a>
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Setup Guide</a>
                                 <ul class="dropdown-menu">
                                     
 <li>
-    <a href="../frontend%20and%20backend/" class="dropdown-item">Frontend and Backend</a>
+    <a href="../frontend%20and%20backend/" class="dropdown-item">Frontend & Backend</a>
 </li>
                                     
 <li>
-    <a href="./" class="dropdown-item active" aria-current="page">Pico</a>
+    <a href="./" class="dropdown-item active" aria-current="page">Pico W</a>
+</li>
+                                    
+<li>
+    <a href="../docker/" class="dropdown-item">Docker</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Run</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../run/local/" class="dropdown-item">Run Locally</a>
+</li>
+                                    
+<li>
+    <a href="../../run/docker/" class="dropdown-item">Run with Docker</a>
 </li>
                                 </ul>
                             </li>
                             <li class="nav-item">
-                                <a href="../../run/" class="nav-link">Run</a>
-                            </li>
-                            <li class="nav-item">
                                 <a href="../../test/" class="nav-link">Test</a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="../../docker/" class="nav-link">Docker</a>
                             </li>
                             <li class="nav-item dropdown">
                                 <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">API Reference</a>
@@ -122,7 +133,7 @@
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a rel="next" href="../../run/" class="nav-link">
+                                <a rel="next" href="../docker/" class="nav-link">
                                     Next <i class="fa fa-arrow-right"></i>
                                 </a>
                             </li>
@@ -174,18 +185,17 @@
     <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
         <ul class="nav flex-column">
             
-            <li class="nav-item" data-bs-level="1"><a href="#recommended-pico-dev-workflow" class="nav-link">Recommended Pico Dev Workflow</a>
-              <ul class="nav flex-column">
-              </ul>
-            </li>
-            
-            <li class="nav-item" data-bs-level="1"><a href="#setup-project" class="nav-link">Setup Project</a>
+            <li class="nav-item" data-bs-level="1"><a href="#raspberry-pi-pico-w-project-setup" class="nav-link">Raspberry Pi Pico W Project Setup</a>
               <ul class="nav flex-column">
             <li class="nav-item" data-bs-level="2"><a href="#1-pico-sdk-install" class="nav-link">1. Pico SDK Install</a>
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#2-mqtt-setup" class="nav-link">2. MQTT Setup</a>
+            <li class="nav-item" data-bs-level="2"><a href="#2-code-configuration-for-local" class="nav-link">2. Code Configuration for Local</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#2-code-configuration-for-docker" class="nav-link">2. Code Configuration for Docker</a>
               <ul class="nav flex-column">
               </ul>
             </li>
@@ -199,25 +209,17 @@
             </li>
               </ul>
             </li>
+            
+            <li class="nav-item" data-bs-level="1"><a href="#recommended-pico-dev-workflow-with-vs-code" class="nav-link">Recommended Pico Dev Workflow with VS Code</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
         </ul>
     </div>
 </div></div>
                     <div class="col-md-9" role="main">
 
-<h1 id="recommended-pico-dev-workflow">Recommended Pico Dev Workflow</h1>
-<ul>
-<li>Open one VS Code instance at the root folder of the project.</li>
-<li>Open a second VS Code instance.<ul>
-<li>Go to File &gt; Open Folder and select the pico folder.</li>
-<li>Set this instance to use the Pico-specific VS Code profile (with the required extensions).</li>
-</ul>
-</li>
-</ul>
-<div align="center">
-    <img src="../../assets/Pico_Profile.jpg" width="250">
-</div>
-
-<h1 id="setup-project">Setup Project</h1>
+<h1 id="raspberry-pi-pico-w-project-setup">Raspberry Pi Pico W Project Setup</h1>
 <h2 id="1-pico-sdk-install">1. Pico SDK Install</h2>
 <ol>
 <li>Create a new VS Code profile dedicated to Raspberry Pi Pico development.</li>
@@ -231,7 +233,7 @@
     &quot;CMAKE_MAKE_PROGRAM&quot;: &quot;C:/Users/jonat/.pico-sdk/ninja/v1.12.1/ninja.exe&quot;
 },
 </code></pre>
-<h2 id="2-mqtt-setup">2. MQTT Setup</h2>
+<h2 id="2-code-configuration-for-local">2. Code Configuration for Local</h2>
 <h3 id="install-mosquitto-mqtt-broker">Install Mosquitto MQTT Broker</h3>
 <p><a href="https://mosquitto.org">Download Link</a></p>
 <ul>
@@ -241,7 +243,6 @@
 <pre><code class="language-shell">listener 1883 0.0.0.0
 allow_anonymous true
 </code></pre>
-<h3 id="code-configuration">Code Configuration</h3>
 <ul>
 <li>At this point, build and flash the code onto the pico (see section 3 below). Open the serial monitor and copy the Pico's MAC and IP address to update it into the database and the <code>.env</code> file.</li>
 <li>To find the <code>MQTT_BROKER</code> (computer ip) on windows in a command prompt:</li>
@@ -256,6 +257,7 @@ allow_anonymous true
 MQTT_PORT=1883
 PICO_MAC_ADDRESS=00:00:00:00:00:00
 PICO_IP_ADDRESS=0.0.0.0
+TIME_ZONE=Europe/Copenhagen
 </code></pre>
 <p>3.Copy the wifi config template :</p>
 <pre><code class="language-shell">cp pico/wifi_config.h.example pico/wifi_config.h
@@ -270,12 +272,9 @@ PICO_IP_ADDRESS=0.0.0.0
 cd backend
 py manage.py seed_data
 </code></pre>
+<h2 id="2-code-configuration-for-docker">2. Code Configuration for Docker</h2>
 <h2 id="3-build-and-uploading-code">3. Build and Uploading Code</h2>
 <h3 id="with-debug-probe-recommended">With Debug Probe (Recommended)</h3>
-<ul>
-<li>Benefit monitor serial monitor with com port. Easier and faster to flash new code.</li>
-<li>The </li>
-</ul>
 <!-- -->
 <ol>
 <li>First build the project from the cmake extension. <ul>
@@ -291,9 +290,6 @@ py manage.py seed_data
     </div></li>
 </ol>
 <h3 id="without-debug-probe">Without Debug Probe</h3>
-<ul>
-<li>Doesnt allow the serial monitor without additional configuration (Stdio support: Console over USB (disables other USB use))</li>
-</ul>
 <!-- -->
 <ol>
 <li>First build the project from the cmake extension. <ul>
@@ -313,7 +309,19 @@ py manage.py seed_data
 <li>Reconfigure with:</li>
 </ol>
 <pre><code class="language-shell">cmake --no-warn-unused-cli -S . -B build -G Ninja
-</code></pre></div>
+</code></pre>
+<h1 id="recommended-pico-dev-workflow-with-vs-code">Recommended Pico Dev Workflow with VS Code</h1>
+<ul>
+<li>Open one VS Code instance at the root folder of the project.</li>
+<li>Open a second VS Code instance.<ul>
+<li>Go to File &gt; Open Folder and select the pico folder.</li>
+<li>Set this instance to use the Pico-specific VS Code profile (with the required extensions).</li>
+</ul>
+</li>
+</ul>
+<div align="center">
+    <img src="../../assets/Pico_Profile.jpg" width="250">
+</div></div>
             </div>
         </div>
 
