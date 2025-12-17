@@ -15,7 +15,7 @@ Add this to `pico/.vscode/settings.json`:
 },
 ```
 
-## 2. Code Configuration for Local
+## 2. MQTT Setup for Local
 
 ### Install Mosquitto MQTT Broker
 [Download Link](https://mosquitto.org)
@@ -26,20 +26,22 @@ Add this to `pico/.vscode/settings.json`:
 listener 1883 0.0.0.0
 allow_anonymous true
 ```
+## 2. MQTT Setup for Docker
+- If Mosquitto MQTT Broker is installed, disable it in the services settings.
 
-
+## 3. .env Setup
 - At this point, build and flash the code onto the pico (see section 3 below). Open the serial monitor and copy the Pico's MAC and IP address to update it into the database and the `.env` file.
 - To find the `MQTT_BROKER` (computer ip) on windows in a command prompt:
 ```
 ipconfig
 ```
 
-1.Copy the env template:
+Copy the env template:
 ```shell
 cp .env.example .env
 ```
 
-2.Edit `.env` at project root with your own values:
+Edit `.env` at project root with your own values:
 ```
 MQTT_BROKER=0.0.0.0
 MQTT_PORT=1883
@@ -47,28 +49,30 @@ PICO_MAC_ADDRESS=00:00:00:00:00:00
 PICO_IP_ADDRESS=0.0.0.0
 TIME_ZONE=Europe/Copenhagen
 ```
-3.Copy the wifi config template :
+
+## 4. wifi_config.h Setup
+Copy the wifi config template :
 ```shell
 cp pico/wifi_config.h.example pico/wifi_config.h
 ```
 
-4.Configure the broker server ip, network SSID and password in `wifi_config.h` in the pico folder with your own values:
+Configure the broker server ip, network SSID and password in `wifi_config.h` in the pico folder with your own values:
 ```
 #define WIFI_SSID "your_network_name"
 #define WIFI_PASSWORD "your_network_password"
 #define MQTT_SERVER "0.0.0.0"
 ```
-
-Finally seed the data to update the MAC and IP in the database:
+## 5. Update the Database with the Pico Fields
+- This can also be done manually in pgAdmin 4.
+- Otherwise find seed_data.py and update the IP address and MAC address fields. Seed the data to update the database:
 ```sh
 env/Scripts/activate
 cd backend
 py manage.py seed_data
 ```
-## 2. Code Configuration for Docker
 
 
-## 3. Build and Uploading Code
+## 6. Build and Uploading Code
 ### With Debug Probe (Recommended)
 <!-- -->
 1. First build the project from the cmake extension. 
