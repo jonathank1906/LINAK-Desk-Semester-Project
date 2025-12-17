@@ -191,15 +191,27 @@
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#2-code-configuration-for-local" class="nav-link">2. Code Configuration for Local</a>
+            <li class="nav-item" data-bs-level="2"><a href="#2-mqtt-setup-for-local" class="nav-link">2. MQTT Setup for Local</a>
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#2-code-configuration-for-docker" class="nav-link">2. Code Configuration for Docker</a>
+            <li class="nav-item" data-bs-level="2"><a href="#2-mqtt-setup-for-docker" class="nav-link">2. MQTT Setup for Docker</a>
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#3-build-and-uploading-code" class="nav-link">3. Build and Uploading Code</a>
+            <li class="nav-item" data-bs-level="2"><a href="#3-env-setup" class="nav-link">3. .env Setup</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#4-wifi_configh-setup" class="nav-link">4. wifi_config.h Setup</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#5-update-the-database-with-the-pico-fields" class="nav-link">5. Update the Database with the Pico Fields</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#6-build-and-uploading-code" class="nav-link">6. Build and Uploading Code</a>
               <ul class="nav flex-column">
               </ul>
             </li>
@@ -233,7 +245,7 @@
     &quot;CMAKE_MAKE_PROGRAM&quot;: &quot;C:/Users/jonat/.pico-sdk/ninja/v1.12.1/ninja.exe&quot;
 },
 </code></pre>
-<h2 id="2-code-configuration-for-local">2. Code Configuration for Local</h2>
+<h2 id="2-mqtt-setup-for-local">2. MQTT Setup for Local</h2>
 <h3 id="install-mosquitto-mqtt-broker">Install Mosquitto MQTT Broker</h3>
 <p><a href="https://mosquitto.org">Download Link</a></p>
 <ul>
@@ -243,37 +255,46 @@
 <pre><code class="language-shell">listener 1883 0.0.0.0
 allow_anonymous true
 </code></pre>
+<h2 id="2-mqtt-setup-for-docker">2. MQTT Setup for Docker</h2>
+<ul>
+<li>If Mosquitto MQTT Broker is installed, disable it in the services settings.</li>
+</ul>
+<h2 id="3-env-setup">3. .env Setup</h2>
 <ul>
 <li>At this point, build and flash the code onto the pico (see section 3 below). Open the serial monitor and copy the Pico's MAC and IP address to update it into the database and the <code>.env</code> file.</li>
 <li>To find the <code>MQTT_BROKER</code> (computer ip) on windows in a command prompt:</li>
 </ul>
 <pre><code>ipconfig
 </code></pre>
-<p>1.Copy the env template:</p>
+<p>Copy the env template:</p>
 <pre><code class="language-shell">cp .env.example .env
 </code></pre>
-<p>2.Edit <code>.env</code> at project root with your own values:</p>
+<p>Edit <code>.env</code> at project root with your own values:</p>
 <pre><code>MQTT_BROKER=0.0.0.0
 MQTT_PORT=1883
 PICO_MAC_ADDRESS=00:00:00:00:00:00
 PICO_IP_ADDRESS=0.0.0.0
 TIME_ZONE=Europe/Copenhagen
 </code></pre>
-<p>3.Copy the wifi config template :</p>
+<h2 id="4-wifi_configh-setup">4. wifi_config.h Setup</h2>
+<p>Copy the wifi config template :</p>
 <pre><code class="language-shell">cp pico/wifi_config.h.example pico/wifi_config.h
 </code></pre>
-<p>4.Configure the broker server ip, network SSID and password in <code>wifi_config.h</code> in the pico folder with your own values:</p>
+<p>Configure the broker server ip, network SSID and password in <code>wifi_config.h</code> in the pico folder with your own values:</p>
 <pre><code>#define WIFI_SSID &quot;your_network_name&quot;
 #define WIFI_PASSWORD &quot;your_network_password&quot;
 #define MQTT_SERVER &quot;0.0.0.0&quot;
 </code></pre>
-<p>Finally seed the data to update the MAC and IP in the database:</p>
+<h2 id="5-update-the-database-with-the-pico-fields">5. Update the Database with the Pico Fields</h2>
+<ul>
+<li>This can also be done manually in pgAdmin 4.</li>
+<li>Otherwise find seed_data.py and update the IP address and MAC address fields. Seed the data to update the database:</li>
+</ul>
 <pre><code class="language-sh">env/Scripts/activate
 cd backend
 py manage.py seed_data
 </code></pre>
-<h2 id="2-code-configuration-for-docker">2. Code Configuration for Docker</h2>
-<h2 id="3-build-and-uploading-code">3. Build and Uploading Code</h2>
+<h2 id="6-build-and-uploading-code">6. Build and Uploading Code</h2>
 <h3 id="with-debug-probe-recommended">With Debug Probe (Recommended)</h3>
 <!-- -->
 <ol>
