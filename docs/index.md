@@ -1,1 +1,1 @@
-Use the navigation to access the setup guide, run instructions, and API reference.
+Use the navigation to access the setup guide, run instructions, Docker setup, testing guide, and API reference.
