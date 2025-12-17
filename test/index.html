@@ -185,11 +185,6 @@
     <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
         <ul class="nav flex-column">
             
-            <li class="nav-item" data-bs-level="2"><a href="#run-react-frontend-tests" class="nav-link">Run React (Frontend) Tests</a>
-              <ul class="nav flex-column">
-              </ul>
-            </li>
-            
             <li class="nav-item" data-bs-level="2"><a href="#run-django-backend-tests" class="nav-link">Run Django (Backend) Tests</a>
               <ul class="nav flex-column">
               </ul>
@@ -199,11 +194,6 @@
 </div></div>
                     <div class="col-md-9" role="main">
 
-<h2 id="run-react-frontend-tests">Run React (Frontend) Tests</h2>
-<pre><code class="language-sh">cd frontend
-npm test
-</code></pre>
-<p>Press q to quit.</p>
 <h2 id="run-django-backend-tests">Run Django (Backend) Tests</h2>
 <pre><code class="language-sh">env\Scripts\activate
 cd backend
@@ -212,7 +202,14 @@ cd backend
 py manage.py test
 
 # Run specific test class
-py manage.py test core.tests.test_models.DeskModelTest
+py manage.py test core.tests.test_authentication
+py manage.py test core.tests.test_e2e
+py manage.py test core.tests.test_integration
+py manage.py test core.tests.test_models
+py manage.py test core.tests.test_serializers
+py manage.py test core.tests.test_services
+py manage.py test core.tests.test_views
+
 
 # Run with verbosity (more detailed output)
 py manage.py test -v 2
