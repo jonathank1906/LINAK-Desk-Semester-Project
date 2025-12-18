@@ -238,18 +238,20 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
     printf("DEBUG: basic_topic = '%s'\n", basic_topic);
     
     // Extract desk_id FIRST (if not already initialized)
-    if (!desk_id_initialized)
+ 
+    char *desk_id_start = strstr(state->data, "\"desk_id\"");
+    if (desk_id_start)
     {
-        char *desk_id_start = strstr(state->data, "\"desk_id\"");
-        if (desk_id_start)
+        int temp_desk_id;
+        if (sscanf(desk_id_start, "\"desk_id\": %d", &temp_desk_id) == 1 ||
+            sscanf(desk_id_start, "\"desk_id\":%d", &temp_desk_id) == 1)
         {
-            if (sscanf(desk_id_start, "\"desk_id\": %d", &desk_id) == 1 ||
-                sscanf(desk_id_start, "\"desk_id\":%d", &desk_id) == 1)
+            desk_id = temp_desk_id;
+            if (!desk_id_initialized)
             {
                 desk_id_initialized = true;
                 printf("DEBUG: Desk ID initialized to: %d\n", desk_id);
                 
-                // Now subscribe to the specific desk topic
                 char desk_topic[MQTT_TOPIC_LEN];
                 snprintf(desk_topic, sizeof(desk_topic), "/desk/%d/display", desk_id);
                 printf("DEBUG: Subscribing to desk-specific topic: %s\n", desk_topic);
@@ -259,24 +261,25 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
         }
     }
     
-    // Extract desk name ONCE from the first message that contains it
-    if (!desk_name_initialized)
+    
+
+    char *desk_name_start = strstr(state->data, "\"desk_name\"");
+    if (desk_name_start)
     {
-        char *desk_name_start = strstr(state->data, "\"desk_name\"");
-        if (desk_name_start)
+        char *value_start = strchr(desk_name_start + 11, '"');
+        if (value_start)
         {
-            char *value_start = strchr(desk_name_start + 11, '"');
-            if (value_start)
+            value_start++;
+            char *end_quote = strchr(value_start, '"');
+            if (end_quote)
             {
-                value_start++;
-                char *end_quote = strchr(value_start, '"');
-                if (end_quote)
+                int name_len = end_quote - value_start;
+                if (name_len > 0 && name_len < 32)
                 {
-                    int name_len = end_quote - value_start;
-                    if (name_len > 0 && name_len < 32)
-                    {
-                        strncpy(desk_display_name, value_start, name_len);
-                        desk_display_name[name_len] = '\0';
+                    strncpy(desk_display_name, value_start, name_len);
+                    desk_display_name[name_len] = '\0';
+                    
+                    if (!desk_name_initialized) {
                         desk_name_initialized = true;
                         printf("DEBUG: Desk name initialized to: %s\n", desk_display_name);
                     }
@@ -284,6 +287,7 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
             }
         }
     }
+    
     
     if (strcmp(basic_topic, "/print") == 0)
     {
@@ -327,10 +331,10 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
             oled_display_text(desk_display_name, "Please press", "button to", "confirm");
             set_pending_verification(true);
 
-            current_led_mode = LED_MODE_GREYS_BLUE;
+            current_led_mode = LED_MODE_PATTERN_WHITE;
             current_buzzer_mode = BUZZER_MODE_NONE;
             
-            printf("DEBUG: Set LED to BLUE PULSING mode\n");
+            printf("DEBUG: Set LED to WHITE PATTERN mode\n");
         }
         else if (strstr(state->data, "cancel_pending_verification"))
         {
@@ -367,7 +371,7 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
             oled_display_text(desk_display_name, user_name, height_str, "In Use");
             set_pending_verification(false);
 
-            current_led_mode = LED_MODE_GREYS_BLUE;
+            current_led_mode = LED_MODE_SOLID_BLUE;
             current_buzzer_mode = BUZZER_MODE_NONE;
             
             printf("DEBUG: Set LED to BLUE SOLID mode (in use)\n");
@@ -393,13 +397,13 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
                 
                 if (is_moving)
                 {
-                    current_led_mode = LED_MODE_GREYS;  
+                    current_led_mode = LED_MODE_PATTERN_YELLOW;  
                     current_buzzer_mode = BUZZER_MODE_MOVING;
                     printf("DEBUG: Set LED to YELLOW PULSING (moving)\n");
                 }
                 else
                 {
-                    current_led_mode = LED_MODE_GREYS_BLUE;
+                    current_led_mode = LED_MODE_SOLID_BLUE;
                     current_buzzer_mode = BUZZER_MODE_NONE;
                     printf("DEBUG: Set LED to BLUE SOLID (stopped)\n");
                 }
@@ -445,6 +449,8 @@ static void mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection
         printf("DEBUG: Subscribing to wildcard topic: %s\n", desk_display_topic);
         mqtt_sub_unsub(state->mqtt_client_inst, desk_display_topic, MQTT_SUBSCRIBE_QOS, 
                       sub_request_cb, state, true);
+        
+        publish_pico_ready(state);
     }
     else if (status == MQTT_CONNECT_DISCONNECTED)
     {
@@ -586,6 +592,11 @@ void mqtt_init(void)
 MQTT_CLIENT_DATA_T *get_mqtt_state(void)
 {
     return &g_state;
+}
+
+bool mqtt_is_connected(void)
+{
+    return g_state.connect_done;
 }
 
 

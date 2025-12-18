@@ -33,6 +33,7 @@ class MQTTService:
             self.connected = True
             # Subscribe to all topics including MAC-prefixed desk confirmations
             client.subscribe("#")  # Subscribe to ALL topics (includes MAC-prefixed)
+            client.subscribe("/pico/+/ready") 
             logger.info("Subscribed to # (all topics)")
         else:
             logger.error(f"Failed to connect to MQTT broker: {rc}")
@@ -55,6 +56,40 @@ class MQTTService:
             
             print(f"MQTT: topic={topic}, payload={payload}")
             logger.info(f"Received: {topic} = {payload}")
+
+            if "/pico/ready" in topic or "/ready" in topic:
+                try:
+                    data = json.loads(payload)
+                    pico_mac = data.get("pico_mac")
+                    
+                    if pico_mac:
+                        # Find which desk this Pico is assigned to
+                        pico = Pico.objects.filter(mac_address=pico_mac).first()
+                        
+                        if pico and pico.desk:
+                            desk = pico.desk
+                            
+                            # Send desk assignment back to Pico
+                            assignment_topic = f"/desk/{desk.id}/display"
+                            assignment_message = {
+                                "action": "show_available",
+                                "desk_id": desk.id,
+                                "desk_name": desk.name
+                            }
+                            self.publish(assignment_topic, json.dumps(assignment_message))
+                            logger.info(f"Assigned Pico {pico_mac} to Desk {desk.id}")
+                            
+                            # Update Pico status
+                            pico.status = 'online'
+                            from django.utils import timezone
+                            pico.last_seen = timezone.now()
+                            pico.save()
+                        else:
+                            logger.warning(f"Pico {pico_mac} not assigned to any desk")
+                            
+                except Exception as e:
+                    logger.error(f"Error handling pico ready: {e}")
+                return
 
             # --- Desk confirmation handler ---
             # Handle both formats:

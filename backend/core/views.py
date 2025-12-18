@@ -1157,8 +1157,19 @@ def start_hot_desk(request, desk_id):
         )
 
         if has_pico:
+            # Notify Pico via MQTT to show "Press button to confirm"
             mqtt_service = get_mqtt_service()
-            # ... (MQTT logic omitted for brevity, keep your existing logic here) ...
+            
+            # Wait for MQTT connection with timeout
+            import time
+            max_wait = 3  # seconds
+            wait_interval = 0.1  # check every 100ms
+            elapsed = 0
+            
+            while not mqtt_service.connected and elapsed < max_wait:
+                time.sleep(wait_interval)
+                elapsed += wait_interval
+            
             if mqtt_service.connected:
                 topic = f"/desk/{desk.id}/display"
                 message = {
@@ -1168,8 +1179,10 @@ def start_hot_desk(request, desk_id):
                     "user": request.user.get_full_name() or request.user.username,
                 }
                 mqtt_service.publish(topic, json.dumps(message))
+            else:
+                print(f"MQTT not connected after {max_wait}s, message not sent")
         else:
-            # Auto-confirm if no Pico
+            # If no Pico, auto-confirm the hot desk
             desk.current_status = "occupied"
             desk.save()
 

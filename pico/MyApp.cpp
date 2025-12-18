@@ -90,13 +90,15 @@ void MyApp()
 
     // Wait for MQTT to connect
     printf("DEBUG: Waiting for MQTT connection...\n");
-    for (int i = 0; i < 100; i++)
+    while (!mqtt_is_connected())
     {
         mqtt_poll();
         sleep_ms(100);
     }
-    printf("DEBUG: MQTT connection wait complete\n");
+    printf("DEBUG: MQTT connected!\n");
 
+
+    // Immediately publish ready after connecting
     publish_pico_ready(get_mqtt_state());
 
     // Initialize LED and Button after WiFi is stable
@@ -104,7 +106,6 @@ void MyApp()
     Led RedLED(7);
     Button button1(10, GPIO_IRQ_EDGE_RISE);
     printf("DEBUG: LED and Button initialized\n");
-    oled_display_text("SYSTEM", "READY", "", "");
 
     // Main loop - handle MQTT, button events, and LED strip
     printf("=== Entering main loop ===\n");
@@ -150,44 +151,23 @@ void MyApp()
 
         switch (current_led_mode)
         {
-        case LED_MODE_GREYS:
-            pattern_greys(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t);
+        case LED_MODE_PATTERN_YELLOW:
+            pattern_yellow(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t);
             led_anim_t = (led_anim_t + 8) % 360;
             break;
-        case LED_MODE_GREYS_RED:
-            pattern_greys_red(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t);
+        case LED_MODE_PATTERN_BLUE:
+            pattern_blue(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t);
             led_anim_t = (led_anim_t + 1) % 360;
             break;
-        case LED_MODE_GREYS_BLUE:
-            pattern_greys_blue(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t);
+        case LED_MODE_PATTERN_WHITE:
+            pattern_white(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t);
             led_anim_t = (led_anim_t + 1) % 360;
-            break;
-        case LED_MODE_GREYS_GREEN:
-            pattern_greys_green(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t);
-            led_anim_t = (led_anim_t + 1) % 360;
-            break;
-        case LED_MODE_GREYS_PURPLE:
-            pattern_greys_purple(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t);
-            led_anim_t = (led_anim_t + 1) % 360;
-            break;
-        case LED_MODE_SNAKES:
-            pattern_snakes(ws2812_pio, ws2812_sm, NUM_PIXELS, led_anim_t);
-            led_anim_t = (led_anim_t + 1) % 360;
-            break;
-        case LED_MODE_PULSE_BLUE:
-            pattern_pulse_blue(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
-            break;
-        case LED_MODE_SOLID_BLUE:
-            pattern_solid_blue(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
             break;
         case LED_MODE_SOLID_GREEN:
             pattern_solid_green(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
             break;
         case LED_MODE_SOLID_RED:
             pattern_solid_red(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
-            break;
-        case LED_MODE_PULSE_YELLOW:
-            // pattern_pulse_yellow(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
             break;
         default:
             break;

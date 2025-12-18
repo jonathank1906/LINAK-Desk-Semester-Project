@@ -29,8 +29,6 @@ void mqtt_register_led_callback(void (*callback)(bool on));
 
 MQTT_CLIENT_DATA_T* get_mqtt_state(void);
 
-bool mqtt_is_connected(void);
-
 #ifdef __cplusplus
 }
 #endif

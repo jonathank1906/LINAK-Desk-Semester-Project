@@ -14,19 +14,11 @@ void ws2812_init(PIO *pio, uint *sm, uint *offset);
 // Pattern functions with brightness parameter (0-255)
 void pattern_solid_green(PIO pio, uint sm, uint len, uint brightness);
 void pattern_solid_red(PIO pio, uint sm, uint len, uint brightness);
-void pattern_snakes(PIO pio, uint sm, uint len, uint t);
-void pattern_random(PIO pio, uint sm, uint len, uint t);
-void pattern_sparkle(PIO pio, uint sm, uint len, uint t);
-void pattern_greys(PIO pio, uint sm, uint len, uint t);
-void pattern_solid_blue(PIO pio, uint sm, uint num_pixels, uint8_t brightness);
-void pattern_pulse_blue(PIO pio, uint sm, uint num_pixels, uint8_t brightness);
-void pattern_pulse_yellow(PIO pio, uint sm, uint num_pixels, uint8_t brightness);
-
-void pattern_pulse_color(PIO pio, uint sm, uint len, uint t, uint8_t r_ratio, uint8_t g_ratio, uint8_t b_ratio);
-void pattern_greys_red(PIO pio, uint sm, uint len, uint t);
-void pattern_greys_blue(PIO pio, uint sm, uint len, uint t);
-void pattern_greys_green(PIO pio, uint sm, uint len, uint t);
-void pattern_greys_purple(PIO pio, uint sm, uint len, uint t);
+void pattern_yellow(PIO pio, uint sm, uint len, uint t);
+void pattern_red(PIO pio, uint sm, uint len, uint t);
+void pattern_blue(PIO pio, uint sm, uint len, uint t);
+void pattern_green(PIO pio, uint sm, uint len, uint t);
+void pattern_white(PIO pio, uint sm, uint len, uint t);
 
 
 // Utility functions - declared as static inline
