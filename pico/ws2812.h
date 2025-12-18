@@ -14,6 +14,7 @@ void ws2812_init(PIO *pio, uint *sm, uint *offset);
 // Pattern functions with brightness parameter (0-255)
 void pattern_solid_green(PIO pio, uint sm, uint len, uint brightness);
 void pattern_solid_red(PIO pio, uint sm, uint len, uint brightness);
+void pattern_solid_blue(PIO pio, uint sm, uint len, uint brightness);
 void pattern_yellow(PIO pio, uint sm, uint len, uint t);
 void pattern_red(PIO pio, uint sm, uint len, uint t);
 void pattern_blue(PIO pio, uint sm, uint len, uint t);

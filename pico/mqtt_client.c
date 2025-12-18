@@ -141,7 +141,7 @@ void publish_desk_confirm(MQTT_CLIENT_DATA_T *state)
     
     char confirm_topic[MQTT_TOPIC_LEN];
     snprintf(confirm_topic, sizeof(confirm_topic), "/desk/%d/confirm", desk_id);
-    
+    current_led_mode = LED_MODE_SOLID_BLUE;
     const char *confirm_msg = "{\"action\": \"confirm_button\"}";
     printf("DEBUG: Publishing to topic: %s, message: %s\n", confirm_topic, confirm_msg);
     mqtt_publish(state->mqtt_client_inst, confirm_topic, confirm_msg, strlen(confirm_msg), 

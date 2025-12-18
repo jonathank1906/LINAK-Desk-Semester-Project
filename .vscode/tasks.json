@@ -42,16 +42,16 @@
       "label": "sim",
       "type": "shell",
       "osx": {
-        "command": "cd wifi2ble-box-simulator && source ../env/bin/activate && python3 simulator/main.py --port 8001"
+        "command": "cd wifi2ble-box-simulator && source ../env/bin/activate && python3 simulator/main.py --port 8001 --no-user-simulation --desk-collision-chance 0 --desk-poweroff-chance 0"
       },
       "linux": {
-        "command": "cd wifi2ble-box-simulator && source ../env/bin/activate && python3 simulator/main.py --port 8001"
+        "command": "cd wifi2ble-box-simulator && source ../env/bin/activate && python3 simulator/main.py --port 8001 --no-user-simulation --desk-collision-chance 0 --desk-poweroff-chance 0"
       },
       "windows": {
         "command": "cmd.exe",
         "args": [
           "/c",
-          "call ..\\env\\Scripts\\activate && py simulator/main.py --port 8001"
+          "call ..\\env\\Scripts\\activate && py simulator/main.py --port 8001 --no-user-simulation --desk-collision-chance 0 --desk-poweroff-chance 0"
         ],
         "options": {
           "cwd": "${workspaceFolder}/wifi2ble-box-simulator"

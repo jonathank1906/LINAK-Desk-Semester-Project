@@ -169,6 +169,9 @@ void MyApp()
         case LED_MODE_SOLID_RED:
             pattern_solid_red(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
             break;
+        case LED_MODE_SOLID_BLUE:
+            pattern_solid_blue(ws2812_pio, ws2812_sm, NUM_PIXELS, 50);
+            break;
         default:
             break;
         }
