@@ -617,10 +617,9 @@ def control_desk_height(request, desk_id):
         
         if success:
             desk.current_status = 'moving'
-            desk.current_height = target_height
             desk.save()
 
-            print(f"Desk height updated in database to: {desk.current_height}")
+            print(f"Desk status set to moving, NOT updating height yet.")
 
             mqtt_service = get_mqtt_service()
             has_pico = Pico.objects.filter(desk_id=desk.id).exists()
@@ -629,8 +628,8 @@ def control_desk_height(request, desk_id):
                 user_name = request.user.get_full_name() or request.user.username
                 mqtt_service.notify_desk_moving(
                     desk_id=desk.id,
-                    target_height=target_height,
-                    is_moving=True,  # Pico will pulse yellow + beep
+                    target_height=int(desk.current_height), # Send current height, not target
+                    is_moving=True,
                     user_name=user_name
                 )
             

@@ -30,8 +30,15 @@ def generate_desk_name():
 
 def run(server_class=HTTPServer, handler_class=SimpleRESTServer, port=8000, use_https=False, cert_file=None, key_file=None, 
         desks=2, speed=60, no_user_simulation=False, collision_chance=3, poweroff_chance=3):
+
     logger.info(f"Initializing DeskManager with simulation speed: {speed}, collision chance: {collision_chance}%, poweroff chance: {poweroff_chance}%")
     desk_manager = DeskManager(speed, collision_chance / 100.0, poweroff_chance / 100.0)
+
+    # CLI args MUST override persisted state
+    desk_manager.override_simulation_params(
+        collision_chance=collision_chance / 100.0,
+        poweroff_chance=poweroff_chance / 100.0,
+    )
 
     logger.info("Adding default desks...")
     desk_manager.add_desk("cd:fb:1a:53:fb:e6", "DESK 4486", "Desk-O-Matic Co.", UserType.ACTIVE)

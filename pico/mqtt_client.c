@@ -380,15 +380,23 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
         {
             printf("DEBUG: Action is update_height\n");
 
-            int height;
             char *height_start = strstr(state->data, "\"height\":");
             if (height_start)
             {
+                int height;
                 sscanf(height_start, "\"height\":%d", &height);
 
                 char line3[20];
                 snprintf(line3, sizeof(line3), "Height: %dcm", height);
-                oled_display_text(desk_display_name, "In Use", line3, "");
+                
+                char user_name[20] = "In Use"; // Default
+                char *user_start = strstr(state->data, "\"user\":");
+                if (user_start)
+                {
+                    sscanf(user_start, "\"user\":\"%19[^\"]\"", user_name);
+                }
+
+                oled_display_text(desk_display_name, user_name, line3, "");
 
                 bool is_moving = (strstr(state->data, "\"is_moving\": true") != NULL || 
                                  strstr(state->data, "\"is_moving\":true") != NULL);

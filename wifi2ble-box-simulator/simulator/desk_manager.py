@@ -244,3 +244,24 @@ class DeskManager:
                     logger.error(f"Failed to load state from {self.STATE_FILE}: {e}. Starting with default state.")
         else:
             logger.warning(f"No state file found at {self.STATE_FILE}. Starting with default state.")
+
+    def override_simulation_params(self, *, collision_chance=None, poweroff_chance=None):
+        """
+        Override simulation parameters explicitly (e.g. from CLI).
+        These values always take precedence over persisted state.
+        """
+        if collision_chance is not None:
+            self.collision_chance = collision_chance
+            for desk in self.desks.values():
+                desk.collision_chance = collision_chance
+            if collision_chance == 0:
+                logger.warning("Collision simulation DISABLED by CLI.")
+
+        if poweroff_chance is not None:
+            self.poweroff_chance = poweroff_chance
+
+        logger.info(
+            "Simulation parameters overridden by CLI: "
+            f"collision chance={self.collision_chance * 100:.1f}%, "
+            f"poweroff chance={self.poweroff_chance * 100:.1f}%"
+        )
