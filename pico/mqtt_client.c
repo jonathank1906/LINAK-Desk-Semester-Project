@@ -21,13 +21,6 @@
 #include "buzzer_mode.h"
 #include "wifi_config.h"
 
-#ifdef USE_DOCKER
-#define MQTT_SERVER "192.168.0.143"  // Docker host IP
-#else
-#define MQTT_SERVER "prod.mqtt.server.com"
-#endif
-
-
 #ifdef __cplusplus
 extern "C"
 {
@@ -106,10 +99,12 @@ extern uint ws2812_offset;
 extern LedMode current_led_mode;
 extern BuzzerMode current_buzzer_mode;
 
-// Desk name from MyApp.cpp
+// Desk name and ID - learned from MQTT messages
 extern char desk_display_name[32];
 extern void set_desk_name(const char *name);
 static bool desk_name_initialized = false;
+static int desk_id = 0;  // Learned dynamically
+static bool desk_id_initialized = false;
 
 
 static void pub_request_cb(__unused void *arg, err_t err)
@@ -137,22 +132,43 @@ static const char *full_topic(MQTT_CLIENT_DATA_T *state, const char *name)
 
 void publish_desk_confirm(MQTT_CLIENT_DATA_T *state)
 {
+    if (!desk_id_initialized) {
+        printf("ERROR: Cannot publish confirm - desk_id not initialized\n");
+        return;
+    }
+    
     printf("DEBUG: publish_desk_confirm called\n");
-    const char *confirm_topic = full_topic(state, "/desk/1/confirm");
+    
+    char confirm_topic[MQTT_TOPIC_LEN];
+    snprintf(confirm_topic, sizeof(confirm_topic), "/desk/%d/confirm", desk_id);
+    
     const char *confirm_msg = "{\"action\": \"confirm_button\"}";
     printf("DEBUG: Publishing to topic: %s, message: %s\n", confirm_topic, confirm_msg);
-    mqtt_publish(state->mqtt_client_inst, confirm_topic, confirm_msg, strlen(confirm_msg), MQTT_PUBLISH_QOS, MQTT_PUBLISH_RETAIN, pub_request_cb, state);
+    mqtt_publish(state->mqtt_client_inst, confirm_topic, confirm_msg, strlen(confirm_msg), 
+                 MQTT_PUBLISH_QOS, MQTT_PUBLISH_RETAIN, pub_request_cb, state);
 }
 
 void publish_pico_ready(MQTT_CLIENT_DATA_T* state) {
     printf("DEBUG: publish_pico_ready called\n");
 
-    const char* ready_topic = full_topic(state, "/desk/1/pico/ready");
+    char ready_topic[MQTT_TOPIC_LEN];
+    if (desk_id_initialized) {
+        snprintf(ready_topic, sizeof(ready_topic), "/desk/%d/pico/ready", desk_id);
+    } else {
+        snprintf(ready_topic, sizeof(ready_topic), "/pico/ready");
+    }
 
     const char* mac_str = state->mqtt_client_info.client_id;
     char ready_msg[128];
-    snprintf(ready_msg, sizeof(ready_msg),
-             "{\"status\": \"ready\", \"pico_mac\": \"%s\", \"desk_id\": 1}", mac_str);
+    
+    if (desk_id_initialized) {
+        snprintf(ready_msg, sizeof(ready_msg),
+                 "{\"status\": \"ready\", \"pico_mac\": \"%s\", \"desk_id\": %d}", 
+                 mac_str, desk_id);
+    } else {
+        snprintf(ready_msg, sizeof(ready_msg),
+                 "{\"status\": \"ready\", \"pico_mac\": \"%s\"}", mac_str);
+    }
 
     printf("DEBUG: Publishing ready to topic: %s\n", ready_topic);
     printf("DEBUG: Message: %s\n", ready_msg);
@@ -221,19 +237,38 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
     printf("DEBUG: MQTT payload: %s\n", state->data);
     printf("DEBUG: basic_topic = '%s'\n", basic_topic);
     
+    // Extract desk_id FIRST (if not already initialized)
+    if (!desk_id_initialized)
+    {
+        char *desk_id_start = strstr(state->data, "\"desk_id\"");
+        if (desk_id_start)
+        {
+            if (sscanf(desk_id_start, "\"desk_id\": %d", &desk_id) == 1 ||
+                sscanf(desk_id_start, "\"desk_id\":%d", &desk_id) == 1)
+            {
+                desk_id_initialized = true;
+                printf("DEBUG: Desk ID initialized to: %d\n", desk_id);
+                
+                // Now subscribe to the specific desk topic
+                char desk_topic[MQTT_TOPIC_LEN];
+                snprintf(desk_topic, sizeof(desk_topic), "/desk/%d/display", desk_id);
+                printf("DEBUG: Subscribing to desk-specific topic: %s\n", desk_topic);
+                mqtt_sub_unsub(state->mqtt_client_inst, desk_topic, MQTT_SUBSCRIBE_QOS, 
+                             sub_request_cb, state, true);
+            }
+        }
+    }
+    
     // Extract desk name ONCE from the first message that contains it
     if (!desk_name_initialized)
     {
         char *desk_name_start = strstr(state->data, "\"desk_name\"");
         if (desk_name_start)
         {
-            // Find the opening quote of the value (after "desk_name": )
-            char *value_start = strchr(desk_name_start + 11, '"');  // Skip past "desk_name"
+            char *value_start = strchr(desk_name_start + 11, '"');
             if (value_start)
             {
-                value_start++;  // Move past the opening quote
-                
-                // Find the closing quote
+                value_start++;
                 char *end_quote = strchr(value_start, '"');
                 if (end_quote)
                 {
@@ -242,7 +277,6 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
                     {
                         strncpy(desk_display_name, value_start, name_len);
                         desk_display_name[name_len] = '\0';
-                        
                         desk_name_initialized = true;
                         printf("DEBUG: Desk name initialized to: %s\n", desk_display_name);
                     }
@@ -270,10 +304,11 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
         state->stop_client = true;
         sub_unsub_topics(state, false);
     }
-    else if (strcmp(state->topic, "/desk/1/display") == 0)
+    // Check if this matches the pattern /desk/{any_number}/display
+    else if (strstr(state->topic, "/desk/") && strstr(state->topic, "/display"))
     {
-        printf("DEBUG: Handling /desk/1/display topic\n");
-        printf("DEBUG: Full message: %s\n", state->data);  // Better debug
+        printf("DEBUG: Handling desk display topic\n");
+        printf("DEBUG: Full message: %s\n", state->data);
 
         if (strstr(state->data, "show_available"))
         {
@@ -375,7 +410,6 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
             printf("DEBUG: Action is show_error\n");
             oled_display_text(desk_display_name, "ERROR", "Check desk", "");
 
-            // Red LED for error
             current_led_mode = LED_MODE_SOLID_RED;
             current_buzzer_mode = BUZZER_MODE_NONE;
             
@@ -406,9 +440,11 @@ static void mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection
 
         sub_unsub_topics(state, true);
 
-        const char *desk_display_topic = "/desk/1/display";
-        printf("DEBUG: Subscribing to topic: %s\n", desk_display_topic);
-        mqtt_sub_unsub(state->mqtt_client_inst, desk_display_topic, MQTT_SUBSCRIBE_QOS, sub_request_cb, state, true);
+        // Subscribe to wildcard to receive messages for any desk
+        const char *desk_display_topic = "/desk/+/display";
+        printf("DEBUG: Subscribing to wildcard topic: %s\n", desk_display_topic);
+        mqtt_sub_unsub(state->mqtt_client_inst, desk_display_topic, MQTT_SUBSCRIBE_QOS, 
+                      sub_request_cb, state, true);
     }
     else if (status == MQTT_CONNECT_DISCONNECTED)
     {
