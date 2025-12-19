@@ -88,27 +88,23 @@ class HotDeskE2ETest(TransactionTestCase):
     def test_complete_hotdesk_session(self, mock_get_state):
         """Test: Find desk → Start session → Control height → End session"""
         
-        # Mock WiFi2BLE responses
+        # Mock WiFi2BLE responses (initial state: 75cm)
         mock_get_state.return_value = {
-            "state": {
-                "position_mm": 750,
-                "speed_mms": 0,
-                "status": "Normal"
-            }
+            "position_mm": 750,
+            "speed_mms": 0,
+            "status": "Normal"
         }
         
         self.client.force_authenticate(user=self.user)
         
         # Step 1: User views available hot desks
         response = self.client.get('/api/desks/hotdesk/')
-        
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         available_desks = response.data
         self.assertGreaterEqual(len(available_desks), 1)
         
         # Step 2: User starts hot desk session
         response = self.client.post(f'/api/desks/{self.desk.id}/hotdesk/start/')
-        
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['success'])
         
@@ -137,33 +133,41 @@ class HotDeskE2ETest(TransactionTestCase):
         # Step 3: User controls desk height
         with patch('core.services.WiFi2BLEService.WiFi2BLEService.set_desk_height') as mock_set:
             mock_set.return_value = True
-            
+
             # Set desk to occupied so control works
             self.desk.current_status = 'occupied'
             self.desk.save()
-            
+
             response = self.client.post(
                 f'/api/desks/{self.desk.id}/control/',
                 {'height': 110},
                 format='json'
             )
-            
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertTrue(response.data['success'])
-            
+
+            # Update mock to simulate desk moved to 110cm
+            mock_get_state.return_value = {
+                "position_mm": 1100,
+                "speed_mms": 0,
+                "status": "Normal"
+            }
+
+            # Poll desk movement to update DB
+            poll_response = self.client.get(f'/api/desks/{self.desk.id}/poll-movement/')
+            self.assertEqual(poll_response.status_code, status.HTTP_200_OK)
+
             # Verify desk height updated
             self.desk.refresh_from_db()
             self.assertEqual(self.desk.current_height, 110)
         
         # Step 4: User views their usage statistics
         response = self.client.get(f'/api/desks/{self.desk.id}/usage/')
-        
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['active_session'])
         
         # Step 5: User ends hot desk session
         response = self.client.post(f'/api/desks/{self.desk.id}/hotdesk/end/')
-        
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['success'])
         
