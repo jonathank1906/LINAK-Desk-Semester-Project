@@ -218,3 +218,7 @@ __marimo__/
 
 # macOS system files
 .DS_Store
+
+# Node / frontend dependencies
+node_modules/
+**/node_modules/
