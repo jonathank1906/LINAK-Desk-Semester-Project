@@ -56,7 +56,6 @@ void pattern_pulse_color(PIO pio, uint sm, uint len, uint t, uint8_t r_ratio, ui
         brightness = max - (phase - range);
     }
     
-    // Apply color ratios (0-255 scale)
     uint8_t r = (brightness * r_ratio) / 255;
     uint8_t g = (brightness * g_ratio) / 255;
     uint8_t b = (brightness * b_ratio) / 255;
@@ -66,23 +65,22 @@ void pattern_pulse_color(PIO pio, uint sm, uint len, uint t, uint8_t r_ratio, ui
     }
 }
 
-// Convenience wrappers
 void pattern_yellow(PIO pio, uint sm, uint len, uint t) {
-    pattern_pulse_color(pio, sm, len, t, 255, 255, 0); // Yellow
+    pattern_pulse_color(pio, sm, len, t, 255, 255, 0);
 }
 
 void pattern_red(PIO pio, uint sm, uint len, uint t) {
-    pattern_pulse_color(pio, sm, len, t, 255, 0, 0); // Red
+    pattern_pulse_color(pio, sm, len, t, 255, 0, 0);
 }
 
 void pattern_blue(PIO pio, uint sm, uint len, uint t) {
-    pattern_pulse_color(pio, sm, len, t, 0, 0, 255); // Blue
+    pattern_pulse_color(pio, sm, len, t, 0, 0, 255); 
 }
 
 void pattern_green(PIO pio, uint sm, uint len, uint t) {
-    pattern_pulse_color(pio, sm, len, t, 0, 255, 0); // Green
+    pattern_pulse_color(pio, sm, len, t, 0, 255, 0); 
 }
 
 void pattern_white(PIO pio, uint sm, uint len, uint t) {
-    pattern_pulse_color(pio, sm, len, t, 255, 255, 255); // White
+    pattern_pulse_color(pio, sm, len, t, 255, 255, 255); 
 }

@@ -2,19 +2,19 @@
 #define LED_H
 
 #include "pico/stdlib.h"
-#include "dbop.h"   // Provides COMMENT() and DEBUG_INFO macros
+#include "dbop.h" 
 
 class Led {
 private:
-    uint pin;       // GPIO pin for the LED
-    bool state;     // Current LED state
+    uint pin;       
+    bool state;     
 public:
-    Led(uint pinNumber);       // Constructor – initializes the LED GPIO
-    void on();                 // Turn LED ON
-    void off();                // Turn LED OFF
-    void toggle();             // Toggle LED state
-    void setState(bool s);     // Set LED state directly
-    bool isOn() const;         // Return current LED state
+    Led(uint pinNumber);       
+    void on();                 
+    void off();                
+    void toggle();             
+    void setState(bool s);     
+    bool isOn() const;         
 };
 
-#endif // LED_H
+#endif

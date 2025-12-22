@@ -12,4 +12,4 @@ void oled_display_text(char *line1, char *line2, char *line3, char *line4);
 }
 #endif
 
-#endif // SSD1306_I2C_H
+#endif

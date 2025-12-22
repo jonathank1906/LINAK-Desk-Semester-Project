@@ -3,20 +3,6 @@
 
 #include <stdio.h>
 
-// Enable debug prints by uncommenting the desired line below
-#define DEBUG_INFO_Exercise_6A
-//#define DEBUG_INFO_Led
-#define DEBUG_INFO_MyApp
-//#define DEBUG_INFO_PushButton
-
-#ifdef DEBUG_INFO_Exercise_6A
-  // All debug prints for Exercise_6A come out in the same format
-  #define C_Exercise_6A(msg) printf("                                                      Dbg-Exercise_6A: %s\n", msg)
-#else
-  // If DEBUG_INFO_Exercise_6A is not defined, C_Exercise_6A becomes an empty macro
-  #define C_Exercise_6A(msg)
-#endif
-
 #ifdef DEBUG_INFO_Led
   // All debug prints for Led come out in the same format
   #define C_Led(msg) printf("                                                      Dbg-Led: %s\n", msg)

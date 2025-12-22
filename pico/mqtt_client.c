@@ -74,10 +74,8 @@ typedef struct
 #define WARN_printf printf
 #endif
 
-// keep alive in seconds
 #define MQTT_KEEP_ALIVE_S 60
 
-// qos passed to mqtt_subscribe
 #define MQTT_SUBSCRIBE_QOS 1
 #define MQTT_PUBLISH_QOS 1
 #define MQTT_PUBLISH_RETAIN 0
@@ -86,12 +84,10 @@ typedef struct
 #define MQTT_DEVICE_NAME "pico"
 #endif
 
-// Set to 1 to add the client name to topics, to support multiple devices using the same server
 #ifndef MQTT_UNIQUE_TOPIC
 #define MQTT_UNIQUE_TOPIC 1
 #endif
 
-// Global state
 static MQTT_CLIENT_DATA_T g_state;
 extern PIO ws2812_pio;
 extern uint ws2812_sm;
@@ -99,11 +95,10 @@ extern uint ws2812_offset;
 extern LedMode current_led_mode;
 extern BuzzerMode current_buzzer_mode;
 
-// Desk name and ID - learned from MQTT messages
 extern char desk_display_name[32];
 extern void set_desk_name(const char *name);
 static bool desk_name_initialized = false;
-static int desk_id = 0;  // Learned dynamically
+static int desk_id = 0; 
 static bool desk_id_initialized = false;
 
 
@@ -237,8 +232,6 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
     printf("DEBUG: MQTT payload: %s\n", state->data);
     printf("DEBUG: basic_topic = '%s'\n", basic_topic);
     
-    // Extract desk_id FIRST (if not already initialized)
- 
     char *desk_id_start = strstr(state->data, "\"desk_id\"");
     if (desk_id_start)
     {
@@ -452,7 +445,6 @@ static void mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection
 
         sub_unsub_topics(state, true);
 
-        // Subscribe to wildcard to receive messages for any desk
         const char *desk_display_topic = "/desk/+/display";
         printf("DEBUG: Subscribing to wildcard topic: %s\n", desk_display_topic);
         mqtt_sub_unsub(state->mqtt_client_inst, desk_display_topic, MQTT_SUBSCRIBE_QOS, 
@@ -530,7 +522,7 @@ static void dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg)
 
 void mqtt_init(void)
 {
-    sleep_ms(2000); // Wait for USB serial
+    sleep_ms(2000);
 
     INFO_printf("\n\n=================================\n");
     INFO_printf("  Pico W MQTT Client (Local)\n");
@@ -543,7 +535,6 @@ void mqtt_init(void)
         panic("Failed to initialize CYW43");
     }
 
-    // Connect to WiFi FIRST
     INFO_printf("\nConnecting to WiFi: %s\n", WIFI_SSID);
     cyw43_arch_enable_sta_mode();
 
@@ -564,7 +555,6 @@ void mqtt_init(void)
     
     INFO_printf("WiFi MAC Address: %s\n", mac_address_buf);
 
-    // Configure MQTT client info using MAC as client ID
     g_state.mqtt_client_info.client_id = mac_address_buf;
     g_state.mqtt_client_info.keep_alive = MQTT_KEEP_ALIVE_S;
 
@@ -578,7 +568,6 @@ void mqtt_init(void)
     INFO_printf("Auth: Anonymous (no credentials)\n");
 #endif
 
-    // DNS lookup for MQTT server
     INFO_printf("\nResolving MQTT server: %s\n", MQTT_SERVER);
     cyw43_arch_lwip_begin();
     int err = dns_gethostbyname(MQTT_SERVER, &g_state.mqtt_server_address, dns_found, &g_state);

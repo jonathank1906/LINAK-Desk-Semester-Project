@@ -14,21 +14,11 @@
 #include "ssd1306_font.h"
 #include "ssd1306_i2c.h"
 
-/* Simplified SSD1306 OLED display driver - TEXT ONLY
-   
-   Connections on Raspberry Pi Pico board:
-   GPIO 4 (pin 6) -> SDA on display
-   GPIO 5 (pin 7) -> SCL on display
-   3.3v (pin 36) -> VCC on display
-   GND (pin 38)  -> GND on display
-*/
-
 #define SSD1306_HEIGHT              32
 #define SSD1306_WIDTH               128
 #define SSD1306_I2C_ADDR            _u(0x3C)
 #define SSD1306_I2C_CLK             400
 
-// SSD1306 Commands
 #define SSD1306_SET_MEM_MODE        _u(0x20)
 #define SSD1306_SET_COL_ADDR        _u(0x21)
 #define SSD1306_SET_PAGE_ADDR       _u(0x22)
@@ -59,7 +49,6 @@ struct render_area {
     int buflen;
 };
 
-// Global buffer and render area for easy access
 static uint8_t display_buf[SSD1306_BUF_LEN];
 static struct render_area frame_area;
 
@@ -89,17 +78,17 @@ void SSD1306_send_buf(uint8_t buf[], int buflen) {
 
 void SSD1306_init_display() {
     uint8_t cmds[] = {
-        SSD1306_SET_DISP,               // Display off
-        SSD1306_SET_MEM_MODE,           // Set memory mode
-        0x00,                           // Horizontal addressing mode
-        SSD1306_SET_DISP_START_LINE,    // Set display start line to 0
-        SSD1306_SET_SEG_REMAP | 0x01,   // Set segment re-map
-        SSD1306_SET_MUX_RATIO,          // Set multiplex ratio
+        SSD1306_SET_DISP,               
+        SSD1306_SET_MEM_MODE,           
+        0x00,                           
+        SSD1306_SET_DISP_START_LINE,    
+        SSD1306_SET_SEG_REMAP | 0x01,   
+        SSD1306_SET_MUX_RATIO,          
         SSD1306_HEIGHT - 1,
-        SSD1306_SET_COM_OUT_DIR | 0x08, // Set COM output scan direction
-        SSD1306_SET_DISP_OFFSET,        // Set display offset
-        0x00,                           // No offset
-        SSD1306_SET_COM_PIN_CFG,        // Set COM pins hardware configuration
+        SSD1306_SET_COM_OUT_DIR | 0x08, 
+        SSD1306_SET_DISP_OFFSET,        
+        0x00,                           
+        SSD1306_SET_COM_PIN_CFG,        
 #if ((SSD1306_WIDTH == 128) && (SSD1306_HEIGHT == 32))
         0x02,
 #elif ((SSD1306_WIDTH == 128) && (SSD1306_HEIGHT == 64))
@@ -107,19 +96,19 @@ void SSD1306_init_display() {
 #else
         0x02,
 #endif
-        SSD1306_SET_DISP_CLK_DIV,       // Set display clock divide ratio
+        SSD1306_SET_DISP_CLK_DIV,       
         0x80,
-        SSD1306_SET_PRECHARGE,          // Set pre-charge period
+        SSD1306_SET_PRECHARGE,          
         0xF1,
-        SSD1306_SET_VCOM_DESEL,         // Set VCOMH deselect level
+        SSD1306_SET_VCOM_DESEL,         
         0x30,
-        SSD1306_SET_CONTRAST,           // Set contrast control
+        SSD1306_SET_CONTRAST,           
         0xFF,
-        SSD1306_SET_ENTIRE_ON,          // Set entire display on/off
-        SSD1306_SET_NORM_DISP,          // Set normal/inverse display
-        SSD1306_SET_CHARGE_PUMP,        // Set charge pump
-        0x14,                           // Enable charge pump
-        SSD1306_SET_DISP | 0x01,        // Display on
+        SSD1306_SET_ENTIRE_ON,          
+        SSD1306_SET_NORM_DISP,          
+        SSD1306_SET_CHARGE_PUMP,        
+        0x14,                           
+        SSD1306_SET_DISP | 0x01,        
     };
     SSD1306_send_cmd_list(cmds, count_of(cmds));
 }
@@ -181,31 +170,26 @@ void UpdateDisplay() {
 
 #endif
 
-// Changed from main() to oled_init() - call this once at startup
 void oled_init() {
 #if !defined(i2c_default) || !defined(PICO_DEFAULT_I2C_SDA_PIN) || !defined(PICO_DEFAULT_I2C_SCL_PIN)
     puts("Default I2C pins were not defined");
 #else
     printf("DEBUG: Initializing SSD1306 OLED...\n");
 
-    // Initialize I2C
     i2c_init(i2c_default, SSD1306_I2C_CLK * 1000);
     gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
     gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
     gpio_pull_up(PICO_DEFAULT_I2C_SDA_PIN);
     gpio_pull_up(PICO_DEFAULT_I2C_SCL_PIN);
 
-    // Initialize display
     SSD1306_init_display();
 
-    // Setup render area for full screen
     frame_area.start_col = 0;
     frame_area.end_col = SSD1306_WIDTH - 1;
     frame_area.start_page = 0;
     frame_area.end_page = SSD1306_NUM_PAGES - 1;
     calc_render_area_buflen(&frame_area);
 
-    // Clear display
     ClearDisplay(display_buf);
     UpdateDisplay();
 
@@ -213,7 +197,6 @@ void oled_init() {
 #endif
 }
 
-// Helper function to display text on the OLED
 void oled_display_text(char *line1, char *line2, char *line3, char *line4) {
     printf("DEBUG: oled_display_text called\n");
     printf("DEBUG: line1: %s\n", line1 ? line1 : "(null)");
